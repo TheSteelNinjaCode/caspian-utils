@@ -27,6 +27,11 @@ Start with these rules:
 - Use `layout.html` to wrap child routes.
 - Use `layout.py` when a layout needs async data before rendering.
 
+Framework internals note:
+
+- Caspian's layout and route-resolution internals live in `.venv/Lib/site-packages/casp/layout.py`.
+- Treat that file as framework code. Read it when the task is about routing internals, layout resolution, or metadata behavior inside Caspian itself.
+
 See [metadata.md](./metadata.md) when a page or layout needs SEO fields.
 
 ## Next.js App Router Mapping
@@ -214,6 +219,7 @@ If an AI agent is choosing where to add or update route code, apply these rules 
 - Use `[segment]` for single dynamic parameters.
 - Use `[...segment]` for catch-all route matching.
 - Use `(group)` folders for organization when the folder should not appear in the URL.
+- Use `.venv/Lib/site-packages/casp/layout.py` only when the task is about Caspian core routing, layout, or metadata internals.
 - If you know the Next.js App Router, follow the same routing mental model but generate Caspian file names instead of React files.
 
 Check [project-structure.md](./project-structure.md) when you need the full Caspian directory map.

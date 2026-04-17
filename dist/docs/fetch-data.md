@@ -60,6 +60,11 @@ Notes:
 
 Use RPC when the browser needs to call Python after the initial page load.
 
+Framework internals note:
+
+- The `@rpc()` decorator and Caspian RPC bridge internals live in `.venv/Lib/site-packages/casp/rpc.py`.
+- Treat that file as framework code. Read it when you need to understand or debug Caspian's RPC behavior, not when you are adding normal app-level actions.
+
 Define a server action with `@rpc()`:
 
 ```python
@@ -223,4 +228,5 @@ If an AI agent is choosing how to load data in Caspian, apply these rules first.
 - Use `onStream` for streamed responses and `onUploadProgress` for upload-aware client calls.
 - Add `require_auth`, `allowed_roles`, and `limits` to sensitive RPC actions.
 - Keep reusable database clients and service wrappers in `src/lib/`.
+- Use `.venv/Lib/site-packages/casp/rpc.py` only when the task is about Caspian core RPC internals or framework debugging.
 - Check [routing.md](./routing.md) before adding new route files and [pulsepoint.md](./pulsepoint.md) before generating raw client runtime code.
