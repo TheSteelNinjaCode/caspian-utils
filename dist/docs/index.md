@@ -34,6 +34,7 @@ The packaged Caspian docs distributed by the framework live here:
 
 - `installation.md` - First-time setup flow for creating a new Caspian application
 - `commands.md` - Main Caspian CLI workflows for project creation, generation, updates, and config-aware maintenance
+- `database.md` - Prisma ORM setup, generated async Python client usage, and the shared `src/lib/prisma/` imports
 - `pulsepoint.md` - Default reactive frontend runtime contract for component scripts, state, effects, directives, and client-side behaviors
 - `fetch-data.md` - Initial server-side data loading and browser-triggered RPC flows with `pp.rpc()`, streaming, uploads, and auth-aware actions
 - `validation.md` - Input validation and sanitization with `Validate`, `Rule`, direct field checks, and multi-rule workflows for routes and RPC actions
@@ -48,7 +49,7 @@ If an AI tool needs Caspian project documentation, start with this directory and
 Preferred lookup order:
 
 1. Read `dist/docs/index.md` to discover available local docs.
-2. Read `pulsepoint.md` for reactive frontend work, `fetch-data.md` for data flows, and `validation.md` for input boundaries.
+2. Read `database.md` for Prisma setup and ORM usage, `pulsepoint.md` for reactive frontend work, `fetch-data.md` for data flows, and `validation.md` for input boundaries.
 3. Prefer local docs before generating code, commands, or migration guidance.
 4. Check `node_modules/caspian/dist/docs/` for packaged Caspian docs when local docs need more detail.
 5. Only fall back to upstream documentation when local and packaged markdown do not cover the topic.
