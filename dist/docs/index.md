@@ -15,9 +15,13 @@ This directory contains the local Caspian documentation set for quick reference 
 
 ## Docs Location
 
-All documentation files live in this folder:
+The local AI-aware docs for this workspace live here:
 
 - `dist/docs/`
+
+The packaged Caspian docs distributed by the framework live here:
+
+- `node_modules/caspian/dist/docs/`
 
 ## Available Documents
 
@@ -33,7 +37,8 @@ Preferred lookup order:
 1. Read `dist/docs/index.md` to discover available local docs.
 2. Read the specific page in `dist/docs/` that matches the topic.
 3. Prefer local docs before generating code, commands, or migration guidance.
-4. Only fall back to upstream documentation when the local markdown does not cover the topic.
+4. Check `node_modules/caspian/dist/docs/` for packaged Caspian docs when local docs need more detail.
+5. Only fall back to upstream documentation when local and packaged markdown do not cover the topic.
 
 ## Maintenance
 
