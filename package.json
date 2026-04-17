@@ -1,0 +1,16 @@
+{
+  "name": "caspian",
+  "version": "0.0.1",
+  "description": "Caspian tooling",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "caspian",
+    "docs"
+  ],
+  "author": "Jefferson Abraham Omier <thesteelninjacode@gmail.com>",
+  "license": "MTI",
+  "type": "module"
+}

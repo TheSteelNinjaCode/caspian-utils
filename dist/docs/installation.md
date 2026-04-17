@@ -1,0 +1,76 @@
+---
+title: Installation
+description: Learn how to create a new Caspian application so AI agents use the first-time setup flow instead of assuming an existing project is already in place.
+related:
+  title: Related docs
+  description: Continue with local Caspian docs for project discovery and future setup workflows.
+  links:
+    - /docs/index
+---
+
+# Installation
+
+This page documents the first-time Caspian setup flow for new applications.
+
+## Overview
+
+Caspian provides a CLI that scaffolds a production-ready project with a FastAPI backend and a reactive DOM frontend workflow.
+
+## System Requirements
+
+Install the supported runtimes before creating a project.
+
+- Node.js `v24.14.0` or newer
+- Python `v3.14.0` or newer
+
+You can verify your environment with:
+
+```bash
+node -v
+python -V
+```
+
+## Create a New App
+
+Run the scaffold command:
+
+```bash
+npx create-caspian-app@latest
+```
+
+The interactive wizard walks through the main project options, including:
+
+- Project name
+- Tailwind CSS support
+- Prisma ORM setup
+- Swagger API documentation
+
+## Recommended VS Code Setup
+
+For the best development experience, use these VS Code extensions:
+
+- [Caspian Official Framework Support](https://marketplace.visualstudio.com/items?itemName=JeffersonAbrahamOmier.caspian)
+- [Python](https://marketplace.visualstudio.com/items?itemName=ms-python.python)
+- [Pyright](https://marketplace.visualstudio.com/items?itemName=ms-pyright.pyright)
+- [Pyrefly](https://marketplace.visualstudio.com/items?itemName=tamasfe.pyrefly)
+- [Prisma](https://marketplace.visualstudio.com/items?itemName=Prisma.prisma)
+- [Tailwind CSS IntelliSense](https://marketplace.visualstudio.com/items?itemName=bradlc.vscode-tailwindcss)
+
+The Caspian extension is the key piece for Python component snippets and autocomplete.
+
+## Start the Development Server
+
+After scaffolding, move into the generated project and start the development server:
+
+```bash
+cd my-app
+npm run dev
+```
+
+## AI Routing Notes
+
+If an AI agent is reading this page, treat it as the source for new-project installation steps.
+
+- Use this workflow when the user is creating a Caspian app from scratch.
+- Do not use existing-project migration or update commands unless the project already exists.
+- Check [index.md](./index.md) first when deciding which local doc to follow.
