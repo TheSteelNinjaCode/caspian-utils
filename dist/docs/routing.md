@@ -3,9 +3,10 @@ title: Routing
 description: Understand Caspian's Next.js App Router-style file-based routing, including src/app conventions, index files, dynamic segments, route groups, and nested layouts.
 related:
   title: Related docs
-  description: Read the structure guide first, then use the metadata guide for SEO fields and the PulsePoint runtime guide for interactive route templates.
+  description: Read the structure guide first, then use the metadata guide for SEO fields, the cache guide for route-level HTML reuse, and the PulsePoint runtime guide for interactive route templates.
   links:
     - /docs/project-structure
+    - /docs/cache
     - /docs/metadata
     - /docs/pulsepoint
     - /docs/index
@@ -26,6 +27,8 @@ Start with these rules:
 - Use `index.py` when the route needs metadata or async server-side logic.
 - Use `layout.html` to wrap child routes.
 - Use `layout.py` when a layout needs async data before rendering.
+
+Use [cache.md](./cache.md) when an `index.py` route also needs declarative page caching via `Cache(...)`.
 
 Framework internals note:
 
@@ -91,6 +94,8 @@ async def page():
 Use this pattern when the route needs to fetch data, compute metadata, or do other non-blocking server work before rendering.
 
 For static and dynamic metadata rules, inheritance order, and social card fields, see [metadata.md](./metadata.md).
+
+If the rendered HTML for that route is public and safe to reuse, declare route-level caching in the same file with `Cache(...)`. See [cache.md](./cache.md).
 
 ## Dynamic Routes
 
@@ -214,6 +219,7 @@ If an AI agent is choosing where to add or update route code, apply these rules 
 - Treat `src/app/` as the routing source of truth.
 - Use folder names to model URL segments.
 - Use `index.html` for route templates and `index.py` for route-level async logic.
+- Use [cache.md](./cache.md) when an `index.py` route should opt into page-level HTML caching.
 - Use `layout.html` for shared wrappers and `layout.py` for layout-level async data.
 - Use [metadata.md](./metadata.md) when a route or layout needs SEO fields.
 - Use `[segment]` for single dynamic parameters.

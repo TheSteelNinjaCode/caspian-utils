@@ -3,9 +3,10 @@ title: Fetch Data
 description: Fetch first-render and interactive data in Caspian with async route functions, `@rpc()` actions, `pp.rpc()`, streaming, and uploads, with RPC as the default browser-to-server data path.
 related:
   title: Related docs
-  description: Use the routing guide to place route logic correctly, then use the PulsePoint runtime guide for client-side `pp.rpc()` details.
+  description: Use the routing guide to place route logic correctly, then use the cache guide for reusable first-render HTML and the PulsePoint runtime guide for client-side `pp.rpc()` details.
   links:
     - /docs/database
+    - /docs/cache
     - /docs/routing
     - /docs/pulsepoint
     - /docs/project-structure
@@ -58,6 +59,8 @@ Use this pattern for:
 - SEO-sensitive page content
 - The first render of lists, dashboards, and detail views
 - Data that layouts or templates need before the browser runs any client code
+
+If a route's first-render HTML is public and stable enough to reuse across requests, pair this pattern with [cache.md](./cache.md) for route-level page caching and invalidation guidance.
 
 Notes:
 
@@ -230,6 +233,8 @@ A common pattern is:
 - Render that data into the HTML template
 - Use RPC for subsequent filters, mutations, refreshes, streaming, or uploads
 
+If the first-render HTML is expensive to produce and safe to share between visitors, add route-level caching with [cache.md](./cache.md) and invalidate affected URIs after successful mutations.
+
 ## AI Routing Notes
 
 If an AI agent is choosing how to load data in Caspian, apply these rules first.
@@ -240,6 +245,7 @@ If an AI agent is choosing how to load data in Caspian, apply these rules first.
 - Use `@rpc()` for backend functions that should be callable from the browser.
 - Use `pp.rpc()` for client-side calls; do not prefer older `pp.fetchFunction()` wording.
 - Prefer route-render data plus RPC over inventing parallel REST endpoints for normal Caspian page interactions.
+- Use [cache.md](./cache.md) when a route's initial HTML should be reused across requests and invalidated after writes.
 - Use `onStream` for streamed responses and `onUploadProgress` for upload-aware client calls.
 - Add `require_auth`, `allowed_roles`, and `limits` to sensitive RPC actions.
 - Keep reusable database clients and service wrappers in `src/lib/`.
