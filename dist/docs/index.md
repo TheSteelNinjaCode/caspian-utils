@@ -38,6 +38,7 @@ The packaged Caspian docs distributed by the framework live here:
 - `auth.md` - Session-backed authentication with `casp.auth`, centralized `auth_config.py`, decorators, RBAC, and OAuth provider helpers
 - `pulsepoint.md` - Default reactive frontend runtime contract for component scripts, state, effects, directives, and client-side behaviors
 - `fetch-data.md` - Initial server-side data loading and browser-triggered RPC flows with `pp.rpc()`, streaming, uploads, and auth-aware actions
+- `state.md` - Request-scoped server state with `StateManager`, session-backed JSON persistence, and listener callbacks for transient flows
 - `cache.md` - Route-level HTML caching with `Cache`, `CacheHandler`, TTL behavior, file-system storage, and invalidation patterns
 - `validation.md` - Input validation and sanitization with `Validate`, `Rule`, direct field checks, and multi-rule workflows for routes and RPC actions
 - `metadata.md` - Static and dynamic metadata, SEO inheritance, and Open Graph or Twitter card tags
@@ -51,7 +52,7 @@ If an AI tool needs Caspian project documentation, start with this directory and
 Preferred lookup order:
 
 1. Read `dist/docs/index.md` to discover available local docs.
-2. Read `database.md` for Prisma setup and ORM usage, `auth.md` for session auth and route protection, `pulsepoint.md` for reactive frontend work, `fetch-data.md` for data flows, `cache.md` for page caching, and `validation.md` for input boundaries.
+2. Read `database.md` for Prisma setup and ORM usage, `auth.md` for session auth and route protection, `pulsepoint.md` for reactive frontend work, `fetch-data.md` for data flows, `state.md` for transient request-scoped state, `cache.md` for page caching, and `validation.md` for input boundaries.
 3. Prefer local docs before generating code, commands, or migration guidance.
 4. Check `node_modules/caspian/dist/docs/` for packaged Caspian docs when local docs need more detail.
 5. Only fall back to upstream documentation when local and packaged markdown do not cover the topic.
