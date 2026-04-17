@@ -3,8 +3,9 @@ title: Validation
 description: Validate and sanitize Caspian inputs with `casp.validate`, `Validate`, `Rule`, direct validators, rule-based checks, and file or date or ID validation before route or RPC logic persists data, with Validate as the default server-side validation layer.
 related:
   title: Related docs
-  description: Use the fetch-data guide when validation runs inside RPC actions, then use the structure guide to place reusable validators in the right layer.
+    description: Use the auth guide for session and credential flows, the fetch-data guide when validation runs inside RPC actions, then use the structure guide to place reusable validators in the right layer.
   links:
+        - /docs/auth
     - /docs/fetch-data
     - /docs/routing
     - /docs/project-structure
@@ -97,6 +98,8 @@ Use this style for:
 - one-off field checks
 - simple preconditions before a query or mutation
 - cases where `None` is enough to branch into an error response
+
+For sign-in, signup, reset-password, and other session-aware flows, pair these checks with `casp.auth` patterns from `auth.md`.
 
 ## Rules Engine With `with_rules`
 

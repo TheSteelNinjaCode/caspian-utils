@@ -316,7 +316,7 @@ from casp.auth import auth, require_auth
 
 @require_auth()
 def page():
-        return auth.sign_out()
+    return auth.sign_out()
 ```
 
 Simple protected dashboard example:
@@ -328,12 +328,113 @@ from casp.layout import render_page
 
 @require_auth()
 def page():
-        return render_page(__file__, {
-                "user": auth.get_payload(),
-        })
+    return render_page(__file__, {
+        "user": auth.get_payload(),
+    })
 ```
 
 For signup flows, use the same route ownership pattern as signin: validate the input, create the user, build a safe payload without password fields, and then call `auth.sign_in(...)` with the redirect target you want.
+
+Signup example:
+
+```python
+from casp.auth import auth, guest_only
+from casp.layout import render_page
+from casp.rpc import rpc
+from casp.validate import Rule, Validate
+from src.lib.prisma import prisma
+from werkzeug.security import generate_password_hash
+
+
+@guest_only()
+def page():
+    return render_page(__file__)
+
+
+@rpc()
+async def do_signup(
+    name: str,
+    email: str,
+    password: str,
+    password_confirmation: str,
+):
+    clean_name = Validate.string(name)
+    clean_email = Validate.email(email)
+    password_check = Validate.with_rules(
+        password,
+        [Rule.REQUIRED, Rule.min(8), Rule.confirmed()],
+        confirmation_value=password_confirmation,
+    )
+
+    if clean_name is None or len(clean_name) < 2:
+        return {"error": "Name must be at least 2 characters."}
+
+    if clean_email is None:
+        return {"error": "Invalid email address."}
+
+    if password_check is not True:
+        return {"error": password_check}
+
+    existing_user = await prisma.user.find_unique(
+        where={"email": clean_email},
+    )
+    if existing_user:
+        return {"error": "An account with that email already exists."}
+
+    user = await prisma.user.create(
+        data={
+            "name": clean_name,
+            "email": clean_email,
+            "password": generate_password_hash(password),
+        }
+    )
+
+    user_data = user.to_dict(omit={"password": True})
+    return auth.sign_in(user_data, redirect_to=True)
+```
+
+Adjust the `create(...)` payload to match your actual Prisma schema. The important pattern is: validate first, hash the password before storage, omit sensitive fields from the session payload, and let `auth.sign_in(...)` create the session.
+
+## Account Lifecycle Patterns
+
+The installed `casp.auth` implementation covers session creation, session destruction, route protection, RBAC checks, CSRF token seeding, and Google or GitHub OAuth callbacks. It does not implement full account lifecycle flows such as:
+
+- password reset token issuance and redemption
+- email verification tokens
+- forced signout across all active devices
+- remember-device or multi-factor workflows
+
+Build those flows in app code under `src/app/` and `src/lib/auth/`.
+
+Recommended route placement:
+
+```text
+src/
+  app/
+    (auth)/
+      forgot-password/
+        index.py
+        index.html
+      reset-password/
+        [token]/
+          index.py
+          index.html
+      verify-email/
+        [token]/
+          index.py
+          index.html
+```
+
+Recommended workflow:
+
+- validate the incoming email, password, or token with `Validate` and `Rule`
+- create a short-lived token in your database or a dedicated token table
+- send the token link with your app's mailer or background job flow
+- verify token expiry and ownership before updating the user record
+- call `auth.sign_in(...)` only after the final credential or verification state is correct
+- call `auth.sign_out()` when a reset or security event should invalidate the current session
+
+Keep token generation, hashing helpers, and mail-sending wrappers in `src/lib/auth/` when multiple routes reuse them.
 
 ## Role-Based Access
 
@@ -432,6 +533,7 @@ Prefer `AuthSettings`, `configure_auth(...)`, and `auth.settings` in new code.
 - Expired or malformed payloads are removed during `auth.is_authenticated()` checks.
 - `auth.get_payload()` returns `None` for missing payloads, a dict for dict payloads, and `{"value": ...}` for non-dict payloads.
 - OAuth callback helpers return `None` on failure, so calling routes should be prepared for a normal page render or explicit error state when provider login fails.
+- Password reset, email verification, and other account-recovery workflows are application responsibilities layered on top of `casp.auth`, not built-in auth runtime features.
 - Route lists and RBAC maps are exact-path checks, not wildcard or prefix rules.
 
 ## Recommended Usage Pattern
