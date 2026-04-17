@@ -1,13 +1,14 @@
 ---
 title: Caspian Docs
-description: Caspian documentation with AI-aware routing to the right local docs before framework-specific code generation or project setup changes, with PulsePoint, RPC, and Validate as the default app stack.
+description: Caspian documentation with AI-aware routing to the right local docs before framework-specific code generation or project setup changes, with components, PulsePoint, RPC, and Validate as the default app stack.
 related:
   title: Next Steps
-  description: Start with installation, review the CLI commands, then use the structure guide to place Caspian files correctly.
+  description: Start with installation, review the CLI commands, then use the structure and component guides to place Caspian files correctly.
   links:
     - /docs/installation
     - /docs/commands
     - /docs/project-structure
+    - /docs/components
 ---
 
 This directory contains the local Caspian documentation set for quick reference and AI-aware routing.
@@ -36,6 +37,7 @@ The packaged Caspian docs distributed by the current toolchain also live here:
 - `commands.md` - Main Caspian CLI workflows for project creation, generation, updates, and config-aware maintenance
 - `database.md` - Prisma schema, migration, seed, and client-generation workflow for the current workspace, plus Python-side helper caveats
 - `auth.md` - Session-backed authentication with `casp.auth`, centralized `auth_config.py`, decorators, RBAC, and OAuth provider helpers
+- `components.md` - Create reusable Python components, template-backed UI, JSX-style imports, and single-root component templates
 - `pulsepoint.md` - Default reactive frontend runtime contract for component scripts, state, effects, directives, and client-side behaviors
 - `fetch-data.md` - Initial server-side data loading and browser-triggered RPC flows with `pp.rpc()`, streaming, uploads, and auth-aware actions
 - `state.md` - Request-scoped server state with `StateManager`, session-backed JSON persistence, and listener callbacks for transient flows
@@ -52,7 +54,7 @@ If an AI tool needs Caspian project documentation, start with this directory and
 Preferred lookup order:
 
 1. Read `node_modules/caspian-utils/dist/docs/index.md` to discover available local docs.
-2. Read `database.md` for Prisma setup and ORM usage, `auth.md` for session auth and route protection, `pulsepoint.md` for reactive frontend work, `fetch-data.md` for data flows, `state.md` for transient request-scoped state, `cache.md` for page caching, and `validation.md` for input boundaries.
+2. Read `database.md` for Prisma setup and ORM usage, `auth.md` for session auth and route protection, `components.md` for reusable UI authoring, `pulsepoint.md` for browser-side reactive runtime behavior, `fetch-data.md` for data flows, `state.md` for transient request-scoped state, `cache.md` for page caching, and `validation.md` for input boundaries.
 3. Prefer local docs before generating code, commands, or migration guidance.
 4. Check `node_modules/caspian-utils/dist/docs/` for packaged Caspian docs when local docs need more detail.
 5. Only fall back to upstream documentation when local and packaged markdown do not cover the topic.

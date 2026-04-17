@@ -3,8 +3,9 @@ title: PulsePoint Runtime Guide
 description: Learn how AI agents should use PulsePoint as the default reactive frontend contract in Caspian, including the bundled runtime loaded from `public/js/main.js` and implemented in `public/js/pp-reactive-v2.js`, component script rules, and supported directives.
 related:
   title: Related docs
-  description: Read the routing, data-fetching, and project-structure docs alongside the PulsePoint runtime contract.
+  description: Read the components, routing, data-fetching, and project-structure docs alongside the PulsePoint runtime contract.
   links:
+    - /docs/components
     - /docs/routing
     - /docs/fetch-data
     - /docs/project-structure
@@ -16,6 +17,8 @@ related:
 This file documents the PulsePoint runtime that is currently shipped in `public/js/pp-reactive-v2.js` and loaded by `public/js/main.js`. Treat it as the working contract for AI-generated code.
 
 If a task involves `pp.state`, `pp.effect`, `pp.layoutEffect`, `pp-ref`, `pp-spread`, `pp-for`, context, portals, SPA navigation, or component boundary behavior, read this page first and keep generated code aligned with the runtime implemented in this repo.
+
+Use `components.md` for authoring Python `@component` files and same-name HTML templates. Use this page for the browser-side `pp-component` contract and `script[type="text/pp"]` behavior after those templates are rendered.
 
 PulsePoint is the default reactive frontend layer for Caspian.
 
@@ -34,6 +37,7 @@ When a Caspian page needs reactive browser behavior, use PulsePoint.
 - Source authoring under `src/` may use convenience syntax that is transformed before it reaches the browser.
 - This page describes the bundled browser runtime shipped in `public/js/pp-reactive-v2.js`.
 - When source-layer examples conflict with the bundled runtime, follow the bundled runtime.
+- In authored route and component templates, do not add `pp-component` manually. The Python side injects it onto the template root during render.
 - In a `pp-component` root, component logic must live in `<script>`, not plain `<script>`.
 
 ## Runtime shape
@@ -45,6 +49,7 @@ A component root is any element with `pp-component`.
 Important:
 
 - `pp-component` is the instance id used for the component registry, saved state, cached template, parent tracking, and instance lookup.
+- In normal Caspian authoring, `pp-component` arrives from the Python render pipeline on route, layout, and component roots rather than being handwritten in source templates.
 - Reusing the same `pp-component` value for multiple live roots will destroy the previous registered instance and replace it with the new one.
 - If a root is manually constructed with an empty `pp-component`, the runtime will assign an anonymous id. AI-generated markup should still use stable unique ids.
 - `pp.mount()` bootstraps every `[pp-component]` in the document, so do not manually instantiate `Component` in authored app code.
@@ -55,6 +60,7 @@ Important:
 - The runtime only treats `script` as component logic.
 - The script lookup walks the current root and skips nested `pp-component` boundaries, so a parent does not consume a child component's script.
 - If multiple matching scripts exist in the same root, the first matching owned script wins. Generate one script per root.
+- Component HTML templates must have exactly one top-level lowercase HTML root because the compiler injects `pp-component` onto that root during render.
 - A scriptless component root still mounts and can receive props, refs, events, and nested children, but it has no local runtime scope beyond its props.
 - Component scripts are plain JavaScript executed with `new Function(...)`. Do not use `import`, `export`, or top-level `await` inside them.
 - The runtime auto-returns supported top-level bindings from the script. Do not rely on manual `return { ... }` objects.
@@ -92,6 +98,8 @@ Example:
   </script>
 </div>
 ```
+
+That example shows runtime HTML after mountable roots already exist. In authored Caspian templates, you normally write the root without `pp-component` and let the Python renderer inject it before the browser runtime sees the HTML.
 
 ## Hooks and runtime API
 

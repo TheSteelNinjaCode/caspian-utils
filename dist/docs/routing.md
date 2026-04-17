@@ -1,11 +1,12 @@
 ---
 title: Routing
-description: Understand Caspian's Next.js App Router-style file-based routing, including src/app conventions, index files, dynamic segments, route groups, and nested layouts.
+description: Understand Caspian's Next.js App Router-style file-based routing, including src/app conventions, index files, dynamic segments, route groups, nested layouts, and component-friendly route templates.
 related:
   title: Related docs
-  description: Read the structure guide first, then use the metadata guide for SEO fields, the cache guide for route-level HTML reuse, and the PulsePoint runtime guide for interactive route templates.
+  description: Read the structure guide first, then use the components guide for reusable UI, the metadata guide for SEO fields, the cache guide for route-level HTML reuse, and the PulsePoint runtime guide for interactive route templates.
   links:
     - /docs/project-structure
+    - /docs/components
     - /docs/cache
     - /docs/metadata
     - /docs/pulsepoint
@@ -72,6 +73,42 @@ Examples:
 ### `index.html`
 
 Use `index.html` for the route template. This is the route's view layer.
+
+Route templates can import reusable Python components with `<!-- @import ... -->` comments and render them with JSX-style tags such as `<Button />`. Use [components.md](./components.md) for the component authoring rules.
+
+Do not manually add `pp-component="..."` to the route root. The Python render pipeline injects that attribute onto the route's single top-level lowercase HTML element.
+
+That means route templates follow the same single-root discipline as component templates: one root element, no sibling roots, and PulsePoint scripts kept inside that root when needed.
+
+Example authored route template:
+
+```html
+<!-- @import StatsCard from "../components" -->
+
+<section class="dashboard-shell">
+  <StatsCard title="Users" value="42" />
+
+  <script type="text/pp">
+    const [filter, setFilter] = pp.state("all");
+  </script>
+</section>
+```
+
+Rendered shape at runtime:
+
+```html
+<section pp-component="page_a1b2c3d4" class="dashboard-shell">
+  <div pp-component="statscard_e5f6g7h8" title="Users" value="42">
+    ...
+  </div>
+
+  <script type="text/pp">
+    const [filter, setFilter] = pp.state("all");
+  </script>
+</section>
+```
+
+Write the first form. Caspian produces the second form.
 
 ### `index.py`
 
