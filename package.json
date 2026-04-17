@@ -1,5 +1,5 @@
 {
-  "name": "caspian",
+  "name": "caspian-utils",
   "version": "0.0.1",
   "description": "Caspian tooling",
   "main": "index.js",
