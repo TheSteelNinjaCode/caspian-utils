@@ -28,6 +28,7 @@ The packaged Caspian docs distributed by the framework live here:
 
 - `installation.md` - First-time setup flow for creating a new Caspian application
 - `commands.md` - Main Caspian CLI workflows for project creation, generation, updates, and config-aware maintenance
+- `fetch-data.md` - Initial server-side data loading and browser-triggered RPC flows with `pp.rpc()`, streaming, uploads, and auth-aware actions
 - `metadata.md` - Static and dynamic metadata, SEO inheritance, and Open Graph or Twitter card tags
 - `routing.md` - Next.js App Router-style file-based routing with `src/app`, dynamic segments, route groups, and nested layouts
 - `project-structure.md` - Default Caspian layout and where routes, templates, shared code, and database files belong

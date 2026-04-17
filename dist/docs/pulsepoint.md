@@ -7,7 +7,7 @@ related:
   links:
     - /docs/pages-and-layouts
     - /docs/import-component
-    - /docs/fetch-function
+    - /docs/fetch-data
     - /docs/typescript
 ---
 
