@@ -3,9 +3,10 @@ title: Caspian Docs
 description: Caspian documentation with AI-aware routing to the right local docs before framework-specific code generation or project setup changes.
 related:
   title: Next Steps
-  description: Start with installation and then continue through the local Caspian docs as more pages are added.
+  description: Start with installation, then use the structure guide to place Caspian files correctly.
   links:
     - /docs/installation
+    - /docs/project-structure
 ---
 
 # Caspian Docs
@@ -21,6 +22,7 @@ All documentation files live in this folder:
 ## Available Documents
 
 - `installation.md` - First-time setup flow for creating a new Caspian application
+- `project-structure.md` - Default Caspian layout and where routes, templates, shared code, and database files belong
 
 ## AI Awareness Notes
 
