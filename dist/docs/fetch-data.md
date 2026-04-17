@@ -3,9 +3,10 @@ title: Fetch Data
 description: Fetch first-render and interactive data in Caspian with async route functions, `@rpc()` actions, `pp.rpc()`, streaming, and uploads, with RPC as the default browser-to-server data path.
 related:
   title: Related docs
-  description: Use the routing guide to place route logic correctly, then use the auth guide for protected actions, the cache guide for reusable first-render HTML, and the PulsePoint runtime guide for client-side `pp.rpc()` details.
+  description: Use the routing guide to place route logic correctly, then use the auth guide for protected actions, the state guide for transient request-scoped mutation state, the cache guide for reusable first-render HTML, and the PulsePoint runtime guide for client-side `pp.rpc()` details.
   links:
     - /docs/auth
+    - /docs/state
     - /docs/database
     - /docs/cache
     - /docs/routing
@@ -122,6 +123,8 @@ Use RPC for:
 - Any browser-to-server interaction that should not require a full page navigation
 
 Validate incoming form and mutation payloads before persisting them. See [validation.md](./validation.md).
+
+If an RPC action needs transient request-scoped success or error state beyond its direct return payload, read [state.md](./state.md) and verify the current wire-request lifecycle before depending on persistence across navigations or full-page reloads.
 
 Important:
 
@@ -249,6 +252,7 @@ If an AI agent is choosing how to load data in Caspian, apply these rules first.
 - Use `pp.rpc()` for client-side calls; do not prefer older `pp.fetchFunction()` wording.
 - Prefer route-render data plus RPC over inventing parallel REST endpoints for normal Caspian page interactions.
 - Use [cache.md](./cache.md) when a route's initial HTML should be reused across requests and invalidated after writes.
+- Use [state.md](./state.md) when an RPC mutation needs transient request-scoped success or error state outside the direct response payload.
 - Use `onStream` for streamed responses and `onUploadProgress` for upload-aware client calls.
 - Add `require_auth`, `allowed_roles`, and `limits` to sensitive RPC actions.
 - Keep reusable database clients and service wrappers in `src/lib/`.

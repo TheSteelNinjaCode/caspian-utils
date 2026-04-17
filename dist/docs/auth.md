@@ -3,9 +3,10 @@ title: Authentication
 description: Manage session-backed authentication in Caspian with `casp.auth`, `AuthSettings`, the global `auth` object, centralized `auth_config.py`, page decorators, RPC protection, role-based routes, and optional Google or GitHub OAuth providers.
 related:
   title: Related docs
-  description: Use the fetch-data guide when sign-in happens through RPC, then use validation to guard credentials and routing or project structure to place auth files correctly.
+    description: Use the fetch-data guide when sign-in happens through RPC, then use the state guide for transient auth-adjacent request state, validation to guard credentials, and routing or project structure to place auth files correctly.
   links:
     - /docs/fetch-data
+    - /docs/state
     - /docs/validation
     - /docs/routing
     - /docs/project-structure
@@ -51,6 +52,7 @@ from casp.auth import (
 - Use `auth.sign_in(...)` and `auth.sign_out(...)` instead of setting or clearing session keys directly.
 - Use `@require_auth`, `@require_role`, and `@guest_only` for page access rules.
 - Use `@rpc(require_auth=True, allowed_roles=[...])` for browser-triggered actions that need protection.
+- Use `StateManager` only for transient auth-adjacent request state; keep the authenticated session itself owned by `casp.auth`.
 - Keep secrets and provider credentials in `.env`; keep route visibility, redirects, and RBAC policy in `src/lib/auth/auth_config.py`.
 - Validate login, signup, reset-password, and profile-mutation inputs before hitting the database or external providers.
 
@@ -254,20 +256,22 @@ The pasted `main.py` auth middleware currently behaves like this:
 - applies role-based redirects before generic private-route redirects when `is_role_based=True`
 - redirects unauthenticated private-route requests to `/signin?next=/current/path`
 
+Because `AuthMiddleware` initializes `StateManager` on every request, auth flows can also use [state.md](./state.md) for transient request-scoped success or error state. Keep identity, session lifetime, and authorization decisions in `auth.sign_in(...)`, `auth.sign_out(...)`, and the auth decorators rather than moving them into the state manager.
+
 ## The `auth` Object
 
 The global `auth` singleton owns the session lifecycle.
 
 The current installed methods are:
 
-| Method | Purpose | Current behavior |
-| --- | --- | --- |
-| `auth.sign_in(data, token_validity=None, redirect_to=False)` | Create a session | Stores the payload in the session, sets a CSRF token, and returns either `"ok"` or a `RedirectResponse`. |
-| `auth.sign_out(redirect_to=None)` | Destroy a session | Clears the session and redirects to the explicit target or `default_signout_redirect`. |
-| `auth.is_authenticated()` | Check current auth state | Returns `False` when the payload is missing, malformed, or expired, and clears invalid session data. |
-| `auth.get_payload()` | Read the signed-in payload | Returns the stored dict payload, or wraps non-dict payloads as `{"value": data}`. |
-| `auth.refresh_session()` | Extend expiration | Only updates expiry when `token_auto_refresh=True`. |
-| `auth.check_role(user, allowed_roles)` | Check RBAC access | Reads the configured role field from the payload and compares it to the allowed roles. |
+| Method                                                       | Purpose                    | Current behavior                                                                                         |
+| ------------------------------------------------------------ | -------------------------- | -------------------------------------------------------------------------------------------------------- |
+| `auth.sign_in(data, token_validity=None, redirect_to=False)` | Create a session           | Stores the payload in the session, sets a CSRF token, and returns either `"ok"` or a `RedirectResponse`. |
+| `auth.sign_out(redirect_to=None)`                            | Destroy a session          | Clears the session and redirects to the explicit target or `default_signout_redirect`.                   |
+| `auth.is_authenticated()`                                    | Check current auth state   | Returns `False` when the payload is missing, malformed, or expired, and clears invalid session data.     |
+| `auth.get_payload()`                                         | Read the signed-in payload | Returns the stored dict payload, or wraps non-dict payloads as `{"value": data}`.                        |
+| `auth.refresh_session()`                                     | Extend expiration          | Only updates expiry when `token_auto_refresh=True`.                                                      |
+| `auth.check_role(user, allowed_roles)`                       | Check RBAC access          | Reads the configured role field from the payload and compares it to the allowed roles.                   |
 
 Sign-in example:
 
@@ -675,6 +679,7 @@ If an AI agent is deciding how to handle auth in Caspian, apply these rules firs
 - Use `@require_auth`, `@require_role`, and `@guest_only` for page-level access rules.
 - Use `@rpc(require_auth=True, allowed_roles=[...])` for protected browser-triggered actions.
 - Keep `SessionMiddleware` outermost so auth, CSRF, and RPC handlers can read `request.session`.
+- Use [state.md](./state.md) only for transient auth-adjacent request state, not as the auth session store.
 - Align `SESSION_LIFETIME_HOURS` with `default_token_validity` unless you intentionally want different cookie and auth-payload expiry windows.
 - Prefer exact route strings in `public_routes`, `auth_routes`, `private_routes`, and `role_based_routes`.
 - Keep auth secrets and OAuth provider credentials in `.env`.
