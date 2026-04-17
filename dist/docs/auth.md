@@ -161,17 +161,32 @@ The current installed methods are:
 Sign-in example:
 
 ```python
-from casp.auth import auth
+from casp.auth import auth, guest_only
 from casp.layout import render_page
 from casp.rpc import rpc
+from casp.validate import Rule, Validate
 from src.lib.prisma import prisma
 from werkzeug.security import check_password_hash
 
 
+@guest_only()
+def page():
+    return render_page(__file__)
+
+
 @rpc()
 async def do_login(email: str, password: str, next: str | None = None):
+    clean_email = Validate.email(email)
+    password_check = Validate.with_rules(password, [Rule.REQUIRED, Rule.min(8)])
+
+    if clean_email is None:
+        return {"error": "Invalid email address."}
+
+    if password_check is not True:
+        return {"error": password_check}
+
     user = await prisma.user.find_unique(
-        where={"email": email},
+        where={"email": clean_email},
         include={"userRole": True},
     )
 
@@ -185,10 +200,6 @@ async def do_login(email: str, password: str, next: str | None = None):
     redirect_url = next or auth.settings.default_signin_redirect
 
     return auth.sign_in(user_data, redirect_to=redirect_url)
-
-
-def page():
-    return render_page(__file__)
 ```
 
 Implementation details that matter:
@@ -273,6 +284,56 @@ The current `Auth` implementation also exposes central route checks:
 - `auth.get_required_roles(path)`
 
 These helpers use exact string comparisons against the routes you configured in `AuthSettings`.
+
+## Common Route Workflow
+
+A typical credential-based auth setup often uses this route shape:
+
+```text
+src/
+    app/
+        (auth)/
+            signin/
+                index.py
+                index.html
+            signup/
+                index.py
+                index.html
+        signout/
+            index.py
+        dashboard/
+            index.py
+            index.html
+```
+
+Use `guest_only()` on signin and signup routes, use `auth.sign_in(...)` inside the owning RPC action after validation and credential checks, and protect private destinations with `require_auth()` or central route policy.
+
+Simple signout route example:
+
+```python
+from casp.auth import auth, require_auth
+
+
+@require_auth()
+def page():
+        return auth.sign_out()
+```
+
+Simple protected dashboard example:
+
+```python
+from casp.auth import auth, require_auth
+from casp.layout import render_page
+
+
+@require_auth()
+def page():
+        return render_page(__file__, {
+                "user": auth.get_payload(),
+        })
+```
+
+For signup flows, use the same route ownership pattern as signin: validate the input, create the user, build a safe payload without password fields, and then call `auth.sign_in(...)` with the redirect target you want.
 
 ## Role-Based Access
 

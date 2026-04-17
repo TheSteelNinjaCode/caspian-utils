@@ -169,10 +169,10 @@ If a layout needs async data, add a `layout.py` file next to the HTML layout.
 Example:
 
 ```python
-from casp.auth import get_current_user
+from casp.auth import auth
 
 async def layout(context_data):
-    user = await get_current_user()
+  user = auth.get_payload()
 
     return {
         "user": user,

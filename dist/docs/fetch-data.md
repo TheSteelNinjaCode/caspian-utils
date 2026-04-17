@@ -3,8 +3,9 @@ title: Fetch Data
 description: Fetch first-render and interactive data in Caspian with async route functions, `@rpc()` actions, `pp.rpc()`, streaming, and uploads, with RPC as the default browser-to-server data path.
 related:
   title: Related docs
-  description: Use the routing guide to place route logic correctly, then use the cache guide for reusable first-render HTML and the PulsePoint runtime guide for client-side `pp.rpc()` details.
+  description: Use the routing guide to place route logic correctly, then use the auth guide for protected actions, the cache guide for reusable first-render HTML, and the PulsePoint runtime guide for client-side `pp.rpc()` details.
   links:
+    - /docs/auth
     - /docs/database
     - /docs/cache
     - /docs/routing
@@ -209,6 +210,8 @@ def delete_user(user_id: int):
 ```
 
 Use these options for privileged reads, destructive mutations, and endpoints that could be abused if left unbounded.
+
+Use [auth.md](./auth.md) when the action should also participate in centralized session config, page decorators, guest-only flows, RBAC route policy, or OAuth provider handling.
 
 According to the upstream Caspian RPC docs, actions are private by default until decorated with `@rpc()`, and the framework includes CSRF protection plus origin validation for exposed actions.
 
