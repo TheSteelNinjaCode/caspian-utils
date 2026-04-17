@@ -218,7 +218,7 @@ posts = await prisma.post.find_many(
         "title": {"contains": "Caspian"},
     },
     order_by={
-        "createdAt": "desc",
+        "title": "asc",
     },
 )
 ```
@@ -269,18 +269,18 @@ from casp.validate import Validate
 from src.lib.prisma import prisma
 
 @rpc()
-async def create_todo(title: str):
-    if Validate.with_rules(title, "required|min:3") is not True:
-        raise ValueError("Title must be at least 3 chars")
+async def create_user(email: str, name: str | None = None):
+    if Validate.with_rules(email, "required|email") is not True:
+        raise ValueError("A valid email address is required")
 
-    todo = await prisma.todo.create(
+    user = await prisma.user.create(
         data={
-            "title": title,
-            "completed": False,
+            "email": email,
+            "name": name,
         }
     )
 
-    return todo.to_dict()
+    return user.to_dict()
 ```
 
 Use validation before writes, especially for form payloads and public RPC actions. See `validation.md` for the recommended boundary checks.

@@ -131,7 +131,7 @@ The backend logic for the route. This is where route behavior can load first-ren
 
 The route template. It supports standard HTML, PulsePoint directives, and component imports, and it should be the default place for reactive frontend behavior in Caspian.
 
-### `src/globals.css`
+### `src/app/globals.css`
 
 Global application styles.
 
