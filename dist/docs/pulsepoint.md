@@ -1,19 +1,19 @@
 ---
 title: PulsePoint Runtime Guide
-description: Learn how AI agents should use PulsePoint as the default reactive frontend contract in Caspian, including the current TypeScript runtime, component script rules, and supported directives.
+description: Learn how AI agents should use PulsePoint as the default reactive frontend contract in Caspian, including the bundled runtime loaded from `public/js/main.js` and implemented in `public/js/pp-reactive-v2.js`, component script rules, and supported directives.
 related:
   title: Related docs
-  description: Read the route, component, data-fetching, and TypeScript docs alongside the PulsePoint runtime contract.
+  description: Read the routing, data-fetching, and project-structure docs alongside the PulsePoint runtime contract.
   links:
-    - /docs/pages-and-layouts
-    - /docs/import-component
+    - /docs/routing
     - /docs/fetch-data
-    - /docs/typescript
+    - /docs/project-structure
+    - /docs/index
 ---
 
 ## Purpose
 
-This file documents the PulsePoint runtime that is actually implemented in the current TypeScript source under `ts/` and verified by `ts/__tests__/`. Treat it as the working contract for AI-generated code.
+This file documents the PulsePoint runtime that is currently shipped in `public/js/pp-reactive-v2.js` and loaded by `public/js/main.js`. Treat it as the working contract for AI-generated code.
 
 If a task involves `pp.state`, `pp.effect`, `pp.layoutEffect`, `pp-ref`, `pp-spread`, `pp-for`, context, portals, SPA navigation, or component boundary behavior, read this page first and keep generated code aligned with the runtime implemented in this repo.
 
@@ -32,9 +32,9 @@ When a Caspian page needs reactive browser behavior, use PulsePoint.
 ## Source layer vs raw runtime
 
 - Source authoring under `src/` may use convenience syntax that is transformed before it reaches the browser.
-- This page describes the raw browser runtime implemented in `ts/`.
-- When source-layer examples conflict with the TypeScript runtime, follow the TypeScript runtime.
-- In the raw runtime, component logic uses `<script>`, not plain `<script>`.
+- This page describes the bundled browser runtime shipped in `public/js/pp-reactive-v2.js`.
+- When source-layer examples conflict with the bundled runtime, follow the bundled runtime.
+- In a `pp-component` root, component logic must live in `<script>`, not plain `<script>`.
 
 ## Runtime shape
 
@@ -51,15 +51,15 @@ Important:
 
 ## Component roots and scripts
 
-- Each runtime component root should have at most one component script.
-- The runtime only treats `<script>` as component logic.
+- Each runtime component root should have at most one `<script>` block.
+- The runtime only treats `script` as component logic.
 - The script lookup walks the current root and skips nested `pp-component` boundaries, so a parent does not consume a child component's script.
 - If multiple matching scripts exist in the same root, the first matching owned script wins. Generate one script per root.
 - A scriptless component root still mounts and can receive props, refs, events, and nested children, but it has no local runtime scope beyond its props.
 - Component scripts are plain JavaScript executed with `new Function(...)`. Do not use `import`, `export`, or top-level `await` inside them.
 - The runtime auto-returns supported top-level bindings from the script. Do not rely on manual `return { ... }` objects.
 - `pp.props` contains the current prop bag for the component.
-- `pp.props.children` contains the root's initial inner HTML before the owning `script` is removed from the render template.
+- `pp.props.children` contains the root's initial inner HTML before the owning `script` block is removed from the render template.
 
 Bindings exported to the template:
 
@@ -122,11 +122,11 @@ Global helpers exposed on the `pp` singleton:
 
 Notes:
 
-- The global `pp` singleton auto-mounts once `pp-utilities.js` is loaded and the DOM is ready. Manual `pp.mount()` is still safe because it short-circuits after the first mount.
+- The global `pp` singleton auto-mounts once `public/js/main.js` loads the bundled runtime and the DOM is ready. Manual `pp.mount()` is still safe because it short-circuits after the first mount.
 - `pp.state` setters accept either a value or an updater function.
 - `pp.effect` and `pp.layoutEffect` are cleanup-style hooks. Returned promises are not awaited.
 - `pp.portal(ref)` defaults to `document.body` when no target is provided.
-- Older docs may call the RPC helper `pp.fetchFunction()`. In the current TypeScript runtime the implemented global API is `pp.rpc()`.
+- Older docs may call the RPC helper `pp.fetchFunction()`. In the current bundled runtime the implemented global API is `pp.rpc()`.
 - Keep template-facing bindings at the top level so the AST-based exporter can see them.
 
 ## Context
@@ -188,8 +188,8 @@ Nested components:
 
 - Nested `pp-component` roots are treated as component boundaries during DOM reconciliation.
 - Parent prop interpolation still runs on nested child root attributes before the child refreshes.
-- Nested roots that contain their own `script` are masked during parent template compilation.
-- Scriptless nested component roots are not fully masked during parent template compilation in the current source. Avoid generating child-local interpolations inside a nested root unless that child has its own `script`.
+- Nested roots that contain their own `script` block are masked during parent template compilation.
+- Scriptless nested component roots are not fully masked during parent template compilation in the current source. Avoid generating child-local interpolations inside a nested root unless that child has its own `script` block.
 
 ## Template expressions and attributes
 
@@ -323,15 +323,15 @@ Notes:
 Use these rules when generating or editing PulsePoint runtime code:
 
 - Treat PulsePoint as the default reactive frontend for Caspian app code.
-- Use the current TypeScript runtime under `ts/` when it is available.
+- Use the bundled runtime contract in `public/js/pp-reactive-v2.js`.
 - Generate unique `pp-component` values per live instance.
-- Use only `<script>` for raw runtime component logic.
+- Use only `<script>` for component logic inside a `pp-component` root.
 - Keep template-facing variables at top level.
 - Use `pp.createContext`, `pp.context`, and `pp.provideContext` for context. Do not invent `pp-context`.
 - Keep `pp-for` on `<template>` and use plain `key`.
 - Use native `on*` attributes, not framework-specific event syntax.
 - Use refs and portals only through the implemented `pp` APIs.
-- Use `pp.rpc()` for the raw TypeScript runtime API instead of older `pp.fetchFunction()` wording.
+- Use `pp.rpc()` for the bundled runtime API instead of older `pp.fetchFunction()` wording.
 - Avoid generating internal runtime attributes.
 - Avoid scriptless nested components when the child template contains its own bindings.
 
@@ -348,16 +348,16 @@ Do not generate these unless the current source explicitly adds support:
 - `pp-dynamic-script`
 - `pp-dynamic-meta`
 - `pp-dynamic-link`
-- plain `<script>` for raw runtime component logic inside a component root
+- plain `<script>` for component logic inside a `pp-component` root
 - `pp.fetchFunction()` as the current raw runtime helper name
-- made-up hooks, directives, or globals not present in the current TypeScript source
+- made-up hooks, directives, or globals not present in the current bundled runtime
 
 ## Review notes
 
 These are current runtime caveats that matter for authors and AI tools:
 
 - `pp-component` is the registry key for instances, state, parent tracking, and templates. Treat it as unique per mounted root.
-- Nested roots without their own `script` are not fully isolated during parent template compilation.
+- Nested roots without their own `script` block are not fully isolated during parent template compilation.
 - The global `pp` singleton auto-mounts on DOM ready, and `pp.mount()` is idempotent.
 - `pp.effect` and `pp.layoutEffect` are cleanup-style hooks. Their callbacks are not promise-aware.
 - `pp.context()` resolves through ancestor components, not the current component's own pending providers.
@@ -365,4 +365,4 @@ These are current runtime caveats that matter for authors and AI tools:
 
 ## Final reminder
 
-If a feature is not implemented in the current TypeScript runtime source, do not invent it.
+If a feature is not implemented in the current bundled runtime, do not invent it.

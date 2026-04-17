@@ -23,7 +23,7 @@ Treat RPC as the default way for browser code to talk to Python in Caspian. Do n
 
 Caspian has two main data-loading paths:
 
-- `page()` or `layout()` for server-side data needed during the initial render
+- `page()` for initial-render data, plus `layout()` for synchronous shared props or metadata during the render
 - `@rpc()` plus `pp.rpc()` for interactive fetches after the page is already loaded
 
 In practice, most pages use both:
@@ -34,7 +34,7 @@ In practice, most pages use both:
 
 ## Default Data Rule
 
-- Use `page()` or `layout()` for data required before HTML renders.
+- Use `page()` for async or route-level data required before HTML renders, and use `layout()` only for synchronous shared props or metadata.
 - Use `@rpc()` on the server and `pp.rpc()` in PulsePoint code for all browser-triggered data work after first render.
 - Keep custom REST or other endpoint patterns as explicit exceptions, not the baseline Caspian approach.
 
@@ -67,10 +67,10 @@ If a route's first-render HTML is public and stable enough to reuse across reque
 Notes:
 
 - Prefer `async def page()` when your database or API client is async-capable.
-- Put shared section-level data in `layout.py` when multiple child routes need the same payload.
+- Put shared section-level props in `layout.py` when multiple child routes need the same synchronous payload. The current layout engine does not await `layout()`.
 - Keep reusable database or API clients under `src/lib/`; keep route-specific orchestration in `src/app/`.
 
-If the data source is Prisma, see `database.md` for schema, generation, and shared client import conventions.
+If the data source is Prisma, see `database.md` for the current workspace's schema, migration, and generation workflow. This scaffold does not generate Python-side Prisma helpers under `src/lib/` by default.
 
 ## Interactive Data With RPC
 
@@ -231,7 +231,7 @@ For initial route rendering with `render_page(...)`, prefer passing plain templa
 
 ## Recommended Decision Rule
 
-Use `page()` or `layout()` when the data is part of the page render. Use `@rpc()` plus `pp.rpc()` when the browser needs to ask the server for more data after the page is already visible.
+Use `page()` when async or route-specific data is part of the page render. Use `layout()` for synchronous shared props or metadata. Use `@rpc()` plus `pp.rpc()` when the browser needs to ask the server for more data after the page is already visible.
 
 A common pattern is:
 
@@ -246,7 +246,8 @@ If the first-render HTML is expensive to produce and safe to share between visit
 If an AI agent is choosing how to load data in Caspian, apply these rules first.
 
 - Put first-render data loading in `src/app/**/index.py`.
-- Put shared section data in `layout.py` when multiple child routes need it.
+- Put shared section props in `layout.py` only when multiple child routes need the same synchronous data.
+- Keep async I/O in `page()` or `@rpc()` because the current layout engine does not await `layout()`.
 - Treat RPC as the default read and write layer between PulsePoint code and Python route logic.
 - Use `@rpc()` for backend functions that should be callable from the browser.
 - Use `pp.rpc()` for client-side calls; do not prefer older `pp.fetchFunction()` wording.

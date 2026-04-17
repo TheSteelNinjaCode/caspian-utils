@@ -14,7 +14,9 @@ This page documents the first-time Caspian setup flow for new applications.
 
 ## Overview
 
-Caspian provides a CLI that scaffolds a production-ready project with a FastAPI backend and a PulsePoint-based reactive frontend workflow.
+Caspian provides a scaffold flow for new apps with a FastAPI backend and a PulsePoint-based reactive frontend workflow.
+
+In this workspace, the local `caspian-utils` package ships documentation only, so scaffold commands are resolved through external `npx` packages rather than project-local binaries.
 
 ## Default App Stack
 
@@ -28,8 +30,8 @@ The scaffolded Caspian baseline is:
 
 Install the supported runtimes before creating a project.
 
-- Node.js `v24.14.0` or newer
-- Python `v3.14.0` or newer
+- Node.js with `npm` and `npx` available
+- Python `v3.11.0` or newer
 
 You can verify your environment with:
 
@@ -49,9 +51,8 @@ npx create-caspian-app@latest
 The interactive wizard walks through the main project options, including:
 
 - Project name
-- Tailwind CSS support
-- Prisma ORM setup
-- Swagger API documentation
+- Feature toggles such as backend-only mode, Tailwind CSS, Prisma, MCP, and TypeScript
+- Other scaffold options exposed by the current CLI version
 
 ## Recommended VS Code Setup
 
@@ -74,6 +75,8 @@ After scaffolding, move into the generated project and start the development ser
 cd my-app
 npm run dev
 ```
+
+In this workspace, `npm run dev` is backed by BrowserSync plus PostCSS watchers, not a Vite dev server.
 
 ## After Setup
 

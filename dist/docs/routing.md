@@ -14,7 +14,7 @@ related:
 
 Caspian follows the same mental model as the Next.js App Router: routes live under `src/app`, folders define URL segments, layouts nest automatically, and special folder names control grouping and dynamic matching.
 
-The main difference is the file types. Instead of `page.tsx` and `layout.tsx`, Caspian uses `index.html`, `index.py`, `layout.html`, and optional Python companions for async server-side logic.
+The main difference is the file types. Instead of `page.tsx` and `layout.tsx`, Caspian uses `index.html`, `index.py`, `layout.html`, and optional Python companions for server-side logic.
 
 ## Overview
 
@@ -26,7 +26,7 @@ Start with these rules:
 - Use `index.html` for a template-only route.
 - Use `index.py` when the route needs metadata or async server-side logic.
 - Use `layout.html` to wrap child routes.
-- Use `layout.py` when a layout needs async data before rendering.
+- Use `layout.py` when a layout needs shared synchronous props or metadata before rendering.
 
 Use [cache.md](./cache.md) when an `index.py` route also needs declarative page caching via `Cache(...)`.
 
@@ -73,8 +73,6 @@ Examples:
 
 Use `index.html` for the route template. This is the route's view layer.
 
-Keep `index.html` focused on the route's own content. Shared wrappers and cross-route chrome belong in the nearest `layout.html`.
-
 ### `index.py`
 
 Use `index.py` when the route needs metadata or async server-side logic. Because Caspian runs on FastAPI, the page entry should be async.
@@ -113,6 +111,18 @@ Wrap a folder name in brackets to make it variable.
 
 These segments are compiled into FastAPI path parameters for efficient route matching.
 
+In the current `main.py` router, path params are collected into a single dict and passed as the first positional argument to `page()`. Matching query params can still be injected by name, and `request` is passed by keyword when declared.
+
+Example:
+
+```python
+from casp.layout import render_page
+
+async def page(params: dict):
+    user_id = params["id"]
+    return render_page(__file__, {"user_id": user_id})
+```
+
 ### Catch-all Segments
 
 Use an ellipsis inside brackets to match multiple path parts.
@@ -144,8 +154,6 @@ Route groups are useful when you want to:
 
 Layouts work like the Next.js App Router layout system. A `layout.html` file wraps the routes beneath its folder, and nested layouts compose automatically.
 
-Treat `layout.html` like a React layout component: it should render a single parent element around `[[ children | safe ]]`. For the app root layout, that single root is usually `<html>`. For nested layouts, use one wrapper such as `<section>`, `<main>`, or `<div>`.
-
 Resolved SEO fields are exposed to layouts as `[[ metadata.* ]]`, while values returned from `layout.py` are exposed separately as `[[ layout.* ]]`.
 
 For example, a page inside `/dashboard/settings` is wrapped by the root layout first and then by the dashboard layout.
@@ -153,6 +161,7 @@ For example, a page inside `/dashboard/settings` is wrapped by the root layout f
 Example root layout:
 
 ```html
+<!DOCTYPE html>
 <html>
   <head>
     <title>[[ metadata.title ]]</title>
@@ -165,31 +174,17 @@ Example root layout:
 </html>
 ```
 
-Example nested layout:
-
-```html
-<section class="dashboard-layout">
-  <aside>
-    <DashboardNav />
-  </aside>
-
-  <main>
-    [[ children | safe ]]
-  </main>
-</section>
-```
-
 ### `layout.py`
 
-If a layout needs async data, add a `layout.py` file next to the HTML layout.
+If a layout needs shared synchronous props or metadata, add a `layout.py` file next to the HTML layout.
 
 Example:
 
 ```python
 from casp.auth import auth
 
-async def layout(context_data):
-  user = auth.get_payload()
+def layout(context_data):
+    user = auth.get_payload()
 
     return {
         "user": user,
@@ -198,6 +193,8 @@ async def layout(context_data):
 ```
 
 `context_data` includes URL parameters such as dynamic route values.
+
+`layout()` currently runs synchronously in `casp.layout`. If you need async I/O, load it in `page()` instead of `layout.py`.
 
 Use [metadata.md](./metadata.md) when a layout also needs SEO defaults. Return dictionaries from `layout()` for visual or template props, and use `Metadata(...)` for title, description, and social tags.
 
@@ -237,8 +234,7 @@ If an AI agent is choosing where to add or update route code, apply these rules 
 - Use folder names to model URL segments.
 - Use `index.html` for route templates and `index.py` for route-level async logic.
 - Use [cache.md](./cache.md) when an `index.py` route should opt into page-level HTML caching.
-- Use `layout.html` for shared wrappers and author it with a single parent element around `[[ children | safe ]]`.
-- Use `layout.py` for layout-level async data.
+- Use `layout.html` for shared wrappers and `layout.py` for layout-level synchronous props or metadata.
 - Use [metadata.md](./metadata.md) when a route or layout needs SEO fields.
 - Use `[segment]` for single dynamic parameters.
 - Use `[...segment]` for catch-all route matching.

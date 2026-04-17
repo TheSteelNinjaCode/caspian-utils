@@ -84,7 +84,8 @@ Example:
 ```python
 from casp.layout import Metadata, render_page
 
-async def page(slug: str):
+async def page(params: dict):
+    slug = params["slug"]
     product_name = f"Product {slug.capitalize()}"
 
     Metadata(
@@ -98,6 +99,8 @@ async def page(slug: str):
 
     return render_page(__file__, {"name": product_name})
 ```
+
+In the current router, dynamic path params arrive as a single `params` dict passed to `page()`.
 
 Set dynamic metadata before calling `render_page(...)` so the route renders with the correct head values.
 

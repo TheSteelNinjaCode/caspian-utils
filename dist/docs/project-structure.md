@@ -32,7 +32,7 @@ For public pages that can safely reuse rendered HTML, Caspian also supports rout
 - `main.py` is the application entry point.
 - `caspian.config.json` is the core feature configuration file.
 - `.venv/Lib/site-packages/casp/` contains the installed Caspian framework core.
-- `node_modules/caspian/dist/docs/` contains the packaged Caspian docs.
+- `node_modules/caspian-utils/dist/docs/` contains the packaged Caspian docs.
 
 ## Example Layout
 
@@ -62,7 +62,7 @@ my-app/
       site-packages/
         casp/
   node_modules/
-    caspian/
+    caspian-utils/
       dist/
         docs/
 ```
@@ -83,19 +83,13 @@ See `routing.md` for the full App Router-style rules for dynamic segments, route
 
 Use this folder for shared helpers, reusable validators, RPC-facing service wrappers, reusable UI utilities, and app-level support code.
 
-When Prisma ORM is enabled, this folder also contains the shared database client imports under `src/lib/prisma/`.
+This workspace already includes an app-owned Python database layer under `src/lib/prisma/`. Reuse that package for Python-side data access and keep any additional shared database helpers in `src/lib/`.
 
-### `src/lib/prisma/`
+### Shared Database Helpers
 
-When a Caspian app includes Prisma support, this folder contains the shared ORM imports used by route code and RPC actions.
+If your Python routes or RPC actions need reusable database access code, keep that helper layer under `src/lib/` and extend the existing `src/lib/prisma/` package.
 
-Typical files include:
-
-- `src/lib/prisma/db.py` for the shared Prisma client instance
-- `src/lib/prisma/models.py` for generated Python model types
-- `src/lib/prisma/__init__.py` for package-level re-exports such as `prisma` and `models`
-
-See `database.md` for the Prisma-specific workflow, generation step, and usage patterns.
+In this workspace, Prisma schema and seed files live under `prisma/`, while the Python-side adapter is application-owned code under `src/lib/prisma/`.
 
 ### `src/lib/auth/`
 
@@ -136,7 +130,7 @@ The project auth configuration file. Use this path when changing authentication 
 
 ### `src/app/layout.html`
 
-The root layout shared across pages. Author it like a layout component with one top-level wrapper around `[[ children | safe ]]`; at the app root, that wrapper is usually `<html>`.
+The root layout shared across pages.
 
 ### `src/app/index.py`
 
@@ -144,7 +138,7 @@ The backend logic for the route. This is where route behavior can load first-ren
 
 ### `src/app/index.html`
 
-The route template. It supports standard HTML, PulsePoint directives, and component imports, and it should be the default place for reactive frontend behavior in Caspian. Keep it focused on page content and move shared wrappers into `layout.html`.
+The route template. It supports standard HTML, PulsePoint directives, and component imports, and it should be the default place for reactive frontend behavior in Caspian.
 
 ### `src/app/globals.css`
 
@@ -161,9 +155,9 @@ Notable internal files include:
 - `.venv/Lib/site-packages/casp/cache_handler.py` for route-level cache declarations, cache manifest handling, disk-backed HTML writes, and invalidation internals
 - `.venv/Lib/site-packages/casp/validate.py` for direct validators, rule-based validation, sanitization, and file-validation internals
 
-### `node_modules/caspian/dist/docs/`
+### `node_modules/caspian-utils/dist/docs/`
 
-The packaged Caspian documentation location distributed with the framework.
+The packaged Caspian documentation location distributed with the current toolchain.
 
 ## AI Routing Notes
 
@@ -176,7 +170,7 @@ If an AI agent is deciding where to make changes, use these rules first.
 - Use `@rpc()` in route/backend code and `pp.rpc()` in client code for browser-triggered data flows.
 - Use `casp.cache_handler` when a route's first-render HTML should be reused safely across requests.
 - Use `casp.validate` at route and RPC boundaries, and move reusable validators into `src/lib/` when multiple routes share them.
-- Use `database.md` when the task involves Prisma schema changes, generated client usage, or the shared files under `src/lib/prisma/`.
+- Use `database.md` when the task involves Prisma schema changes, migrations, seed logic, or workspace-specific database helper conventions.
 - Put authentication configuration in `src/lib/auth/auth_config.py`.
 - Put auth bootstrap, session middleware, and provider registration changes in `main.py`.
 - Put database models and seed logic in `prisma/`.
@@ -188,6 +182,6 @@ If an AI agent is deciding where to make changes, use these rules first.
 - Use `.venv/Lib/site-packages/casp/layout.py` when investigating or documenting Caspian routing, layout, or metadata internals.
 - Use `.venv/Lib/site-packages/casp/cache_handler.py` when investigating or documenting Caspian page-caching internals.
 - Use `.venv/Lib/site-packages/casp/validate.py` when investigating or documenting Caspian validation internals.
-- Look in `node_modules/caspian/dist/docs/` when you need the packaged framework docs.
+- Look in `node_modules/caspian-utils/dist/docs/` when you need the packaged framework docs.
 
 Check [index.md](./index.md) first if you need to choose between local Caspian docs.

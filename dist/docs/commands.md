@@ -16,6 +16,8 @@ This page summarizes the main Caspian CLI workflows for creating projects, gener
 
 ## Overview
 
+The current workspace includes a local `prisma` binary, but it does not include local `create-caspian-app`, `casp`, or `ppy` binaries under `node_modules/.bin`. Treat the scaffold and project-update commands below as external `npx` workflows rather than project-local executables.
+
 Use Caspian CLI commands for three main tasks:
 
 - Create a new application.
@@ -52,21 +54,21 @@ Common scaffold flags include:
 
 - `--backend-only` for API-only projects without frontend assets
 - `--tailwindcss` to install Tailwind CSS support
-- `--typescript` to add TypeScript and Vite support
+- `--typescript` to add TypeScript support and any scaffold-specific TypeScript build/config files
 - `--mcp` to initialize a Model Context Protocol server for AI agents
 - `--prisma` to initialize Prisma ORM support
 
 ## Code Generation
 
-When your Prisma schema changes, use the generation command shown in the Caspian CLI docs:
+When your Prisma schema changes in this workspace, regenerate the client with the local Prisma CLI:
 
 ```bash
-npx ppy generate
+npx prisma generate
 ```
 
-This flow regenerates the Python Prisma client based on `prisma/schema.prisma`.
+This flow regenerates the Prisma client defined by `generator client` in `prisma/schema.prisma`. In the current workspace, that generator uses `prisma-client-js`.
 
-In Prisma-enabled Caspian apps, this is the step that keeps the shared imports under `src/lib/prisma/` aligned with the schema.
+This workspace already includes an app-owned Python database layer in `src/lib/prisma/`, so reuse that package for Python-side database access instead of creating a second helper.
 
 See `database.md` for the full Prisma workflow, including `.env`, `prisma.config.ts`, migrations, and async usage patterns.
 
@@ -78,7 +80,7 @@ Use the project update command for existing Caspian apps:
 npx casp update project
 ```
 
-This command updates framework-managed project files and can overwrite entry points, styles, or configuration files if they are not protected.
+This command updates framework-managed project files and can overwrite entry points, styles, or configuration files if they are not protected. The `casp` binary is not bundled locally in this workspace, so verify the external CLI package before automating this command.
 
 ## Configuration
 
@@ -111,7 +113,7 @@ If an AI agent is deciding which command flow to use, apply these rules first.
 - Use `npx create-caspian-app@latest` when the user is creating a new project.
 - Use `npx casp update project` only for an existing Caspian project.
 - Read `caspian.config.json` before running update commands.
-- Use `npx ppy generate` after Prisma schema changes.
-- Check `database.md` when the task involves Prisma setup, schema updates, or generated client files under `src/lib/prisma/`.
+- Use `npx prisma generate` after Prisma schema changes in this workspace.
+- Check `database.md` when the task involves Prisma setup, schema updates, or the current workspace's schema, migration, and seed tooling.
 - Check [routing.md](./routing.md) before generating or modifying route folders under `src/app/`.
 - Check [project-structure.md](./project-structure.md) before placing generated files into the project.

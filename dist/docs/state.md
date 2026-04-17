@@ -64,6 +64,8 @@ Important implementation detail:
 
 In other words, cross-request persistence depends on the surrounding Caspian middleware keeping `request.state.session` available and in sync with session storage.
 
+In this workspace's current `main.py`, `SessionMiddleware` exposes `request.session`, but the middleware stack does not mirror that into `request.state.session`. Treat persistence as opt-in until you add that bridge explicitly.
+
 ## Request Lifecycle
 
 The current request lifecycle is:
@@ -76,7 +78,7 @@ The current request lifecycle is:
 
 That last step matters. In the current implementation, non-wire requests start by clearing the loaded state and writing the empty state back to the session bucket.
 
-Treat the current behavior as request-local state plus framework-managed transient persistence for wire-driven flows. If you expect full-page redirect flash semantics, verify the exact middleware and request path in your local Caspian version before depending on it.
+Treat the current behavior in this repo as request-local state plus partially wired transient persistence for wire-driven flows. If you expect full-page redirect flash semantics or cross-request state reuse, verify the exact middleware bridge in your local Caspian version before depending on it.
 
 You usually do not initialize this manually in route code. The current auth middleware docs already show `StateManager.init(request)` running during request setup.
 
@@ -219,6 +221,7 @@ The current implementation resets `_state_listeners` inside `StateManager.init(.
 - `AttributeDict.__getattr__` raises `AttributeError` for missing keys and `__setattr__` writes back into the dict.
 - Because persistence uses JSON, keep stored values simple: strings, numbers, booleans, lists, dicts, and `None`.
 - The current lifecycle resets loaded state on non-wire requests, so verify redirect and flash behavior against the actual request type you are using.
+- In this repo's current middleware stack, `request.state.session` is not populated from `request.session`, so saved state may not survive into a later request unless you add that bridge.
 
 ## Recommended Usage Pattern
 
@@ -259,6 +262,7 @@ If an AI agent is deciding how to use transient state in a Caspian app, apply th
 - Do not assume recursive `AttributeDict` wrapping for nested dicts.
 - Treat `subscribe(...)` listeners as request-local and short-lived.
 - Be careful with full-page redirect assumptions because `init(request)` clears loaded state on non-wire requests.
+- Do not assume cross-request persistence in this repo until middleware copies `request.session` into `request.state.session`.
 - Use PulsePoint state for client interactivity and `StateManager` for server request flows.
 - Check [auth.md](./auth.md) for middleware ordering and request initialization details.
 - Check [project-structure.md](./project-structure.md) before deciding whether a transient-state helper belongs next to a route or in `src/lib/`.

@@ -24,17 +24,17 @@ When generating or editing a Caspian app, treat these as the default choices unl
 
 The local AI-aware docs for this workspace live here:
 
-- `dist/docs/`
+- `node_modules/caspian-utils/dist/docs/`
 
-The packaged Caspian docs distributed by the framework live here:
+The packaged Caspian docs distributed by the current toolchain also live here:
 
-- `node_modules/caspian/dist/docs/`
+- `node_modules/caspian-utils/dist/docs/`
 
 ## Available Documents
 
 - `installation.md` - First-time setup flow for creating a new Caspian application
 - `commands.md` - Main Caspian CLI workflows for project creation, generation, updates, and config-aware maintenance
-- `database.md` - Prisma ORM setup, generated async Python client usage, and the shared `src/lib/prisma/` imports
+- `database.md` - Prisma schema, migration, seed, and client-generation workflow for the current workspace, plus Python-side helper caveats
 - `auth.md` - Session-backed authentication with `casp.auth`, centralized `auth_config.py`, decorators, RBAC, and OAuth provider helpers
 - `pulsepoint.md` - Default reactive frontend runtime contract for component scripts, state, effects, directives, and client-side behaviors
 - `fetch-data.md` - Initial server-side data loading and browser-triggered RPC flows with `pp.rpc()`, streaming, uploads, and auth-aware actions
@@ -51,10 +51,10 @@ If an AI tool needs Caspian project documentation, start with this directory and
 
 Preferred lookup order:
 
-1. Read `dist/docs/index.md` to discover available local docs.
+1. Read `node_modules/caspian-utils/dist/docs/index.md` to discover available local docs.
 2. Read `database.md` for Prisma setup and ORM usage, `auth.md` for session auth and route protection, `pulsepoint.md` for reactive frontend work, `fetch-data.md` for data flows, `state.md` for transient request-scoped state, `cache.md` for page caching, and `validation.md` for input boundaries.
 3. Prefer local docs before generating code, commands, or migration guidance.
-4. Check `node_modules/caspian/dist/docs/` for packaged Caspian docs when local docs need more detail.
+4. Check `node_modules/caspian-utils/dist/docs/` for packaged Caspian docs when local docs need more detail.
 5. Only fall back to upstream documentation when local and packaged markdown do not cover the topic.
 
 ## Maintenance
