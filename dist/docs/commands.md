@@ -3,14 +3,13 @@ title: Commands
 description: Use the Caspian CLI reference to scaffold projects, generate code, and update framework files without confusing first-time setup with existing-project maintenance.
 related:
   title: Related docs
-  description: Start with installation for new apps, then use the structure guide to place generated files correctly.
+  description: Start with installation for new apps, then use the routing and structure guides to place generated files correctly.
   links:
     - /docs/installation
+    - /docs/routing
     - /docs/project-structure
     - /docs/index
 ---
-
-# Commands
 
 This page summarizes the main Caspian CLI workflows for creating projects, generating code, and updating an existing app.
 
@@ -43,6 +42,8 @@ For a custom source setup, the CLI also supports a custom starter flow:
 ```bash
 npx create-caspian-app my-tool --starter-kit=custom ...
 ```
+
+After scaffolding, use `routing.md` to understand how Caspian maps `src/app` folders to URLs.
 
 ## Installation Flags
 
@@ -106,4 +107,5 @@ If an AI agent is deciding which command flow to use, apply these rules first.
 - Use `npx casp update project` only for an existing Caspian project.
 - Read `caspian.config.json` before running update commands.
 - Use `npx ppy generate` after Prisma schema changes.
+- Check [routing.md](./routing.md) before generating or modifying route folders under `src/app/`.
 - Check [project-structure.md](./project-structure.md) before placing generated files into the project.

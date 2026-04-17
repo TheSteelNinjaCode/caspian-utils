@@ -3,12 +3,12 @@ title: Installation
 description: Learn how to create a new Caspian application so AI agents use the first-time setup flow instead of assuming an existing project is already in place.
 related:
   title: Related docs
-  description: Continue with local Caspian docs for project discovery and future setup workflows.
+  description: Continue with the routing and structure guides after scaffold so the new app follows Caspian conventions.
   links:
+    - /docs/routing
+    - /docs/project-structure
     - /docs/index
 ---
-
-# Installation
 
 This page documents the first-time Caspian setup flow for new applications.
 
@@ -67,10 +67,18 @@ cd my-app
 npm run dev
 ```
 
+## After Setup
+
+Once the project is scaffolded:
+
+- Read `routing.md` to learn how `src/app` folders map to URLs.
+- Read `project-structure.md` to place route code, shared libraries, config, and database files in the correct directories.
+
 ## AI Routing Notes
 
 If an AI agent is reading this page, treat it as the source for new-project installation steps.
 
 - Use this workflow when the user is creating a Caspian app from scratch.
 - Do not use existing-project migration or update commands unless the project already exists.
+- Once the app exists, check [routing.md](./routing.md) before creating or changing routes under `src/app/`.
 - Check [index.md](./index.md) first when deciding which local doc to follow.

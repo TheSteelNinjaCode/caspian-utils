@@ -3,13 +3,12 @@ title: Project Structure
 description: Understand the default Caspian project layout so AI agents place files in the correct directories before generating routes, templates, auth code, configuration, or database changes.
 related:
   title: Related docs
-  description: Start with installation for new apps or return to the local docs index to choose the right Caspian guide.
+  description: Start with installation for new apps, then use the routing guide to map URLs to files correctly.
   links:
     - /docs/installation
+    - /docs/routing
     - /docs/index
 ---
-
-# Project Structure
 
 This page explains the default layout of a Caspian application, where Caspian core files live, and which paths AI agents should treat as project code versus framework internals.
 
@@ -66,6 +65,8 @@ This is the main application area. It contains route files, templates, styles, a
 ### `src/app/`
 
 This directory handles file-based routing. Route templates and route-specific backend logic live here.
+
+See `routing.md` for the full App Router-style rules for dynamic segments, route groups, and nested layouts.
 
 ### `src/lib/`
 
@@ -126,6 +127,7 @@ The packaged Caspian documentation location distributed with the framework.
 If an AI agent is deciding where to make changes, use these rules first.
 
 - Put route templates and route-specific backend logic in `src/app/`.
+- Check [routing.md](./routing.md) when you need URL segment rules, layout nesting behavior, or dynamic route conventions.
 - Put shared helpers and reusable libraries in `src/lib/`.
 - Put authentication configuration in `src/lib/auth/auth_config.py`.
 - Put database models and seed logic in `prisma/`.
