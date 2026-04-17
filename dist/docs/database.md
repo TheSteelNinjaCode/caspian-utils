@@ -5,6 +5,7 @@ related:
   title: Related docs
   description: Use the project structure guide to place database files correctly, then use the fetch-data guide when Prisma calls need to power route rendering or RPC actions.
   links:
+    - /docs/commands
     - /docs/project-structure
     - /docs/fetch-data
     - /docs/validation

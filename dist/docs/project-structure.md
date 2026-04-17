@@ -49,6 +49,10 @@ my-app/
     lib/
       auth/
         auth_config.py
+      prisma/
+        __init__.py
+        db.py
+        models.py
   .venv/
     Lib/
       site-packages/

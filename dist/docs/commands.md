@@ -6,6 +6,7 @@ related:
   description: Start with installation for new apps, then use the routing and structure guides to place generated files correctly.
   links:
     - /docs/installation
+    - /docs/database
     - /docs/routing
     - /docs/project-structure
     - /docs/index
@@ -63,7 +64,11 @@ When your Prisma schema changes, use the generation command shown in the Caspian
 npx ppy generate
 ```
 
-This flow generates Python data classes based on `prisma/schema.prisma`.
+This flow regenerates the Python Prisma client based on `prisma/schema.prisma`.
+
+In Prisma-enabled Caspian apps, this is the step that keeps the shared imports under `src/lib/prisma/` aligned with the schema.
+
+See `database.md` for the full Prisma workflow, including `.env`, `prisma.config.ts`, migrations, and async usage patterns.
 
 ## Update Project
 
@@ -107,5 +112,6 @@ If an AI agent is deciding which command flow to use, apply these rules first.
 - Use `npx casp update project` only for an existing Caspian project.
 - Read `caspian.config.json` before running update commands.
 - Use `npx ppy generate` after Prisma schema changes.
+- Check `database.md` when the task involves Prisma setup, schema updates, or generated client files under `src/lib/prisma/`.
 - Check [routing.md](./routing.md) before generating or modifying route folders under `src/app/`.
 - Check [project-structure.md](./project-structure.md) before placing generated files into the project.

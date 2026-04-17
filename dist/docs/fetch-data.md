@@ -46,7 +46,7 @@ from casp.layout import render_page
 from src.lib.prisma import prisma
 
 async def page():
-    todos = prisma.todo.find_many()
+    todos = await prisma.todo.find_many()
 
     return render_page(__file__, {
         "todos": [todo.to_dict() for todo in todos],
@@ -83,12 +83,12 @@ from casp.rpc import rpc
 from src.lib.prisma import prisma
 
 @rpc()
-def list_todos():
-    return prisma.todo.find_many()
+async def list_todos():
+    return await prisma.todo.find_many()
 
 @rpc(require_auth=True, limits="20/minute")
-def create_todo(title: str):
-    return prisma.todo.create(
+async def create_todo(title: str):
+    return await prisma.todo.create(
         data={"title": title, "completed": False}
     )
 ```
