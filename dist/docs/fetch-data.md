@@ -5,6 +5,7 @@ related:
   title: Related docs
   description: Use the routing guide to place route logic correctly, then use the PulsePoint runtime guide for client-side `pp.rpc()` details.
   links:
+    - /docs/database
     - /docs/routing
     - /docs/pulsepoint
     - /docs/project-structure
@@ -63,6 +64,8 @@ Notes:
 - Prefer `async def page()` when your database or API client is async-capable.
 - Put shared section-level data in `layout.py` when multiple child routes need the same payload.
 - Keep reusable database or API clients under `src/lib/`; keep route-specific orchestration in `src/app/`.
+
+If the data source is Prisma, see `database.md` for schema, generation, and shared client import conventions.
 
 ## Interactive Data With RPC
 

@@ -7,6 +7,7 @@ related:
   links:
     - /docs/installation
     - /docs/routing
+    - /docs/database
     - /docs/index
 ---
 
@@ -74,6 +75,20 @@ See `routing.md` for the full App Router-style rules for dynamic segments, route
 
 Use this folder for shared helpers, reusable validators, RPC-facing service wrappers, reusable UI utilities, and app-level support code.
 
+When Prisma ORM is enabled, this folder also contains the shared database client imports under `src/lib/prisma/`.
+
+### `src/lib/prisma/`
+
+When a Caspian app includes Prisma support, this folder contains the shared ORM imports used by route code and RPC actions.
+
+Typical files include:
+
+- `src/lib/prisma/db.py` for the shared Prisma client instance
+- `src/lib/prisma/models.py` for generated Python model types
+- `src/lib/prisma/__init__.py` for package-level re-exports such as `prisma` and `models`
+
+See `database.md` for the Prisma-specific workflow, generation step, and usage patterns.
+
 ### `src/lib/auth/`
 
 Use this folder for authentication-specific project code. The main auth configuration file lives at `src/lib/auth/auth_config.py`.
@@ -140,6 +155,7 @@ If an AI agent is deciding where to make changes, use these rules first.
 - Use PulsePoint conventions in route templates for reactive frontend behavior.
 - Use `@rpc()` in route/backend code and `pp.rpc()` in client code for browser-triggered data flows.
 - Use `casp.validate` at route and RPC boundaries, and move reusable validators into `src/lib/` when multiple routes share them.
+- Use `database.md` when the task involves Prisma schema changes, generated client usage, or the shared files under `src/lib/prisma/`.
 - Put authentication configuration in `src/lib/auth/auth_config.py`.
 - Put database models and seed logic in `prisma/`.
 - Put static files in `public/`.
