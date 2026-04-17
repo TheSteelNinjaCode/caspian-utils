@@ -73,6 +73,8 @@ Examples:
 
 Use `index.html` for the route template. This is the route's view layer.
 
+Keep `index.html` focused on the route's own content. Shared wrappers and cross-route chrome belong in the nearest `layout.html`.
+
 ### `index.py`
 
 Use `index.py` when the route needs metadata or async server-side logic. Because Caspian runs on FastAPI, the page entry should be async.
@@ -142,6 +144,8 @@ Route groups are useful when you want to:
 
 Layouts work like the Next.js App Router layout system. A `layout.html` file wraps the routes beneath its folder, and nested layouts compose automatically.
 
+Treat `layout.html` like a React layout component: it should render a single parent element around `[[ children | safe ]]`. For the app root layout, that single root is usually `<html>`. For nested layouts, use one wrapper such as `<section>`, `<main>`, or `<div>`.
+
 Resolved SEO fields are exposed to layouts as `[[ metadata.* ]]`, while values returned from `layout.py` are exposed separately as `[[ layout.* ]]`.
 
 For example, a page inside `/dashboard/settings` is wrapped by the root layout first and then by the dashboard layout.
@@ -149,7 +153,6 @@ For example, a page inside `/dashboard/settings` is wrapped by the root layout f
 Example root layout:
 
 ```html
-<!DOCTYPE html>
 <html>
   <head>
     <title>[[ metadata.title ]]</title>
@@ -160,6 +163,20 @@ Example root layout:
     [[ children | safe ]]
   </body>
 </html>
+```
+
+Example nested layout:
+
+```html
+<section class="dashboard-layout">
+  <aside>
+    <DashboardNav />
+  </aside>
+
+  <main>
+    [[ children | safe ]]
+  </main>
+</section>
 ```
 
 ### `layout.py`
@@ -220,7 +237,8 @@ If an AI agent is choosing where to add or update route code, apply these rules 
 - Use folder names to model URL segments.
 - Use `index.html` for route templates and `index.py` for route-level async logic.
 - Use [cache.md](./cache.md) when an `index.py` route should opt into page-level HTML caching.
-- Use `layout.html` for shared wrappers and `layout.py` for layout-level async data.
+- Use `layout.html` for shared wrappers and author it with a single parent element around `[[ children | safe ]]`.
+- Use `layout.py` for layout-level async data.
 - Use [metadata.md](./metadata.md) when a route or layout needs SEO fields.
 - Use `[segment]` for single dynamic parameters.
 - Use `[...segment]` for catch-all route matching.

@@ -136,7 +136,7 @@ The project auth configuration file. Use this path when changing authentication 
 
 ### `src/app/layout.html`
 
-The root layout shared across pages.
+The root layout shared across pages. Author it like a layout component with one top-level wrapper around `[[ children | safe ]]`; at the app root, that wrapper is usually `<html>`.
 
 ### `src/app/index.py`
 
@@ -144,7 +144,7 @@ The backend logic for the route. This is where route behavior can load first-ren
 
 ### `src/app/index.html`
 
-The route template. It supports standard HTML, PulsePoint directives, and component imports, and it should be the default place for reactive frontend behavior in Caspian.
+The route template. It supports standard HTML, PulsePoint directives, and component imports, and it should be the default place for reactive frontend behavior in Caspian. Keep it focused on page content and move shared wrappers into `layout.html`.
 
 ### `src/app/globals.css`
 
