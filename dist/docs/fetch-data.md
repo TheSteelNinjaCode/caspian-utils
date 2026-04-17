@@ -106,6 +106,8 @@ Use RPC for:
 - Filters, sorting, and pagination
 - Any browser-to-server interaction that should not require a full page navigation
 
+Validate incoming form and mutation payloads before persisting them. See [validation.md](./validation.md).
+
 Important:
 
 - `pp.rpc()` posts to the current route RPC bridge.

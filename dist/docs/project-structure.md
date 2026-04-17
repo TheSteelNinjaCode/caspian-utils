@@ -122,6 +122,7 @@ Notable internal files include:
 
 - `.venv/Lib/site-packages/casp/rpc.py` for the RPC decorator and related server-action internals
 - `.venv/Lib/site-packages/casp/layout.py` for layout rendering, metadata handling, and routing-related internals
+- `.venv/Lib/site-packages/casp/validate.py` for direct validators, rule-based validation, sanitization, and file-validation internals
 
 ### `node_modules/caspian/dist/docs/`
 
@@ -142,6 +143,7 @@ If an AI agent is deciding where to make changes, use these rules first.
 - Treat `.venv/Lib/site-packages/casp/` as framework internals unless the task is specifically about Caspian core behavior.
 - Use `.venv/Lib/site-packages/casp/rpc.py` when investigating or documenting Caspian RPC internals.
 - Use `.venv/Lib/site-packages/casp/layout.py` when investigating or documenting Caspian routing, layout, or metadata internals.
+- Use `.venv/Lib/site-packages/casp/validate.py` when investigating or documenting Caspian validation internals.
 - Look in `node_modules/caspian/dist/docs/` when you need the packaged framework docs.
 
 Check [index.md](./index.md) first if you need to choose between local Caspian docs.
