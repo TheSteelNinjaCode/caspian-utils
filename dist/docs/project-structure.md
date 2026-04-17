@@ -1,6 +1,6 @@
 ---
 title: Project Structure
-description: Understand the default Caspian project layout so AI agents place files in the correct directories before generating routes, templates, auth code, configuration, or database changes.
+description: Understand the default Caspian project layout so AI agents place files in the correct directories before generating PulsePoint templates, RPC actions, validation helpers, auth code, configuration, or database changes.
 related:
   title: Related docs
   description: Start with installation for new apps, then use the routing guide to map URLs to files correctly.
@@ -15,6 +15,8 @@ This page explains the default layout of a Caspian application, where Caspian co
 ## Overview
 
 Caspian uses a lean project layout that keeps application code in `src`, database files in `prisma`, static assets in `public`, configuration in `caspian.config.json`, and framework internals in the installed package.
+
+In that layout, the default stack is PulsePoint in route templates, RPC for browser-triggered server calls, and `casp.validate` for input validation at route and action boundaries.
 
 ## Top-Level Areas
 
@@ -70,7 +72,7 @@ See `routing.md` for the full App Router-style rules for dynamic segments, route
 
 ### `src/lib/`
 
-Use this folder for shared helpers, reusable UI utilities, and app-level support code.
+Use this folder for shared helpers, reusable validators, RPC-facing service wrappers, reusable UI utilities, and app-level support code.
 
 ### `src/lib/auth/`
 
@@ -104,11 +106,11 @@ The root layout shared across pages.
 
 ### `src/app/index.py`
 
-The backend logic for the route. This is where route behavior can import framework features such as RPC and auth helpers from `casp`.
+The backend logic for the route. This is where route behavior can load first-render data, expose `@rpc()` actions, and import framework features such as auth helpers and `casp.validate`.
 
 ### `src/app/index.html`
 
-The route template. It supports standard HTML, PulsePoint directives, and component imports.
+The route template. It supports standard HTML, PulsePoint directives, and component imports, and it should be the default place for reactive frontend behavior in Caspian.
 
 ### `src/globals.css`
 
@@ -135,6 +137,9 @@ If an AI agent is deciding where to make changes, use these rules first.
 - Put route templates and route-specific backend logic in `src/app/`.
 - Check [routing.md](./routing.md) when you need URL segment rules, layout nesting behavior, or dynamic route conventions.
 - Put shared helpers and reusable libraries in `src/lib/`.
+- Use PulsePoint conventions in route templates for reactive frontend behavior.
+- Use `@rpc()` in route/backend code and `pp.rpc()` in client code for browser-triggered data flows.
+- Use `casp.validate` at route and RPC boundaries, and move reusable validators into `src/lib/` when multiple routes share them.
 - Put authentication configuration in `src/lib/auth/auth_config.py`.
 - Put database models and seed logic in `prisma/`.
 - Put static files in `public/`.

@@ -1,6 +1,6 @@
 ---
 title: Caspian Docs
-description: Caspian documentation with AI-aware routing to the right local docs before framework-specific code generation or project setup changes.
+description: Caspian documentation with AI-aware routing to the right local docs before framework-specific code generation or project setup changes, with PulsePoint, RPC, and Validate as the default app stack.
 related:
   title: Next Steps
   description: Start with installation, review the CLI commands, then use the structure guide to place Caspian files correctly.
@@ -10,9 +10,15 @@ related:
     - /docs/project-structure
 ---
 
-# Caspian Docs
-
 This directory contains the local Caspian documentation set for quick reference and AI-aware routing.
+
+## Default Stack
+
+When generating or editing a Caspian app, treat these as the default choices unless the task explicitly requires something else:
+
+- Use PulsePoint for reactive frontend behavior.
+- Use `@rpc()` plus `pp.rpc()` for browser-triggered reads, writes, streaming, and uploads.
+- Use `Validate` and `Rule` from `casp.validate` for server-side input validation and sanitization.
 
 ## Docs Location
 
@@ -28,6 +34,7 @@ The packaged Caspian docs distributed by the framework live here:
 
 - `installation.md` - First-time setup flow for creating a new Caspian application
 - `commands.md` - Main Caspian CLI workflows for project creation, generation, updates, and config-aware maintenance
+- `pulsepoint.md` - Default reactive frontend runtime contract for component scripts, state, effects, directives, and client-side behaviors
 - `fetch-data.md` - Initial server-side data loading and browser-triggered RPC flows with `pp.rpc()`, streaming, uploads, and auth-aware actions
 - `validation.md` - Input validation and sanitization with `Validate`, `Rule`, direct field checks, and multi-rule workflows for routes and RPC actions
 - `metadata.md` - Static and dynamic metadata, SEO inheritance, and Open Graph or Twitter card tags
@@ -41,7 +48,7 @@ If an AI tool needs Caspian project documentation, start with this directory and
 Preferred lookup order:
 
 1. Read `dist/docs/index.md` to discover available local docs.
-2. Read the specific page in `dist/docs/` that matches the topic.
+2. Read `pulsepoint.md` for reactive frontend work, `fetch-data.md` for data flows, and `validation.md` for input boundaries.
 3. Prefer local docs before generating code, commands, or migration guidance.
 4. Check `node_modules/caspian/dist/docs/` for packaged Caspian docs when local docs need more detail.
 5. Only fall back to upstream documentation when local and packaged markdown do not cover the topic.

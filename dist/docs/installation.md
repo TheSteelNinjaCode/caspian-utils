@@ -14,7 +14,15 @@ This page documents the first-time Caspian setup flow for new applications.
 
 ## Overview
 
-Caspian provides a CLI that scaffolds a production-ready project with a FastAPI backend and a reactive DOM frontend workflow.
+Caspian provides a CLI that scaffolds a production-ready project with a FastAPI backend and a PulsePoint-based reactive frontend workflow.
+
+## Default App Stack
+
+The scaffolded Caspian baseline is:
+
+- PulsePoint for reactive frontend behavior.
+- `@rpc()` plus `pp.rpc()` for browser-triggered data fetching and mutations.
+- `casp.validate` with `Validate` and `Rule` for input validation and sanitization.
 
 ## System Requirements
 
@@ -71,6 +79,9 @@ npm run dev
 
 Once the project is scaffolded:
 
+- Read `pulsepoint.md` before generating interactive frontend behavior.
+- Read `fetch-data.md` before adding browser-triggered reads, writes, uploads, or streams.
+- Read `validation.md` before handling forms, auth input, or RPC payloads.
 - Read `routing.md` to learn how `src/app` folders map to URLs.
 - Read `project-structure.md` to place route code, shared libraries, config, and database files in the correct directories.
 
@@ -80,5 +91,6 @@ If an AI agent is reading this page, treat it as the source for new-project inst
 
 - Use this workflow when the user is creating a Caspian app from scratch.
 - Do not use existing-project migration or update commands unless the project already exists.
+- After scaffold, default to PulsePoint for interactive UI, RPC for browser-to-server data flow, and `casp.validate` for validation.
 - Once the app exists, check [routing.md](./routing.md) before creating or changing routes under `src/app/`.
 - Check [index.md](./index.md) first when deciding which local doc to follow.

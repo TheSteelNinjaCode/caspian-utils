@@ -1,6 +1,6 @@
 ---
 title: Validation
-description: Validate and sanitize Caspian inputs with `casp.validate`, `Validate`, `Rule`, direct validators, rule-based checks, and file or date or ID validation before route or RPC logic persists data.
+description: Validate and sanitize Caspian inputs with `casp.validate`, `Validate`, `Rule`, direct validators, rule-based checks, and file or date or ID validation before route or RPC logic persists data, with Validate as the default server-side validation layer.
 related:
   title: Related docs
   description: Use the fetch-data guide when validation runs inside RPC actions, then use the structure guide to place reusable validators in the right layer.
@@ -12,6 +12,8 @@ related:
 ---
 
 This page explains the current installed Caspian validation API for direct field checks, rule-based validation, sanitization, and reusable input guards.
+
+Treat `casp.validate` as the default validation layer in Caspian app code. Do not rely on client-only checks or hand-rolled validation helpers when `Validate` and `Rule` already cover the input boundary.
 
 ## Overview
 
@@ -32,6 +34,13 @@ The real API surface is:
 - rule-string helpers built with `Rule`
 
 Use validation at the boundary where untrusted data enters the app, especially in form handling, auth flows, and RPC mutations.
+
+## Default Validation Rule
+
+- Use `Validate.*(...)` for direct coercion, sanitization, and simple boundary checks.
+- Use `Validate.with_rules(...)` plus `Rule` for maintained forms, RPC payloads, and multi-constraint workflows.
+- Keep PulsePoint-side checks as UX improvements only; the authoritative validation still belongs on the server boundary.
+- Validate before persistence, authorization decisions, external API calls, or any RPC side effect.
 
 ## Framework Internals Note
 
@@ -268,6 +277,7 @@ def create_account(data: dict):
 
 If an AI agent is deciding how to validate input in Caspian, apply these rules first.
 
+- Treat `Validate` and `Rule` as the default validation API for Caspian app code.
 - Use direct `Validate.*(...)` calls for quick single-field checks.
 - Use `Validate.with_rules(...)` for multi-constraint validation.
 - Prefer `Rule` helpers in maintained project code instead of long rule strings.

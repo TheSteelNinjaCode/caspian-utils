@@ -1,6 +1,6 @@
 ---
 title: PulsePoint Runtime Guide
-description: Learn how AI agents should use the current PulsePoint TypeScript runtime contract, component script rules, and supported directives.
+description: Learn how AI agents should use PulsePoint as the default reactive frontend contract in Caspian, including the current TypeScript runtime, component script rules, and supported directives.
 related:
   title: Related docs
   description: Read the route, component, data-fetching, and TypeScript docs alongside the PulsePoint runtime contract.
@@ -17,7 +17,17 @@ This file documents the PulsePoint runtime that is actually implemented in the c
 
 If a task involves `pp.state`, `pp.effect`, `pp.layoutEffect`, `pp-ref`, `pp-spread`, `pp-for`, context, portals, SPA navigation, or component boundary behavior, read this page first and keep generated code aligned with the runtime implemented in this repo.
 
-Do not assume React, Vue, Svelte, JSX, or older PulsePoint docs.
+PulsePoint is the default reactive frontend layer for Caspian.
+
+Do not assume React, Vue, Svelte, JSX, Alpine, HTMX, or older PulsePoint docs unless the task explicitly asks for a different frontend contract.
+
+## Default Frontend Rule
+
+When a Caspian page needs reactive browser behavior, use PulsePoint.
+
+- Use PulsePoint component roots, scripts, directives, and runtime helpers for interactive UI.
+- Keep server-rendered HTML plus PulsePoint enhancement as the baseline architecture.
+- Only introduce another frontend runtime when the user explicitly asks for it or the project already depends on one.
 
 ## Source layer vs raw runtime
 
@@ -312,6 +322,7 @@ Notes:
 
 Use these rules when generating or editing PulsePoint runtime code:
 
+- Treat PulsePoint as the default reactive frontend for Caspian app code.
 - Use the current TypeScript runtime under `ts/` when it is available.
 - Generate unique `pp-component` values per live instance.
 - Use only `<script>` for raw runtime component logic.
@@ -328,6 +339,7 @@ Use these rules when generating or editing PulsePoint runtime code:
 
 Do not generate these unless the current source explicitly adds support:
 
+- React, Vue, Svelte, Alpine, HTMX, or JSX-first patterns as the default Caspian frontend approach
 - `pp-context`
 - `pp-key`
 - `data-pp-ref`
@@ -338,7 +350,6 @@ Do not generate these unless the current source explicitly adds support:
 - `pp-dynamic-link`
 - plain `<script>` for raw runtime component logic inside a component root
 - `pp.fetchFunction()` as the current raw runtime helper name
-- React, Vue, Svelte, or JSX-only patterns that are not implemented here
 - made-up hooks, directives, or globals not present in the current TypeScript source
 
 ## Review notes

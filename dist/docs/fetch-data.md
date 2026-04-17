@@ -1,6 +1,6 @@
 ---
 title: Fetch Data
-description: Fetch first-render and interactive data in Caspian with async route functions, `@rpc()` actions, `pp.rpc()`, streaming, and uploads.
+description: Fetch first-render and interactive data in Caspian with async route functions, `@rpc()` actions, `pp.rpc()`, streaming, and uploads, with RPC as the default browser-to-server data path.
 related:
   title: Related docs
   description: Use the routing guide to place route logic correctly, then use the PulsePoint runtime guide for client-side `pp.rpc()` details.
@@ -12,6 +12,8 @@ related:
 ---
 
 This page explains how data fetching works in Caspian. Use route functions for initial page data and use RPC actions for browser-triggered reads, writes, streams, and uploads.
+
+Treat RPC as the default way for browser code to talk to Python in Caspian. Do not reach for ad hoc fetch calls to custom JSON endpoints, alternate transport layers, or older helper names unless the task explicitly requires that shape.
 
 ## Overview
 
@@ -25,6 +27,12 @@ In practice, most pages use both:
 1. Load the first screen of data in `index.py`.
 2. Render that data into `index.html`.
 3. Call `pp.rpc()` for refreshes, form submits, toggles, infinite scroll, or streamed updates.
+
+## Default Data Rule
+
+- Use `page()` or `layout()` for data required before HTML renders.
+- Use `@rpc()` on the server and `pp.rpc()` in PulsePoint code for all browser-triggered data work after first render.
+- Keep custom REST or other endpoint patterns as explicit exceptions, not the baseline Caspian approach.
 
 ## Initial Data In `index.py`
 
@@ -225,8 +233,10 @@ If an AI agent is choosing how to load data in Caspian, apply these rules first.
 
 - Put first-render data loading in `src/app/**/index.py`.
 - Put shared section data in `layout.py` when multiple child routes need it.
+- Treat RPC as the default read and write layer between PulsePoint code and Python route logic.
 - Use `@rpc()` for backend functions that should be callable from the browser.
 - Use `pp.rpc()` for client-side calls; do not prefer older `pp.fetchFunction()` wording.
+- Prefer route-render data plus RPC over inventing parallel REST endpoints for normal Caspian page interactions.
 - Use `onStream` for streamed responses and `onUploadProgress` for upload-aware client calls.
 - Add `require_auth`, `allowed_roles`, and `limits` to sensitive RPC actions.
 - Keep reusable database clients and service wrappers in `src/lib/`.
