@@ -122,10 +122,14 @@ The installed auth code reads several values from `.env` when explicit values ar
 
 - `AUTH_SECRET` backs `AuthSettings.secret_key`.
 - `AUTH_COOKIE_NAME` backs `AuthSettings.cookie_name`.
+- `SESSION_LIFETIME_HOURS` controls `SessionMiddleware.max_age` in the current `main.py` bootstrap.
+- `APP_ENV=production` enables secure session cookies and the `Secure` flag on the current CSRF cookie.
 - `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, and `GOOGLE_REDIRECT_URI` back `GoogleProvider`.
 - `GITHUB_CLIENT_ID` and `GITHUB_CLIENT_SECRET` back `GithubProvider`.
 
 Keep these secrets out of route files and out of committed source.
+
+In the current bootstrap, set `AUTH_COOKIE_NAME` explicitly in `.env`. The pasted `main.py` uses `session` as the fallback `SessionMiddleware` cookie name, while `AuthSettings` falls back to `auth_token` when the env var is absent.
 
 ## Startup Wiring
 
@@ -142,6 +146,113 @@ configure_auth(build_auth_settings())
 ```
 
 Use `get_auth_settings()` when other app code only needs to read the resolved settings.
+
+## `main.py` Bootstrap
+
+In the current app bootstrap, authentication is initialized in `main.py` before route registration and middleware execution.
+
+Example:
+
+```python
+from casp.auth import (
+    Auth,
+    GoogleProvider,
+    GithubProvider,
+    configure_auth,
+)
+from src.lib.auth.auth_config import build_auth_settings
+
+
+def setup_auth():
+    configure_auth(build_auth_settings())
+    Auth.set_providers(GithubProvider(), GoogleProvider())
+
+
+setup_auth()
+```
+
+This does two things:
+
+- applies the centralized settings once at startup
+- registers OAuth providers once so `AuthMiddleware` can delegate signin and callback paths through `auth.auth_providers(...)`
+
+The current `main.py` also wires the session middleware directly:
+
+```python
+from starlette.middleware.sessions import SessionMiddleware
+
+
+SESSION_LIFETIME_HOURS = int(os.getenv("SESSION_LIFETIME_HOURS", 7))
+IS_PRODUCTION = os.getenv("APP_ENV") == "production"
+
+
+app.add_middleware(
+    SessionMiddleware,
+    secret_key=os.getenv("AUTH_SECRET", "change-me"),
+    session_cookie=os.getenv("AUTH_COOKIE_NAME", "session"),
+    max_age=SESSION_LIFETIME_HOURS * 3600,
+    same_site="lax",
+    https_only=IS_PRODUCTION,
+    path="/",
+)
+```
+
+Keep this wiring in `main.py`. Keep only the policy values in `src/lib/auth/auth_config.py`.
+
+## Session Lifetime Rules
+
+The current app bootstrap has two independent expiration controls:
+
+- `default_token_validity` controls the auth payload expiration stored by `auth.sign_in(...)`
+- `SESSION_LIFETIME_HOURS` controls the signed session cookie lifetime set by `SessionMiddleware`
+
+The effective authenticated session lasts only while both are valid.
+
+- If the session cookie expires first, the session disappears even if the auth payload expiration was longer.
+- If the auth payload expires first, `auth.is_authenticated()` clears it even if the session cookie still exists.
+- In the pasted `main.py`, `token_auto_refresh=True` still does nothing by itself because the request flow does not call `auth.refresh_session()`.
+
+Keep `SESSION_LIFETIME_HOURS` and `default_token_validity` aligned unless you intentionally want one boundary to end earlier than the other.
+
+## Middleware Order
+
+The current `main.py` adds middleware in this source order:
+
+```python
+app.add_middleware(RPCMiddleware)
+app.add_middleware(AuthMiddleware)
+app.add_middleware(CSRFMiddleware)
+app.add_middleware(SessionMiddleware, ...)
+```
+
+Because Starlette runs the last-added middleware first, the effective request order is:
+
+1. `SessionMiddleware`
+2. `CSRFMiddleware`
+3. `AuthMiddleware`
+4. `RPCMiddleware`
+5. route handler or RPC endpoint
+
+Current behavior by layer:
+
+- `SessionMiddleware` provides `request.session` for the rest of the stack.
+- `CSRFMiddleware` ensures `request.session["csrf_token"]` exists and emits a `pp_csrf` cookie.
+- `AuthMiddleware` sets request context with `Auth.set_request(request)`, initializes `StateManager`, runs provider callbacks, skips configured static asset paths, and enforces public, auth, private, and role-based route redirects.
+- `RPCMiddleware` handles `POST` requests with `X-PP-RPC: true` and forwards them to Caspian's RPC handler after auth and session setup are already available.
+
+Keep `SessionMiddleware` outermost. If CSRF, auth, or RPC handling runs before it, `request.session` will not be available.
+
+## Current `AuthMiddleware` Flow
+
+The pasted `main.py` auth middleware currently behaves like this:
+
+- bypasses auth checks for `/css/*`, `/js/*`, `/assets/*`, and `/favicon.ico`
+- initializes request-bound auth state with `StateManager.init(request)` and `Auth.set_request(request)`
+- runs OAuth provider signin and callback handling before public or private route checks
+- lets public routes through immediately
+- redirects authenticated users away from auth routes such as `/signin` and `/signup`
+- applies role-based redirects before generic private-route redirects when `is_role_based=True`
+- redirects unauthenticated private-route requests to `/signin?next=/current/path`
 
 ## The `auth` Object
 
@@ -533,6 +644,7 @@ Prefer `AuthSettings`, `configure_auth(...)`, and `auth.settings` in new code.
 - Expired or malformed payloads are removed during `auth.is_authenticated()` checks.
 - `auth.get_payload()` returns `None` for missing payloads, a dict for dict payloads, and `{"value": ...}` for non-dict payloads.
 - OAuth callback helpers return `None` on failure, so calling routes should be prepared for a normal page render or explicit error state when provider login fails.
+- The current app bootstrap adds `SessionMiddleware`, `CSRFMiddleware`, `AuthMiddleware`, and `RPCMiddleware`; auth-aware code depends on that ordering so sessions and CSRF state exist before route checks or RPC handling.
 - Password reset, email verification, and other account-recovery workflows are application responsibilities layered on top of `casp.auth`, not built-in auth runtime features.
 - Route lists and RBAC maps are exact-path checks, not wildcard or prefix rules.
 
@@ -557,12 +669,17 @@ If an AI agent is deciding how to handle auth in Caspian, apply these rules firs
 
 - Treat `casp.auth` as the default authentication layer.
 - Centralize route visibility, redirects, and RBAC policy in `src/lib/auth/auth_config.py`.
-- Apply settings at startup with `configure_auth(build_auth_settings())`.
+- Apply settings at startup in `main.py` with `configure_auth(build_auth_settings())`.
+- Register provider instances in `main.py` with `Auth.set_providers(...)` when Google or GitHub OAuth is enabled.
 - Use `auth.sign_in(...)` and `auth.sign_out(...)` for session lifecycle changes.
 - Use `@require_auth`, `@require_role`, and `@guest_only` for page-level access rules.
 - Use `@rpc(require_auth=True, allowed_roles=[...])` for protected browser-triggered actions.
+- Keep `SessionMiddleware` outermost so auth, CSRF, and RPC handlers can read `request.session`.
+- Align `SESSION_LIFETIME_HOURS` with `default_token_validity` unless you intentionally want different cookie and auth-payload expiry windows.
 - Prefer exact route strings in `public_routes`, `auth_routes`, `private_routes`, and `role_based_routes`.
 - Keep auth secrets and OAuth provider credentials in `.env`.
+- Set `AUTH_COOKIE_NAME` explicitly so the session middleware cookie name and auth settings stay aligned.
 - Use `.venv/Lib/site-packages/casp/auth.py` only when the task is about framework auth internals or debugging installed behavior.
+- Use `main.py` when the task is about auth bootstrap, session middleware, or middleware execution order.
 - Pair auth work with `fetch-data.md` for RPC forms and `validation.md` for credential validation.
 - Check `routing.md` and `project-structure.md` before creating new auth routes or shared auth helpers.

@@ -3,9 +3,10 @@ title: Project Structure
 description: Understand the default Caspian project layout so AI agents place files in the correct directories before generating PulsePoint templates, RPC actions, validation helpers, auth code, configuration, or database changes.
 related:
   title: Related docs
-  description: Start with installation for new apps, then use the routing guide to map URLs to files correctly and the cache guide when route HTML should be reused safely.
+  description: Start with installation for new apps, then use the auth guide for bootstrap and session wiring, the routing guide to map URLs correctly, and the cache guide when route HTML should be reused safely.
   links:
     - /docs/installation
+    - /docs/auth
     - /docs/routing
     - /docs/cache
     - /docs/database
@@ -114,6 +115,17 @@ Store static assets here, including images, fonts, and generated frontend assets
 
 The application entry point for the project.
 
+In the current Caspian app shape, this file is where startup wiring happens:
+
+- load environment variables
+- call `configure_auth(build_auth_settings())`
+- register OAuth providers with `Auth.set_providers(...)`
+- create the FastAPI app
+- register routes and RPC handlers
+- add `SessionMiddleware`, CSRF middleware, auth middleware, and RPC middleware
+
+Use `main.py` for auth bootstrap and middleware-order changes. Use `src/lib/auth/auth_config.py` for auth policy values such as public routes, redirects, and RBAC maps.
+
 ### `caspian.config.json`
 
 The core feature configuration file for the application.
@@ -166,6 +178,7 @@ If an AI agent is deciding where to make changes, use these rules first.
 - Use `casp.validate` at route and RPC boundaries, and move reusable validators into `src/lib/` when multiple routes share them.
 - Use `database.md` when the task involves Prisma schema changes, generated client usage, or the shared files under `src/lib/prisma/`.
 - Put authentication configuration in `src/lib/auth/auth_config.py`.
+- Put auth bootstrap, session middleware, and provider registration changes in `main.py`.
 - Put database models and seed logic in `prisma/`.
 - Put static files in `public/`.
 - Put entry-point changes in `main.py`.
