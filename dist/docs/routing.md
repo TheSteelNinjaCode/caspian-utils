@@ -3,9 +3,10 @@ title: Routing
 description: Understand Caspian's Next.js App Router-style file-based routing, including src/app conventions, index files, dynamic segments, route groups, and nested layouts.
 related:
   title: Related docs
-  description: Read the structure guide first, then use the PulsePoint runtime guide when building interactive route templates.
+  description: Read the structure guide first, then use the metadata guide for SEO fields and the PulsePoint runtime guide for interactive route templates.
   links:
     - /docs/project-structure
+    - /docs/metadata
     - /docs/pulsepoint
     - /docs/index
 ---
@@ -25,6 +26,8 @@ Start with these rules:
 - Use `index.py` when the route needs metadata or async server-side logic.
 - Use `layout.html` to wrap child routes.
 - Use `layout.py` when a layout needs async data before rendering.
+
+See [metadata.md](./metadata.md) when a page or layout needs SEO fields.
 
 ## Next.js App Router Mapping
 
@@ -69,16 +72,20 @@ Use `index.py` when the route needs metadata or async server-side logic. Because
 Example:
 
 ```python
-from casp.page import render_page
+from casp.layout import Metadata, render_page
 
-title = "Caspian Documentation | The Native Python Web Framework"
-description = "Explore the comprehensive documentation for Caspian."
+metadata = Metadata(
+    title="Caspian Documentation | The Native Python Web Framework",
+    description="Explore the comprehensive documentation for Caspian.",
+)
 
 async def page():
     return render_page(__file__)
 ```
 
 Use this pattern when the route needs to fetch data, compute metadata, or do other non-blocking server work before rendering.
+
+For static and dynamic metadata rules, inheritance order, and social card fields, see [metadata.md](./metadata.md).
 
 ## Dynamic Routes
 
@@ -125,6 +132,8 @@ Route groups are useful when you want to:
 
 Layouts work like the Next.js App Router layout system. A `layout.html` file wraps the routes beneath its folder, and nested layouts compose automatically.
 
+Resolved SEO fields are exposed to layouts as `[[ metadata.* ]]`, while values returned from `layout.py` are exposed separately as `[[ layout.* ]]`.
+
 For example, a page inside `/dashboard/settings` is wrapped by the root layout first and then by the dashboard layout.
 
 Example root layout:
@@ -133,12 +142,12 @@ Example root layout:
 <!DOCTYPE html>
 <html>
   <head>
-    <title>[[metadata.title]]</title>
-    <meta name="description" content="[[metadata.description]]" />
+    <title>[[ metadata.title ]]</title>
+    <meta name="description" content="[[ metadata.description ]]" />
   </head>
   <body>
     <NavBar />
-    {{ children | safe }}
+    [[ children | safe ]]
   </body>
 </html>
 ```
@@ -162,6 +171,8 @@ async def layout(context_data):
 ```
 
 `context_data` includes URL parameters such as dynamic route values.
+
+Use [metadata.md](./metadata.md) when a layout also needs SEO defaults. Return dictionaries from `layout()` for visual or template props, and use `Metadata(...)` for title, description, and social tags.
 
 ## Recommended Structure
 
@@ -199,6 +210,7 @@ If an AI agent is choosing where to add or update route code, apply these rules 
 - Use folder names to model URL segments.
 - Use `index.html` for route templates and `index.py` for route-level async logic.
 - Use `layout.html` for shared wrappers and `layout.py` for layout-level async data.
+- Use [metadata.md](./metadata.md) when a route or layout needs SEO fields.
 - Use `[segment]` for single dynamic parameters.
 - Use `[...segment]` for catch-all route matching.
 - Use `(group)` folders for organization when the folder should not appear in the URL.
