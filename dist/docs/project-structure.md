@@ -24,6 +24,8 @@ In that layout, the default stack is Python components for reusable UI, PulsePoi
 
 For public pages that can safely reuse rendered HTML, Caspian also supports route-level page caching through `casp.cache_handler`.
 
+Before an AI agent decides which Caspian features are available in a workspace, it should read `./caspian.config.json` almost immediately. That file is the feature gate for project capabilities such as `backendOnly`, `tailwindcss`, `mcp`, `prisma`, `typescript`, and `componentScanDirs`.
+
 ## Top-Level Areas
 
 - `src/` contains routes, page templates, styles, and shared libraries.
@@ -84,6 +86,10 @@ This is the main application area. It contains route files, templates, styles, a
 
 This directory handles file-based routing. Route templates and route-specific backend logic live here.
 
+When authoring a route HTML file such as `src/app/**/index.html`, keep the whole template inside exactly one top-level lowercase HTML element. Treat it the same way you would a React component returning one parent element: wrap the route markup and any owned PulsePoint script in the same root.
+
+Do not handwrite `pp-component="..."` or `type="text/pp"` in those source templates. Author a plain `<script>` inside the root when you need PulsePoint logic, and let Caspian add the runtime attributes during render.
+
 See `routing.md` for the full App Router-style rules for dynamic segments, route groups, and nested layouts.
 
 ### `src/components/`
@@ -91,6 +97,10 @@ See `routing.md` for the full App Router-style rules for dynamic segments, route
 Use this folder for reusable UI components that should be imported into route templates or other component templates.
 
 The common Caspian pattern is a Python file such as `Button.py` with `@component`, optionally paired with a same-name HTML file such as `Button.html` when the component has richer markup or PulsePoint behavior.
+
+For component HTML files, follow the same one-parent rule as route HTML files: one top-level lowercase HTML element only, with no sibling roots and no top-level script sitting outside that root.
+
+Do not handwrite `pp-component="..."` or `type="text/pp"` in component source templates either. Write plain `<script>` inside the single root and let the render pipeline inject the runtime shape.
 
 This workspace's component tooling scans `src/` based on `caspian.config.json`, so `src/components/` is a conventionally clean location, not a hard-coded runtime requirement.
 
@@ -139,6 +149,10 @@ Use `main.py` for auth bootstrap and middleware-order changes. Use `src/lib/auth
 
 The core feature configuration file for the application.
 
+AI agents should read this file before making almost any feature-level decision. Use it to confirm which capabilities are enabled, which code generation paths make sense, and which directories should be scanned for components or other project assets.
+
+In the current workspace, `caspian.config.json` shows `backendOnly: false`, `tailwindcss: true`, `mcp: false`, `prisma: true`, `typescript: false`, and `componentScanDirs: ["src"]`.
+
 ### `src/lib/auth/auth_config.py`
 
 The project auth configuration file. Use this path when changing authentication behavior.
@@ -180,9 +194,11 @@ The packaged Caspian documentation location distributed with the current toolcha
 
 If an AI agent is deciding where to make changes, use these rules first.
 
+- Read `caspian.config.json` almost immediately before making feature, tooling, or file-placement decisions. It tells you which Caspian features are enabled in the current workspace.
 - Put route templates and route-specific backend logic in `src/app/`.
 - Check [routing.md](./routing.md) when you need URL segment rules, layout nesting behavior, or dynamic route conventions.
 - Put reusable component files in `src/components/` and check [components.md](./components.md) for `@component`, `render_html(__file__)`, import comments, and single-root template rules.
+- For route and component HTML files, always emit one top-level lowercase HTML element. Good: one wrapper containing the content and a plain `<script>` when needed. Bad: a wrapper element followed by a sibling top-level `<script>`, or handwritten `pp-component="..."` and `type="text/pp"` attributes in source.
 - Put shared helpers and reusable libraries in `src/lib/`.
 - Use PulsePoint conventions in route templates for reactive frontend behavior.
 - Use `@rpc()` in route/backend code and `pp.rpc()` in client code for browser-triggered data flows.

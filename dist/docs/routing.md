@@ -78,7 +78,35 @@ Route templates can import reusable Python components with `<!-- @import ... -->
 
 Do not manually add `pp-component="..."` to the route root. The Python render pipeline injects that attribute onto the route's single top-level lowercase HTML element.
 
+Do not manually add `type="text/pp"` to a route-owned script either. In source templates, write a plain `<script>` inside the root and let `main.py` call `transform_scripts(...)` before the browser runtime sees the HTML.
+
 That means route templates follow the same single-root discipline as component templates: one root element, no sibling roots, and PulsePoint scripts kept inside that root when needed.
+
+For AI-generated route templates, treat `src/app/**/index.html` the same way you would a React component body: return one parent element that contains the entire route markup.
+
+Good:
+
+```html
+<section class="dashboard-shell">
+  <h1>Dashboard</h1>
+
+  <script>
+    const [filter, setFilter] = pp.state("all");
+  </script>
+</section>
+```
+
+Bad:
+
+```html
+<section class="dashboard-shell">
+  <h1>Dashboard</h1>
+</section>
+
+<script>
+  const [filter, setFilter] = pp.state("all");
+</script>
+```
 
 Example authored route template:
 
@@ -88,7 +116,7 @@ Example authored route template:
 <section class="dashboard-shell">
   <StatsCard title="Users" value="42" />
 
-  <script type="text/pp">
+  <script>
     const [filter, setFilter] = pp.state("all");
   </script>
 </section>
@@ -108,7 +136,7 @@ Rendered shape at runtime:
 </section>
 ```
 
-Write the first form. Caspian produces the second form.
+Write the first form. Caspian produces the second form by injecting `pp-component` on the root and `type="text/pp"` on the owned script.
 
 ### `index.py`
 

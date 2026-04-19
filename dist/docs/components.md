@@ -94,7 +94,7 @@ def Counter(label: str = "Clicks") -> str:
     {count}
   </button>
 
-  <script type="text/pp">
+  <script>
     const [count, setCount] = pp.state(0);
   </script>
 </div>
@@ -108,16 +108,18 @@ Use this split when:
 
 This keeps the component easy to read: Python owns the server-side logic and template context, while the HTML file owns the rendered UI and browser behavior.
 
-## Auto-Injected `pp-component` And PulsePoint Scripts
+## Auto-Injected `pp-component` And PulsePoint Script Type
 
-Treat `pp-component="componentName"` as framework output, not authored source.
+Treat `pp-component="componentName"` and `type="text/pp"` as framework output, not authored source.
 
-- Do not manually add `pp-component` to route templates or component HTML files.
+- Do not manually add `pp-component="..."` to route templates, layout templates, or component HTML files.
+- Do not manually add `type="text/pp"` to authored PulsePoint scripts.
 - The Python render pipeline injects `pp-component` onto the single root element during render.
-- Add `<script type="text/pp">` only when the route or component actually needs PulsePoint logic.
+- `main.py` runs `transform_scripts(...)`, which rewrites authored body `<script>` tags to `<script type="text/pp">` before the browser runtime mounts.
+- Add a plain `<script>` only when the route or component actually needs PulsePoint logic.
 - When you do add a PulsePoint script, keep it inside that single root element.
 
-Examples in runtime docs often show rendered HTML that already contains `pp-component`. That is the final output shape, not the normal authoring pattern.
+Examples in runtime docs often show rendered HTML that already contains `pp-component` and `type="text/pp"`. That is the final output shape, not the normal authoring pattern.
 
 ### Authored Source vs Rendered Output
 
@@ -132,7 +134,7 @@ Author this:
     {count}
   </button>
 
-  <script type="text/pp">
+  <script>
     const [count, setCount] = pp.state(0);
   </script>
 </div>
@@ -161,15 +163,33 @@ The same rule applies to route templates such as `src/app/**/index.html`: one ro
 
 This is not just style guidance. The installed compiler injects `pp-component` onto the root element, and it raises an error when the template has no root, multiple sibling roots, stray top-level text, or a component tag as the root.
 
-Valid:
+For AI-generated templates, treat this as a hard authoring rule: write the HTML the same way a React component returns one parent element. If the template needs a PulsePoint script, keep that script inside the same parent root.
+
+Good:
+
+```html
+<div class="card">
+  <h2>Title</h2>
+
+  <script>
+    const [open, setOpen] = pp.state(false);
+  </script>
+</div>
+```
+
+Bad:
 
 ```html
 <div class="card">
   <h2>Title</h2>
 </div>
+
+<script>
+  const [open, setOpen] = pp.state(false);
+</script>
 ```
 
-Invalid:
+Also bad:
 
 ```html
 <h2>Title</h2>

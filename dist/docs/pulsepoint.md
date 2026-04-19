@@ -37,8 +37,9 @@ When a Caspian page needs reactive browser behavior, use PulsePoint.
 - Source authoring under `src/` may use convenience syntax that is transformed before it reaches the browser.
 - This page describes the bundled browser runtime shipped in `public/js/pp-reactive-v2.js`.
 - When source-layer examples conflict with the bundled runtime, follow the bundled runtime.
-- In authored route and component templates, do not add `pp-component` manually. The Python side injects it onto the template root during render.
-- In a `pp-component` root, component logic must live in `<script>`, not plain `<script>`.
+- In authored route, layout, and component templates, do not add `pp-component` manually. The Python side injects it onto the template root during render.
+- In authored templates, write PulsePoint logic in a plain `<script>` inside that root. `main.py` runs `transform_scripts(...)`, so the runtime receives `script[type="text/pp"]`.
+- When reading or debugging runtime HTML, look for `pp-component` roots and `script[type="text/pp"]`.
 
 ## Runtime shape
 
@@ -56,11 +57,12 @@ Important:
 
 ## Component roots and scripts
 
-- Each runtime component root should have at most one `<script>` block.
-- The runtime only treats `script` as component logic.
+- Each runtime component root should have at most one `script[type="text/pp"]` block.
+- The runtime only treats `script[type="text/pp"]` as component logic.
 - The script lookup walks the current root and skips nested `pp-component` boundaries, so a parent does not consume a child component's script.
 - If multiple matching scripts exist in the same root, the first matching owned script wins. Generate one script per root.
-- Component HTML templates must have exactly one top-level lowercase HTML root because the compiler injects `pp-component` onto that root during render.
+- Authored component and route HTML templates must have exactly one top-level lowercase HTML root because the compiler injects `pp-component` onto that root during render. Think React-style single parent wrapper, not sibling top-level tags.
+- In authored Caspian templates, write plain `<script>` inside the single root and let the render pipeline rewrite it before mount.
 - A scriptless component root still mounts and can receive props, refs, events, and nested children, but it has no local runtime scope beyond its props.
 - Component scripts are plain JavaScript executed with `new Function(...)`. Do not use `import`, `export`, or top-level `await` inside them.
 - The runtime auto-returns supported top-level bindings from the script. Do not rely on manual `return { ... }` objects.
@@ -88,7 +90,7 @@ Example:
   <p>Count: {count}</p>
   <button onclick="setCount(count + 1)">Increment</button>
 
-  <script>
+  <script type="text/pp">
     const { title } = pp.props;
     const [count, setCount] = pp.state(0);
 
@@ -99,7 +101,7 @@ Example:
 </div>
 ```
 
-That example shows runtime HTML after mountable roots already exist. In authored Caspian templates, you normally write the root without `pp-component` and let the Python renderer inject it before the browser runtime sees the HTML.
+That example shows runtime HTML after mountable roots already exist. In authored Caspian templates, you normally write the root without `pp-component` and keep the logic in a plain `<script>` so the Python render path can inject both runtime attributes before the browser runtime sees the HTML.
 
 ## Hooks and runtime API
 
@@ -332,8 +334,9 @@ Use these rules when generating or editing PulsePoint runtime code:
 
 - Treat PulsePoint as the default reactive frontend for Caspian app code.
 - Use the bundled runtime contract in `public/js/pp-reactive-v2.js`.
-- Generate unique `pp-component` values per live instance.
-- Use only `<script>` for component logic inside a `pp-component` root.
+- In authored Caspian templates, do not handwrite `pp-component` or `type="text/pp"`; let the render pipeline inject them.
+- If you are explicitly editing raw runtime HTML or internals, keep `pp-component` unique per live instance.
+- In authored templates, use a plain `<script>` inside the root. In runtime HTML, the owned script appears as `script[type="text/pp"]`.
 - Keep template-facing variables at top level.
 - Use `pp.createContext`, `pp.context`, and `pp.provideContext` for context. Do not invent `pp-context`.
 - Keep `pp-for` on `<template>` and use plain `key`.
@@ -356,7 +359,7 @@ Do not generate these unless the current source explicitly adds support:
 - `pp-dynamic-script`
 - `pp-dynamic-meta`
 - `pp-dynamic-link`
-- plain `<script>` for component logic inside a `pp-component` root
+- handwritten `pp-component="..."` or `type="text/pp"` in authored route, layout, or component templates
 - `pp.fetchFunction()` as the current raw runtime helper name
 - made-up hooks, directives, or globals not present in the current bundled runtime
 
@@ -365,7 +368,7 @@ Do not generate these unless the current source explicitly adds support:
 These are current runtime caveats that matter for authors and AI tools:
 
 - `pp-component` is the registry key for instances, state, parent tracking, and templates. Treat it as unique per mounted root.
-- Nested roots without their own `script` block are not fully isolated during parent template compilation.
+- Nested roots without their own `script[type="text/pp"]` block are not fully isolated during parent template compilation.
 - The global `pp` singleton auto-mounts on DOM ready, and `pp.mount()` is idempotent.
 - `pp.effect` and `pp.layoutEffect` are cleanup-style hooks. Their callbacks are not promise-aware.
 - `pp.context()` resolves through ancestor components, not the current component's own pending providers.
