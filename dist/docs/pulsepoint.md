@@ -1,6 +1,6 @@
 ---
 title: PulsePoint Runtime Guide
-description: Learn how AI agents should use PulsePoint as the default reactive frontend contract in Caspian, including the bundled runtime loaded from `public/js/main.js` and implemented in `public/js/pp-reactive-v2.js`, component script rules, and supported directives.
+description: Learn how AI agents should author PulsePoint against the shipped browser runtime in `public/js/pp-reactive-v2.js` and the Caspian render pipeline that injects runtime attributes automatically.
 related:
   title: Related docs
   description: Read the components, routing, data-fetching, and project-structure docs alongside the PulsePoint runtime contract.
@@ -14,15 +14,30 @@ related:
 
 ## Purpose
 
-This file documents the PulsePoint runtime that is currently shipped in `public/js/pp-reactive-v2.js` and loaded by `public/js/main.js`. Treat it as the working contract for AI-generated code.
+This file documents the current PulsePoint contract for this workspace. Treat it as the AI-facing source of truth when generating or reviewing interactive Caspian UI.
 
 If a task involves `pp.state`, `pp.effect`, `pp.layoutEffect`, `pp-ref`, `pp-spread`, `pp-for`, context, portals, SPA navigation, or component boundary behavior, read this page first and keep generated code aligned with the runtime implemented in this repo.
 
-Use `components.md` for authoring Python `@component` files and same-name HTML templates. Use this page for the browser-side `pp-component` contract and `script[type="text/pp"]` behavior after those templates are rendered.
+Use `components.md` for authoring Python `@component` files and same-name HTML templates. Use this page for the browser-side PulsePoint contract, the authoring rules that feed it, and the React-style mental model used by the current runtime.
 
-PulsePoint is the default reactive frontend layer for Caspian.
+PulsePoint is the default reactive frontend layer for Caspian. In this workspace it follows a React-like component pattern, but it is HTML-first rather than JSX-first.
 
 Do not assume React, Vue, Svelte, JSX, Alpine, HTMX, or older PulsePoint docs unless the task explicitly asks for a different frontend contract.
+
+## Source Of Truth
+
+For the current workspace, follow this order when documenting or generating PulsePoint code:
+
+- `public/js/pp-reactive-v2.js` is the shipped browser runtime contract AI should follow.
+- `main.py` is the render-pipeline source of truth for how Caspian injects runtime attributes and rewrites scripts before the browser sees the HTML.
+- If you are working inside PulsePoint or Caspian runtime development code and there is an authoring source tree behind the shipped files, use it only as an implementation detail. Do not assume that source tree exists in generated apps or shipped framework output.
+
+Important current facts:
+
+- `public/js/pp-reactive-v2.js` exposes the global `pp` runtime and auto-mounts on DOM ready.
+- `main.py` renders the final HTML, runs `transform_components(...)`, then runs `transform_scripts(...)` before returning the response.
+
+If docs, generated examples, or older notes disagree with `public/js/pp-reactive-v2.js` plus `main.py`, follow the code that actually runs.
 
 ## Default Frontend Rule
 
@@ -32,14 +47,46 @@ When a Caspian page needs reactive browser behavior, use PulsePoint.
 - Keep server-rendered HTML plus PulsePoint enhancement as the baseline architecture.
 - Only introduce another frontend runtime when the user explicitly asks for it or the project already depends on one.
 
-## Source layer vs raw runtime
+## Authoring Model
 
-- Source authoring under `src/` may use convenience syntax that is transformed before it reaches the browser.
-- This page describes the bundled browser runtime shipped in `public/js/pp-reactive-v2.js`.
-- When source-layer examples conflict with the bundled runtime, follow the bundled runtime.
-- In authored route, layout, and component templates, do not add `pp-component` manually. The Python side injects it onto the template root during render.
-- In authored templates, write PulsePoint logic in a plain `<script>` inside that root. `main.py` runs `transform_scripts(...)`, so the runtime receives `script[type="text/pp"]`.
-- When reading or debugging runtime HTML, look for `pp-component` roots and `script[type="text/pp"]`.
+PulsePoint authoring in this repo is split into two layers:
+
+- The authored layer: route, layout, and component templates under `src/` with plain HTML plus a plain `<script>`.
+- The runtime layer: the browser sees `pp-component` roots and `script[type="text/pp"]` after Caspian transforms the HTML.
+
+For authored Caspian templates:
+
+- Keep exactly one top-level lowercase HTML root element.
+- Put the component logic inside a plain `<script>` inside that same root.
+- Do not handwrite `pp-component="..."`.
+- Do not handwrite `type="text/pp"`.
+
+Caspian already handles those details for you during render.
+
+That means AI-generated examples should default to authored template source, not raw runtime HTML.
+
+Authored example:
+
+```html
+<section>
+  <h2>{title}</h2>
+  <p>Count: {count}</p>
+
+  <button onclick="setCount(count + 1)">Increment</button>
+  <button onclick="reset()">Reset</button>
+
+  <script>
+    const { title = "Counter" } = pp.props;
+    const [count, setCount] = pp.state(0);
+
+    function reset() {
+      setCount(0);
+    }
+  </script>
+</section>
+```
+
+When that template reaches the browser, Caspian will already have injected the component id and rewritten the owned script to `type="text/pp"`. Those runtime attributes are for the rendered output, not for authored source examples.
 
 ## Runtime shape
 
@@ -57,17 +104,16 @@ Important:
 
 ## Component roots and scripts
 
-- Each runtime component root should have at most one `script[type="text/pp"]` block.
-- The runtime only treats `script[type="text/pp"]` as component logic.
+- Each runtime component root should have at most one owned script.
+- At runtime, the owned script is `script[type="text/pp"]`.
 - The script lookup walks the current root and skips nested `pp-component` boundaries, so a parent does not consume a child component's script.
-- If multiple matching scripts exist in the same root, the first matching owned script wins. Generate one script per root.
-- Authored component and route HTML templates must have exactly one top-level lowercase HTML root because the compiler injects `pp-component` onto that root during render. Think React-style single parent wrapper, not sibling top-level tags.
-- In authored Caspian templates, write plain `<script>` inside the single root and let the render pipeline rewrite it before mount.
+- If multiple matching runtime scripts exist in the same root, the first matching owned script wins. Generate one script per root.
+- Authored route, layout, and component templates still need one top-level lowercase HTML root so Caspian can inject the component boundary correctly.
 - A scriptless component root still mounts and can receive props, refs, events, and nested children, but it has no local runtime scope beyond its props.
 - Component scripts are plain JavaScript executed with `new Function(...)`. Do not use `import`, `export`, or top-level `await` inside them.
 - The runtime auto-returns supported top-level bindings from the script. Do not rely on manual `return { ... }` objects.
 - `pp.props` contains the current prop bag for the component.
-- `pp.props.children` contains the root's initial inner HTML before the owning `script` block is removed from the render template.
+- `pp.props.children` contains the root's initial inner HTML before the owned script is removed from the render template.
 
 Bindings exported to the template:
 
@@ -85,12 +131,12 @@ Bindings that should not be assumed:
 Example:
 
 ```html
-<div pp-component="counter-card-1">
+<div>
   <h2>{title}</h2>
   <p>Count: {count}</p>
   <button onclick="setCount(count + 1)">Increment</button>
 
-  <script type="text/pp">
+  <script>
     const { title } = pp.props;
     const [count, setCount] = pp.state(0);
 
@@ -101,9 +147,11 @@ Example:
 </div>
 ```
 
-That example shows runtime HTML after mountable roots already exist. In authored Caspian templates, you normally write the root without `pp-component` and keep the logic in a plain `<script>` so the Python render path can inject both runtime attributes before the browser runtime sees the HTML.
+That is the authored form. In browser-inspected runtime HTML, Caspian will already have added the component id and the owned script type.
 
 ## Hooks and runtime API
+
+PulsePoint uses a React-style mental model inside each component script: stateful render scope, dependency-based effects, refs, reducer-style updates, context consumption, and portals.
 
 Hooks exposed inside component scripts through `pp`:
 
@@ -115,11 +163,10 @@ Hooks exposed inside component scripts through `pp`:
 - `pp.callback(callback, deps)` memoizes a function.
 - `pp.reducer(reducer, initialState)` returns `[state, dispatch]`.
 - `pp.context(token)` resolves a provided context value from ancestor components.
-- `pp.provideContext(token, value)` provides a context value to descendant components.
 - `pp.portal(ref, target?)` registers a ref-managed element for portal rendering and returns an object that includes `sourceParent`.
 - `pp.props` exposes the current props.
 
-Global helpers exposed on the `pp` singleton:
+Global helpers exposed through the `pp` singleton and also merged into the component runtime:
 
 - `pp.createContext(defaultValue)` creates a context token.
 - `pp.mount()` bootstraps the runtime. It is idempotent.
@@ -132,21 +179,22 @@ Global helpers exposed on the `pp` singleton:
 
 Notes:
 
-- The global `pp` singleton auto-mounts once `public/js/main.js` loads the bundled runtime and the DOM is ready. Manual `pp.mount()` is still safe because it short-circuits after the first mount.
+- The global `pp` singleton auto-mounts once the runtime is loaded and the DOM is ready. Manual `pp.mount()` is still safe because it short-circuits after the first mount.
 - `pp.state` setters accept either a value or an updater function.
 - `pp.effect` and `pp.layoutEffect` are cleanup-style hooks. Returned promises are not awaited.
 - `pp.portal(ref)` defaults to `document.body` when no target is provided.
 - Older docs may call the RPC helper `pp.fetchFunction()`. In the current bundled runtime the implemented global API is `pp.rpc()`.
 - Keep template-facing bindings at the top level so the AST-based exporter can see them.
+- For predictable code generation, prefer passing an explicit dependency array to `pp.effect`, `pp.layoutEffect`, `pp.memo`, and `pp.callback`.
 
 ## Context
 
-Context is implemented in the current runtime.
+Context is implemented in the current runtime, but the current API follows a React-style `Context.Provider` pattern rather than a legacy `pp.provideContext(...)` helper.
 
 How it works:
 
 - Create a token with `pp.createContext(defaultValue)`.
-- Provide a value from a component with `pp.provideContext(token, value)`.
+- Provide a value with `Context.Provider`.
 - Read it in a descendant component with `pp.context(token)`.
 - Resolution walks the logical component parent chain stored in the registry, not the live DOM.
 - Portaled descendants still resolve providers through component ancestry.
@@ -159,29 +207,38 @@ Important:
 - The same token object must be shared between provider and consumer.
 - Context is component-level, not directive-based. There is no `pp-context` attribute.
 - `pp.context(token)` resolves from ancestors. A component does not consume the value it provides in the same render.
-- If provider and consumer live in different component script scopes, pass the token through props or store it in shared global/outer state.
+- If provider and consumer live in different component script scopes, pass the token through props or store it in shared outer or global state.
+- The preferred authoring style is a provider tag in the template. The runtime also supports imperative `ThemeContext.Provider({ value })` calls during render, but the tag form is clearer for AI-generated authored templates.
+- Do not invent or document `pp.provideContext`. The current runtime explicitly does not expose it.
 
-Example:
+Provider example:
 
 ```html
-<section pp-component="theme-provider-1">
-  <div pp-component="theme-label-1" theme-token="{ThemeContext}">
-    <p>{theme}</p>
-
-    <script>
-      const { themeToken } = pp.props;
-      const theme = pp.context(themeToken);
-    </script>
-  </div>
-
+<section>
   <script>
     const ThemeContext = pp.createContext("light");
     const [theme] = pp.state("dark");
-
-    pp.provideContext(ThemeContext, theme);
   </script>
+
+  <ThemeContext.Provider value="{theme}">
+    <p>This subtree receives the provided theme.</p>
+  </ThemeContext.Provider>
 </section>
 ```
+
+Consumer example for a child component that receives the token through props:
+
+```html
+<div>
+  <p>{theme}</p>
+
+  <script>
+    const theme = pp.context(pp.props.themeToken);
+  </script>
+</div>
+```
+
+When a child component needs the same token object, pass it from the provider scope as a prop such as `theme-token="{ThemeContext}"`.
 
 ## Props and nested components
 
@@ -217,7 +274,7 @@ Nested components:
 Example:
 
 ```html
-<div pp-component="profile-card-1">
+<div>
   <button pp-spread="{...buttonAttrs}" hidden="{isLoading}">Save</button>
 
   <script>
@@ -246,7 +303,7 @@ Example:
 Example:
 
 ```html
-<div pp-component="focus-box-1">
+<div>
   <input pp-ref="nameInput" />
   <button onclick="nameInput.current?.focus()">Focus</button>
 
@@ -270,7 +327,7 @@ Example:
 Example:
 
 ```html
-<div pp-component="todo-list-1">
+<div>
   <ul>
     <template pp-for="(todo, index) in todos">
       <li key="{todo.id}">
@@ -328,23 +385,43 @@ Notes:
 - Root-layout mismatches during SPA navigation trigger a hard reload.
 - `pp.mount()` bootstraps every `[pp-component]` it finds, so generated code should call it only through the global runtime if you are manually mounting at all.
 
+## Runtime Output And Debugging
+
+When you inspect rendered HTML in the browser, you should expect to see runtime-managed attributes and elements that are not part of authored source.
+
+Normal runtime output includes:
+
+- `pp-component="..."` on mounted roots.
+- `script[type="text/pp"]` for owned component scripts.
+- internal attributes such as captured ref tokens and event-owner bookkeeping.
+
+These are runtime details.
+
+- Mention them in docs when explaining how the browser runtime works.
+- Do not use them as the default form in authored examples.
+- Do not tell AI to handwrite them in route, layout, or component templates unless the task is explicitly about raw runtime HTML or runtime internals.
+
 ## AI rules
 
 Use these rules when generating or editing PulsePoint runtime code:
 
 - Treat PulsePoint as the default reactive frontend for Caspian app code.
-- Use the bundled runtime contract in `public/js/pp-reactive-v2.js`.
+- Use `public/js/pp-reactive-v2.js` as the shipped runtime contract AI should follow.
+- Keep `main.py` in view because it injects the runtime-facing attributes and rewrites authored scripts before the browser sees them.
+- If a development-only source tree exists behind the shipped runtime, treat it as optional implementation detail rather than something generated apps are guaranteed to contain.
 - In authored Caspian templates, do not handwrite `pp-component` or `type="text/pp"`; let the render pipeline inject them.
 - If you are explicitly editing raw runtime HTML or internals, keep `pp-component` unique per live instance.
 - In authored templates, use a plain `<script>` inside the root. In runtime HTML, the owned script appears as `script[type="text/pp"]`.
 - Keep template-facing variables at top level.
-- Use `pp.createContext`, `pp.context`, and `pp.provideContext` for context. Do not invent `pp-context`.
+- Follow the React-style context pattern: `pp.createContext(...)`, `<Context.Provider value="{...}">`, and `pp.context(token)`.
+- Do not invent `pp.provideContext`, `pp-context`, or other legacy context helpers.
 - Keep `pp-for` on `<template>` and use plain `key`.
 - Use native `on*` attributes, not framework-specific event syntax.
 - Use refs and portals only through the implemented `pp` APIs.
 - Use `pp.rpc()` for the bundled runtime API instead of older `pp.fetchFunction()` wording.
 - Avoid generating internal runtime attributes.
 - Avoid scriptless nested components when the child template contains its own bindings.
+- Prefer authored-template examples over runtime-inspected HTML examples unless the doc is specifically explaining runtime internals.
 
 ## What to avoid
 
@@ -354,6 +431,7 @@ Do not generate these unless the current source explicitly adds support:
 - `pp-context`
 - `pp-key`
 - `data-pp-ref`
+- `pp-context-provider`
 - `pp-owner`
 - `pp-event-owner`
 - `pp-dynamic-script`
@@ -368,10 +446,13 @@ Do not generate these unless the current source explicitly adds support:
 These are current runtime caveats that matter for authors and AI tools:
 
 - `pp-component` is the registry key for instances, state, parent tracking, and templates. Treat it as unique per mounted root.
+- `public/js/pp-reactive-v2.js` is the runtime surface that ships and should be assumed to exist.
+- Caspian already injects `pp-component` and rewrites owned scripts to `type="text/pp"` during render.
 - Nested roots without their own `script[type="text/pp"]` block are not fully isolated during parent template compilation.
 - The global `pp` singleton auto-mounts on DOM ready, and `pp.mount()` is idempotent.
 - `pp.effect` and `pp.layoutEffect` are cleanup-style hooks. Their callbacks are not promise-aware.
 - `pp.context()` resolves through ancestor components, not the current component's own pending providers.
+- `pp.provideContext` is not part of the current runtime API. Use `Context.Provider`.
 - `pp.portal()` preserves logical ancestry through the registry, so context and prop refresh behavior continue to work through portaled descendants.
 
 ## Final reminder
