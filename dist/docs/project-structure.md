@@ -98,6 +98,8 @@ Use this folder for reusable UI components that should be imported into route te
 
 The common Caspian pattern is a Python file such as `Button.py` with `@component`, optionally paired with a same-name HTML file such as `Button.html` when the component has richer markup or PulsePoint behavior.
 
+One Python file can also export multiple related `@component` functions. When that happens, import those tags from that exact file path in HTML, for example `<!-- @import { Breadcrumb, BreadcrumbItem, BreadcrumbList } from "../components/Breadcrumb.py" -->`, instead of assuming each tag has its own sibling `.py` file.
+
 For component HTML files, follow the same one-parent rule as route HTML files: one top-level lowercase HTML element only, with no sibling roots and no top-level script sitting outside that root.
 
 Do not handwrite `pp-component="..."` or `type="text/pp"` in component source templates either. Write plain `<script>` inside the single root and let the render pipeline inject the runtime shape.

@@ -70,6 +70,8 @@ Treat `<!-- @import ... -->` as a file-level directive, not as rendered markup. 
 - `<!-- @import Container from "../components" -->` resolves `Container.py` from that folder.
 - The component function name should match the tag name you render, such as `Container` for `<Container />`.
 - Grouped imports and aliases are also supported, for example `<!-- @import { Button, Card as UserCard } from "../components/ui" -->`.
+- If one Python file exports several `@component` functions, point `from` at that exact file instead of assuming one file per tag.
+- In that case, prefer one grouped import so every rendered tag resolves back to the same Python module.
 
 Good:
 
@@ -91,6 +93,38 @@ Bad:
   <Label>Email</Label>
 </section>
 ```
+
+### Same-File Component Exports
+
+Caspian does not require one Python file per component. A single file can export a main component plus related subcomponents.
+
+If `Breadcrumb.py` defines `Breadcrumb`, `BreadcrumbList`, `BreadcrumbItem`, `BreadcrumbLink`, `BreadcrumbPage`, and `BreadcrumbSeparator`, import those names from `Breadcrumb.py` itself.
+
+```html
+<!-- @import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from "../maddex/Breadcrumb.py" -->
+
+<div class="dashboard-topbar">
+  <Breadcrumb class="dashboard-breadcrumbs" aria-label="Dashboard breadcrumbs">
+    <BreadcrumbList class="dashboard-breadcrumbs__list">
+      <BreadcrumbItem class="dashboard-breadcrumbs__item">
+        <BreadcrumbLink href="/dashboard">Dashboard</BreadcrumbLink>
+      </BreadcrumbItem>
+      <BreadcrumbSeparator class="dashboard-breadcrumbs__separator" />
+      <BreadcrumbItem class="dashboard-breadcrumbs__item">
+        <BreadcrumbPage class="dashboard-breadcrumbs__page">Reports</BreadcrumbPage>
+      </BreadcrumbItem>
+    </BreadcrumbList>
+  </Breadcrumb>
+</div>
+```
+
+If you only need one component from that file, keep the same file path:
+
+```html
+<!-- @import Breadcrumb from "../maddex/Breadcrumb.py" -->
+```
+
+Do not invent folder-level imports for symbols that do not have their own file. If `BreadcrumbItem` lives inside `Breadcrumb.py`, import it from `Breadcrumb.py`, not from `../maddex` as if `BreadcrumbItem.py` existed.
 
 ## Template-Backed Components
 
