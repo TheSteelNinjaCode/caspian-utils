@@ -22,9 +22,10 @@ The standard Prisma flow in Caspian is:
 
 1. Define models in `prisma/schema.prisma`.
 2. Configure `DATABASE_URL` in `.env`.
-3. Run `npx prisma generate` after schema changes.
-4. Use the generated client from Node-side tooling such as `prisma/seed.ts`.
-5. Reuse the shared Python database layer in `src/lib/prisma/` when Python route or RPC code needs database access.
+3. Run `npx prisma migrate dev` after schema changes so the development database and migration history stay aligned.
+4. If the change requires seed data, run `npx prisma generate` and then `npx prisma db seed`.
+5. Run `npx ppy generate` so the Python ORM classes stay aligned with the updated schema.
+6. Reuse the shared Python database layer in `src/lib/prisma/` when Python route or RPC code needs database access, and never hand-edit generated ORM classes.
 
 Use this workflow instead of writing raw SQL first. Drop to raw SQL only when a query cannot be expressed clearly with the generated client.
 
@@ -99,22 +100,30 @@ model Post {
 }
 ```
 
-After changing the schema, run `npx prisma generate` so the generated Node Prisma client stays in sync with the schema. If the Python layer in `src/lib/prisma/` depends on the updated shape, regenerate or refresh that application-owned code too.
+After changing the schema, use this order in the current workspace:
+
+1. Run `npx prisma migrate dev`.
+2. If seed data or the seed script needs the new schema, run `npx prisma generate` and then `npx prisma db seed`.
+3. Run `npx ppy generate` to refresh the generated Python ORM classes.
+
+Do not hand-edit generated Prisma or Python ORM output. Treat `prisma/schema.prisma` as the source of truth and regenerate from it.
 
 ## Command Reference
 
 Use these commands for the normal Prisma lifecycle in Caspian:
 
-- `npx prisma generate` compiles `schema.prisma` into the generated Prisma client. Run this after every schema change.
-- `npx prisma migrate dev` creates and applies a development migration.
+- `npx prisma migrate dev` creates and applies a development migration. This is the first command to run after changing `prisma/schema.prisma`.
+- `npx prisma generate` compiles `schema.prisma` into the generated Node Prisma client. Run it before `npx prisma db seed` when the updated seed flow depends on the new schema.
+- `npx prisma db seed` runs the configured seeding script.
+- `npx ppy generate` regenerates the Python ORM classes used by the app. Use this after every schema change.
 - `npx prisma migrate deploy` applies pending migrations in deployment environments.
 - `npx prisma db push` syncs schema changes without creating a migration file, which is useful for prototyping.
-- `npx prisma db seed` runs the configured seeding script.
 - `npx prisma studio` opens the Prisma data browser.
 
 Default rule:
 
-- Use `npx prisma generate` every time the schema changes.
+- When `prisma/schema.prisma` changes, use this order: `npx prisma migrate dev`; if seeding is involved, run `npx prisma generate` and `npx prisma db seed`; then run `npx ppy generate`.
+- Never hand-edit generated Prisma or Python ORM classes, and never replace `npx ppy generate` with a manual class update.
 - Use migrations for tracked application changes.
 - Use `db push` only when you intentionally want a faster, migration-free prototype loop.
 
@@ -142,7 +151,7 @@ After `npx prisma generate`, Prisma writes the generated JavaScript client into 
 
 This workspace already includes an app-owned async Python database package that exports `prisma`, `PrismaClient`, generated models, and helper types.
 
-If Python route or RPC code needs database access, import from `src.lib.prisma` and keep that import path explicit in application code.
+If Python route or RPC code needs database access, import from `src.lib.prisma` and keep that import path explicit in application code. Refresh generated classes with `npx ppy generate` instead of editing them manually.
 
 ## Python Route Usage
 
@@ -306,8 +315,9 @@ Use raw SQL sparingly. Prefer the generated Prisma API when the query can be exp
 
 ## Recommended Project Rules
 
-- Keep the schema in `prisma/schema.prisma` and regenerate the client after changes.
+- Keep the schema in `prisma/schema.prisma` and follow the required regeneration order after changes: `npx prisma migrate dev`, optional seed flow, then `npx ppy generate`.
 - Reuse `src/lib/prisma/` for Python-side database access instead of creating a second bridge.
+- Never hand-edit generated Prisma or Python ORM classes.
 - Keep reusable database helpers in `src/lib/`, and keep route-specific orchestration in `src/app/`.
 - Use `await` with Prisma operations.
 - Convert Prisma objects to template-safe dictionaries when rendering HTML.
@@ -320,7 +330,10 @@ If an AI agent is working on a Caspian app with Prisma enabled, apply these rule
 
 - Treat Prisma as the default ORM and persistence layer.
 - Read `prisma/schema.prisma` before proposing model, relation, or field changes.
-- Run `npx prisma generate` after schema changes.
+- When `prisma/schema.prisma` changes, run `npx prisma migrate dev` first.
+- If the schema change requires seed data, run `npx prisma generate` and then `npx prisma db seed`.
+- Run `npx ppy generate` after schema changes to refresh the Python ORM classes.
+- Never hand-edit generated Prisma or Python ORM classes.
 - Read `prisma.config.ts` and `prisma/seed.ts` when you need the current workspace's Prisma tooling examples.
 - Reuse the existing `src/lib/prisma/` package when the Python app needs database access.
 - Put reusable database helpers in `src/lib/`; keep route and RPC orchestration in `src/app/`.

@@ -21,7 +21,7 @@ The current workspace includes a local `prisma` binary, but it does not include 
 Use Caspian CLI commands for three main tasks:
 
 - Create a new application.
-- Generate code from your Prisma schema.
+- Regenerate Node and Python ORM code from your Prisma schema.
 - Update framework-managed project files.
 
 Before running update commands, review `caspian.config.json` because it controls overwrite behavior.
@@ -60,15 +60,23 @@ Common scaffold flags include:
 
 ## Code Generation
 
-When your Prisma schema changes in this workspace, regenerate the client with the local Prisma CLI:
+When `prisma/schema.prisma` changes in this workspace, use this command flow:
 
 ```bash
+npx prisma migrate dev
+
+# If the change requires refreshed seed data:
 npx prisma generate
+npx prisma db seed
+
+npx ppy generate
 ```
 
-This flow regenerates the Prisma client defined by `generator client` in `prisma/schema.prisma`. In the current workspace, that generator uses `prisma-client-js`.
+Use `npx prisma migrate dev` first so the development database and migration history stay aligned. If the updated schema affects seed data, run `npx prisma generate` before `npx prisma db seed` so Node-side tooling such as `prisma/seed.ts` uses the current generated client.
 
-This workspace already includes an app-owned Python database layer in `src/lib/prisma/`, so reuse that package for Python-side database access instead of creating a second helper.
+Always finish with `npx ppy generate`. That is the required way to refresh the Python ORM classes used by the app after a schema change.
+
+This workspace already includes an app-owned Python database layer in `src/lib/prisma/`, so reuse that package for Python-side database access instead of creating a second helper. Do not hand-edit generated ORM classes.
 
 See `database.md` for the full Prisma workflow, including `.env`, `prisma.config.ts`, migrations, and async usage patterns.
 
@@ -113,7 +121,10 @@ If an AI agent is deciding which command flow to use, apply these rules first.
 - Use `npx create-caspian-app@latest` when the user is creating a new project.
 - Use `npx casp update project` only for an existing Caspian project.
 - Read `caspian.config.json` before running update commands.
-- Use `npx prisma generate` after Prisma schema changes in this workspace.
+- When `prisma/schema.prisma` changes, run `npx prisma migrate dev` first.
+- If the change requires seed data, run `npx prisma generate` and then `npx prisma db seed`.
+- Run `npx ppy generate` after every Prisma schema change to refresh the Python ORM classes.
+- Never hand-edit generated Prisma or Python ORM classes.
 - Check `database.md` when the task involves Prisma setup, schema updates, or the current workspace's schema, migration, and seed tooling.
 - Check [routing.md](./routing.md) before generating or modifying route folders under `src/app/`.
 - Check [project-structure.md](./project-structure.md) before placing generated files into the project.
