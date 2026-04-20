@@ -161,6 +161,8 @@ The project auth configuration file. Use this path when changing authentication 
 
 The root layout shared across pages.
 
+If this layout imports reusable components, place each `<!-- @import ... -->` comment above the authored root `<html>` element instead of nesting the comment inside `<html>` or `<body>`.
+
 ### `src/app/index.py`
 
 The backend logic for the route. This is where route behavior can load first-render data, expose `@rpc()` actions, and import framework features such as auth helpers, `casp.validate`, and route-level `Cache(...)` declarations.
@@ -168,6 +170,8 @@ The backend logic for the route. This is where route behavior can load first-ren
 ### `src/app/index.html`
 
 The route template. It supports standard HTML, `<!-- @import ... -->` component imports, and PulsePoint directives, and it should be the default place for reactive frontend behavior in Caspian.
+
+Treat import comments as top-of-file directives that belong above the route's single authored root element.
 
 Use `components.md` when the task involves authoring reusable `<MyComponent />` tags backed by Python files.
 
@@ -198,6 +202,7 @@ If an AI agent is deciding where to make changes, use these rules first.
 - Put route templates and route-specific backend logic in `src/app/`.
 - Check [routing.md](./routing.md) when you need URL segment rules, layout nesting behavior, or dynamic route conventions.
 - Put reusable component files in `src/components/` and check [components.md](./components.md) for `@component`, `render_html(__file__)`, import comments, and single-root template rules.
+- Keep `<!-- @import ... -->` comments above the single authored root element in route, layout, and component HTML files.
 - For route and component HTML files, always emit one top-level lowercase HTML element. Good: one wrapper containing the content and a plain `<script>` when needed. Bad: a wrapper element followed by a sibling top-level `<script>`, or handwritten `pp-component="..."` and `type="text/pp"` attributes in source.
 - Put shared helpers and reusable libraries in `src/lib/`.
 - Use PulsePoint conventions in route templates for reactive frontend behavior.

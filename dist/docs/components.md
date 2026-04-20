@@ -53,7 +53,7 @@ Notes:
 
 ## Import And Use Components
 
-Import components inside the HTML template where they are used.
+Place component imports at the top of the HTML template, above the authored root element.
 
 ```html
 <!-- @import Container from "../components" -->
@@ -65,9 +65,32 @@ Import components inside the HTML template where they are used.
 
 The import comment is the bridge between the Python component file and the JSX-style tag.
 
+Treat `<!-- @import ... -->` as a file-level directive, not as rendered markup. It does not count as the template root, and it should not be nested inside the root wrapper element.
+
 - `<!-- @import Container from "../components" -->` resolves `Container.py` from that folder.
 - The component function name should match the tag name you render, such as `Container` for `<Container />`.
 - Grouped imports and aliases are also supported, for example `<!-- @import { Button, Card as UserCard } from "../components/ui" -->`.
+
+Good:
+
+```html
+<!-- @import { Button, Input, Label } from "../../../lib/maddex" -->
+
+<section class="auth-panel auth-panel-compact fade-up">
+  <Label>Email</Label>
+  <Input type="email" />
+  <Button>Continue</Button>
+</section>
+```
+
+Bad:
+
+```html
+<section class="auth-panel auth-panel-compact fade-up">
+  <!-- @import { Button, Input, Label } from "../../../lib/maddex" -->
+  <Label>Email</Label>
+</section>
+```
 
 ## Template-Backed Components
 
@@ -160,6 +183,8 @@ The second example is the runtime shape after the Python side injects `pp-compon
 Every component HTML template must render exactly one top-level lowercase HTML element.
 
 The same rule applies to route templates such as `src/app/**/index.html`: one root element, no sibling roots, and no manual `pp-component` authoring.
+
+Top-of-file `<!-- @import ... -->` directives are allowed before that root element and do not violate the single-root rule.
 
 This is not just style guidance. The installed compiler injects `pp-component` onto the root element, and it raises an error when the template has no root, multiple sibling roots, stray top-level text, or a component tag as the root.
 

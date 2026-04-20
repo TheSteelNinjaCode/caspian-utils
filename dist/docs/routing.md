@@ -76,6 +76,8 @@ Use `index.html` for the route template. This is the route's view layer.
 
 Route templates can import reusable Python components with `<!-- @import ... -->` comments and render them with JSX-style tags such as `<Button />`. Use [components.md](./components.md) for the component authoring rules.
 
+Place those import comments at the top of the file, above the authored root element. They are file-level directives, not children of the route root.
+
 Do not manually add `pp-component="..."` to the route root. The Python render pipeline injects that attribute onto the route's single top-level lowercase HTML element.
 
 Do not manually add `type="text/pp"` to a route-owned script either. In source templates, write a plain `<script>` inside the root and let `main.py` call `transform_scripts(...)` before the browser runtime sees the HTML.
@@ -106,6 +108,15 @@ Bad:
 <script>
   const [filter, setFilter] = pp.state("all");
 </script>
+```
+
+Also bad:
+
+```html
+<section class="dashboard-shell">
+  <!-- @import StatsCard from "../components" -->
+  <StatsCard title="Users" value="42" />
+</section>
 ```
 
 Example authored route template:
@@ -219,6 +230,8 @@ Route groups are useful when you want to:
 
 Layouts work like the Next.js App Router layout system. A `layout.html` file wraps the routes beneath its folder, and nested layouts compose automatically.
 
+When a layout imports components, keep each `<!-- @import ... -->` comment above the layout's authored wrapper element, such as the root `<section>` in a nested layout or the root `<html>` in the app layout.
+
 Resolved SEO fields are exposed to layouts as `[[ metadata.* ]]`, while values returned from `layout.py` are exposed separately as `[[ layout.* ]]`.
 
 For example, a page inside `/dashboard/settings` is wrapped by the root layout first and then by the dashboard layout.
@@ -300,6 +313,7 @@ If an AI agent is choosing where to add or update route code, apply these rules 
 - Use `index.html` for route templates and `index.py` for route-level async logic.
 - Use [cache.md](./cache.md) when an `index.py` route should opt into page-level HTML caching.
 - Use `layout.html` for shared wrappers and `layout.py` for layout-level synchronous props or metadata.
+- Keep `<!-- @import ... -->` directives at the top of `index.html` and `layout.html`, above the single authored root element.
 - Use [metadata.md](./metadata.md) when a route or layout needs SEO fields.
 - Use `[segment]` for single dynamic parameters.
 - Use `[...segment]` for catch-all route matching.
