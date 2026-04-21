@@ -3,8 +3,10 @@ title: Installation
 description: Learn how to create a new Caspian application so AI agents use the first-time setup flow instead of assuming an existing project is already in place.
 related:
   title: Related docs
-  description: Continue with the routing and structure guides after scaffold so the new app follows Caspian conventions.
+  description: Continue with the routing, structure, and MCP guides after scaffold so the new app follows Caspian conventions and keeps optional FastMCP files in the right place.
   links:
+    - /docs/commands
+    - /docs/mcp
     - /docs/routing
     - /docs/project-structure
     - /docs/index
@@ -54,6 +56,8 @@ The interactive wizard walks through the main project options, including:
 - Feature toggles such as backend-only mode, Tailwind CSS, Prisma, MCP, and TypeScript
 - Other scaffold options exposed by the current CLI version
 
+If the project enables MCP, use `mcp.md` after scaffold to place the app-owned FastMCP server and config files correctly for the current workspace conventions.
+
 ## Recommended VS Code Setup
 
 For the best development experience, use these VS Code extensions:
@@ -83,6 +87,7 @@ In this workspace, `npm run dev` is backed by BrowserSync plus PostCSS watchers,
 Once the project is scaffolded:
 
 - Read `database.md` when the app includes Prisma ORM support or needs database changes.
+- Read `mcp.md` when the app includes MCP support or needs FastMCP server, config, or launch-flow changes.
 - Read `auth.md` before wiring session config, sign-in or signout routes, route guards, or OAuth providers.
 - Read `pulsepoint.md` before generating interactive frontend behavior.
 - Read `fetch-data.md` before adding browser-triggered reads, writes, uploads, or streams.
@@ -97,5 +102,6 @@ If an AI agent is reading this page, treat it as the source for new-project inst
 - Use this workflow when the user is creating a Caspian app from scratch.
 - Do not use existing-project migration or update commands unless the project already exists.
 - After scaffold, default to PulsePoint for interactive UI, RPC for browser-to-server data flow, and `casp.validate` for validation.
+- If MCP is enabled, read [mcp.md](./mcp.md) before editing FastMCP files or assuming where the server config should live.
 - Once the app exists, check [routing.md](./routing.md) before creating or changing routes under `src/app/`.
 - Check [index.md](./index.md) first when deciding which local doc to follow.

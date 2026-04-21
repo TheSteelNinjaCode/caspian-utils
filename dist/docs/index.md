@@ -7,6 +7,7 @@ related:
   links:
     - /docs/installation
     - /docs/commands
+    - /docs/mcp
     - /docs/project-structure
     - /docs/components
 ---
@@ -37,6 +38,7 @@ The packaged Caspian docs distributed by the current toolchain also live here:
 
 - `installation.md` - First-time setup flow for creating a new Caspian application
 - `commands.md` - Main Caspian CLI workflows for project creation, generation, updates, and config-aware maintenance
+- `mcp.md` - Workspace FastMCP server layout, nested config path, local launch flow, and MCP-specific AI routing rules
 - `database.md` - Prisma schema, migration, seed, and client-generation workflow for the current workspace, plus Python-side helper caveats
 - `auth.md` - Session-backed authentication with `casp.auth`, centralized `auth_config.py`, decorators, RBAC, and OAuth provider helpers
 - `components.md` - Create reusable Python components, template-backed UI, JSX-style imports, and the single-parent root rule for component HTML files
@@ -57,7 +59,7 @@ Preferred lookup order:
 
 1. Read `node_modules/caspian-utils/dist/docs/index.md` to discover available local docs.
 2. Read `./caspian.config.json` before making any feature assumption. Use it to confirm which project capabilities are enabled and which directories or tooling rules apply.
-3. Read `database.md` for Prisma setup and ORM usage, `auth.md` for session auth and route protection, `components.md` for reusable UI authoring, `pulsepoint.md` for browser-side reactive runtime behavior, `fetch-data.md` for data flows, `state.md` for transient request-scoped state, `cache.md` for page caching, and `validation.md` for input boundaries.
+3. Read `database.md` for Prisma setup and ORM usage, `mcp.md` for the current FastMCP server layout and local run flow, `auth.md` for session auth and route protection, `components.md` for reusable UI authoring, `pulsepoint.md` for browser-side reactive runtime behavior, `fetch-data.md` for data flows, `state.md` for transient request-scoped state, `cache.md` for page caching, and `validation.md` for input boundaries.
 4. For authored component, route, and layout HTML files, generate exactly one top-level lowercase HTML element. Think React-style single parent wrapper: keep any owned PulsePoint logic in a plain `<script>` inside that root, do not handwrite `pp-component="..."` or `type="text/pp"` because Caspian injects those runtime attributes automatically, and treat `<!-- @import ... -->` comments as file-level directives that belong above the authored root element instead of inside `<div>`, `<section>`, or `<html>`. When several component tags come from one Python file, import them from that exact file path, for example `<!-- @import { Breadcrumb, BreadcrumbItem, BreadcrumbList } from "../components/Breadcrumb.py" -->`.
 5. Prefer local docs before generating code, commands, or migration guidance.
 6. Check `node_modules/caspian-utils/dist/docs/` for packaged Caspian docs when local docs need more detail.

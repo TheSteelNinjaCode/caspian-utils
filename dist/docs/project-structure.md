@@ -1,13 +1,14 @@
 ---
 title: Project Structure
-description: Understand the default Caspian project layout so AI agents place routes, reusable components, PulsePoint templates, RPC actions, validation helpers, auth code, configuration, and database changes in the correct directories.
+description: Understand the default Caspian project layout so AI agents place routes, reusable components, PulsePoint templates, RPC actions, validation helpers, auth code, MCP files, configuration, and database changes in the correct directories.
 related:
   title: Related docs
-  description: Start with installation for new apps, then use the component guide for reusable UI, the auth guide for bootstrap and session wiring, the routing guide to map URLs correctly, and the cache guide when route HTML should be reused safely.
+  description: Start with installation for new apps, then use the component guide for reusable UI, the auth guide for bootstrap and session wiring, the MCP guide for server layout, the routing guide to map URLs correctly, and the cache guide when route HTML should be reused safely.
   links:
     - /docs/installation
     - /docs/components
     - /docs/auth
+    - /docs/mcp
     - /docs/routing
     - /docs/cache
     - /docs/database
@@ -31,6 +32,7 @@ Before an AI agent decides which Caspian features are available in a workspace, 
 - `src/` contains routes, page templates, styles, and shared libraries.
 - `src/components/` contains reusable Python components and optional same-name HTML templates.
 - `src/lib/auth/auth_config.py` contains auth-specific configuration for the app.
+- `src/lib/mcp/` contains the app-owned FastMCP server and nested FastMCP config when MCP is enabled.
 - `prisma/` contains the Prisma schema and seed scripts.
 - `public/` contains static assets served directly.
 - `main.py` is the application entry point.
@@ -62,6 +64,9 @@ my-app/
     lib/
       auth/
         auth_config.py
+      mcp/
+        fastmcp.json
+        mcp_server.py
       prisma/
         __init__.py
         db.py
@@ -112,6 +117,8 @@ Use this folder for shared helpers, reusable validators, RPC-facing service wrap
 
 This workspace already includes an app-owned Python database layer under `src/lib/prisma/`. Reuse that package for Python-side data access and keep any additional shared database helpers in `src/lib/`.
 
+When MCP is enabled in the current workspace, this folder also contains the app-owned FastMCP server under `src/lib/mcp/`.
+
 ### Shared Database Helpers
 
 If your Python routes or RPC actions need reusable database access code, keep that helper layer under `src/lib/` and extend the existing `src/lib/prisma/` package.
@@ -121,6 +128,17 @@ In this workspace, Prisma schema and seed files live under `prisma/`, while the 
 ### `src/lib/auth/`
 
 Use this folder for authentication-specific project code. The main auth configuration file lives at `src/lib/auth/auth_config.py`.
+
+### `src/lib/mcp/`
+
+Use this folder for app-owned Model Context Protocol server files.
+
+In the current workspace:
+
+- `src/lib/mcp/mcp_server.py` defines `mcp = FastMCP(...)` and the current tool set.
+- `src/lib/mcp/fastmcp.json` is the default FastMCP config used by `npm run mcp`.
+
+Keep MCP tool definitions here instead of placing them in route files, `main.py`, or framework internals.
 
 ### `prisma/`
 
@@ -153,11 +171,21 @@ The core feature configuration file for the application.
 
 AI agents should read this file before making almost any feature-level decision. Use it to confirm which capabilities are enabled, which code generation paths make sense, and which directories should be scanned for components or other project assets.
 
-In the current workspace, `caspian.config.json` shows `backendOnly: false`, `tailwindcss: true`, `mcp: false`, `prisma: true`, `typescript: false`, and `componentScanDirs: ["src"]`.
+In the current workspace, `caspian.config.json` shows `backendOnly: false`, `tailwindcss: true`, `mcp: true`, `prisma: true`, `typescript: false`, and `componentScanDirs: ["src"]`.
 
 ### `src/lib/auth/auth_config.py`
 
 The project auth configuration file. Use this path when changing authentication behavior.
+
+### `src/lib/mcp/mcp_server.py`
+
+The app-owned FastMCP server module for this workspace. It exports the `mcp` server instance and should be the default place for workspace MCP tools.
+
+### `src/lib/mcp/fastmcp.json`
+
+The default FastMCP config file for this workspace.
+
+Because this file is nested under `src/lib/mcp/`, direct FastMCP commands should pass the explicit path, for example `fastmcp run src/lib/mcp/fastmcp.json`, unless the launch working directory changes.
 
 ### `src/app/layout.html`
 
@@ -204,9 +232,11 @@ If an AI agent is deciding where to make changes, use these rules first.
 - Put route templates and route-specific backend logic in `src/app/`.
 - Check [routing.md](./routing.md) when you need URL segment rules, layout nesting behavior, or dynamic route conventions.
 - Put reusable component files in `src/components/` and check [components.md](./components.md) for `@component`, `render_html(__file__)`, import comments, and single-root template rules.
+- Use [mcp.md](./mcp.md) when the task involves FastMCP tool definitions, nested config discovery, or local MCP commands.
 - Keep `<!-- @import ... -->` comments above the single authored root element in route, layout, and component HTML files.
 - For route and component HTML files, always emit one top-level lowercase HTML element. Good: one wrapper containing the content and a plain `<script>` when needed. Bad: a wrapper element followed by a sibling top-level `<script>`, or handwritten `pp-component="..."` and `type="text/pp"` attributes in source.
 - Put shared helpers and reusable libraries in `src/lib/`.
+- Put app-owned FastMCP code in `src/lib/mcp/`.
 - Use PulsePoint conventions in route templates for reactive frontend behavior.
 - Use `@rpc()` in route/backend code and `pp.rpc()` in client code for browser-triggered data flows.
 - Use `casp.cache_handler` when a route's first-render HTML should be reused safely across requests.

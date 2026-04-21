@@ -3,9 +3,10 @@ title: Fetch Data
 description: Fetch first-render and interactive data in Caspian with async route functions, `@rpc()` actions, `pp.rpc()`, streaming, and uploads, with RPC as the default browser-to-server data path.
 related:
   title: Related docs
-  description: Use the routing guide to place route logic correctly, then use the auth guide for protected actions, the state guide for transient request-scoped mutation state, the cache guide for reusable first-render HTML, and the PulsePoint runtime guide for client-side `pp.rpc()` details.
+  description: Use the routing guide to place route logic correctly, then use the auth guide for protected actions, the MCP guide for AI-facing tools, the state guide for transient request-scoped mutation state, the cache guide for reusable first-render HTML, and the PulsePoint runtime guide for client-side `pp.rpc()` details.
   links:
     - /docs/auth
+    - /docs/mcp
     - /docs/state
     - /docs/database
     - /docs/cache
@@ -18,6 +19,8 @@ related:
 This page explains how data fetching works in Caspian. Use route functions for initial page data and use RPC actions for browser-triggered reads, writes, streams, and uploads.
 
 Treat RPC as the default way for browser code to talk to Python in Caspian. Do not reach for ad hoc fetch calls to custom JSON endpoints, alternate transport layers, or older helper names unless the task explicitly requires that shape.
+
+MCP is a separate integration surface. Do not place app-owned FastMCP tools in route `index.py` files or treat `@rpc()` actions as a replacement for MCP tools. In this workspace, MCP tool definitions live under `src/lib/mcp/` and are documented in `mcp.md`.
 
 ## Overview
 

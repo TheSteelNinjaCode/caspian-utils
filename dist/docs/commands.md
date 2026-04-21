@@ -3,10 +3,11 @@ title: Commands
 description: Use the current Caspian CLI reference to choose the right scaffold, starter-kit, update, and Prisma regeneration workflow for the current workspace.
 related:
   title: Related docs
-  description: Start with installation for new apps, then use database and structure docs when commands affect schema, generated ORM files, or project layout.
+  description: Start with installation for new apps, then use database, MCP, and structure docs when commands affect schema, server tooling, generated ORM files, or project layout.
   links:
     - /docs/installation
     - /docs/database
+    - /docs/mcp
     - /docs/routing
     - /docs/project-structure
     - /docs/index
@@ -17,6 +18,8 @@ This page documents the current Caspian command families used with this workspac
 ## Overview
 
 The current workspace includes a local `prisma` binary, but it does not include local `create-caspian-app`, `casp`, or `ppy` binaries under `node_modules/.bin`. Treat project creation, project update, and Python ORM generation as external `npx` workflows rather than project-local executables.
+
+The current workspace also includes a local MCP run path through `npm run mcp`, which starts the app-owned FastMCP server via `settings/restart-mcp.ts`.
 
 Examples below use `npx create-caspian-app` for readability. If you want to force the latest published scaffold package explicitly, you can use `npx create-caspian-app@latest` instead.
 
@@ -29,7 +32,7 @@ This updated reference includes the newer updater behavior and the current scaff
 - Windows-safe execution that resolves `npx.cmd` on Win32
 - scaffold behavior that reuses an existing `.venv` instead of recreating it every time
 
-Before running update commands, read `caspian.config.json` because it controls feature flags and `excludeFiles` overwrite protection. In the current workspace that config shows `backendOnly: false`, `tailwindcss: true`, `mcp: false`, `prisma: true`, `typescript: false`, and `componentScanDirs: ["src"]`.
+Before running update commands, read `caspian.config.json` because it controls feature flags and `excludeFiles` overwrite protection. In the current workspace that config shows `backendOnly: false`, `tailwindcss: true`, `mcp: true`, `prisma: true`, `typescript: false`, and `componentScanDirs: ["src"]`.
 
 ## 1. Main Command Families
 
@@ -66,6 +69,38 @@ npx casp update project
 
 Use when you are inside an existing Caspian project and want to refresh framework-managed files using the project's `caspian.config.json`.
 
+### Run the local MCP server
+
+```bash
+npm run mcp
+```
+
+Use when you want the workspace's app-owned FastMCP server only.
+
+### Run the full local stack including MCP
+
+```bash
+npm run dev
+```
+
+Use when you want BrowserSync, Tailwind, the Python app server, and MCP together.
+
+### Inspect the local MCP config directly
+
+```powershell
+.venv\Scripts\fastmcp.exe inspect src/lib/mcp/fastmcp.json
+```
+
+Use when you are debugging the nested FastMCP config or checking which tools the current MCP server exposes.
+
+### Run FastMCP directly with the nested config
+
+```powershell
+.venv\Scripts\fastmcp.exe run src/lib/mcp/fastmcp.json --no-banner
+```
+
+Use when you want the raw FastMCP path without the npm wrapper.
+
 ### Regenerate ORM after schema changes
 
 ```bash
@@ -79,6 +114,8 @@ npx ppy generate
 ```
 
 Use when `prisma/schema.prisma` changes and you need migrations, seed flow, and the generated Python ORM layer to stay aligned.
+
+Because this workspace keeps `fastmcp.json` under `src/lib/mcp/`, plain `fastmcp run` from the project root does not auto-detect the config. Use `npm run mcp` or pass the explicit config path.
 
 ## 2. Supported Flags And Options
 
