@@ -36,7 +36,7 @@ The packaged Caspian docs distributed by the current toolchain also live here:
 ## Available Documents
 
 - `installation.md` - First-time setup flow for creating a new Caspian application
-- `commands.md` - Main Caspian CLI workflows for project creation, starter kits, updates, and Prisma or ORM-aware maintenance
+- `commands.md` - Main Caspian CLI workflows for project creation, generation, updates, and config-aware maintenance
 - `database.md` - Prisma schema, migration, seed, and client-generation workflow for the current workspace, plus Python-side helper caveats
 - `auth.md` - Session-backed authentication with `casp.auth`, centralized `auth_config.py`, decorators, RBAC, and OAuth provider helpers
 - `components.md` - Create reusable Python components, template-backed UI, JSX-style imports, and the single-parent root rule for component HTML files
