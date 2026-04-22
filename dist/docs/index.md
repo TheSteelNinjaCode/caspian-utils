@@ -40,7 +40,7 @@ The packaged Caspian docs distributed by the current toolchain also live here:
 - `commands.md` - Main Caspian CLI workflows for project creation, generation, updates, and config-aware maintenance
 - `mcp.md` - Workspace FastMCP server layout, nested config path, local launch flow, and MCP-specific AI routing rules
 - `database.md` - Prisma schema, migration, seed, and client-generation workflow for the current workspace, plus Python-side helper caveats
-- `auth.md` - Session-backed authentication with `casp.auth`, centralized `auth_config.py`, decorators, RBAC, and OAuth provider helpers
+- `auth.md` - Session-backed authentication with `casp.auth`, centralized `auth_config.py`, public-vs-private route mode guidance, RPC-first signout guidance, RBAC, and OAuth provider helpers
 - `components.md` - Create reusable Python components, template-backed UI, JSX-style imports, and the single-parent root rule for component HTML files
 - `pulsepoint.md` - Default reactive frontend runtime contract for component scripts, state, effects, directives, and client-side behaviors
 - `fetch-data.md` - Initial server-side data loading and browser-triggered RPC flows with `pp.rpc()`, streaming, uploads, and auth-aware actions

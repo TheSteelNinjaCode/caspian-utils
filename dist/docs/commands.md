@@ -643,6 +643,10 @@ This is useful for protecting:
 - entry-point files
 - other locally modified framework-managed files
 
+Auth example:
+
+- add `./src/lib/auth/auth_config.py` to `excludeFiles` when you customize route privacy policy, public-route exceptions, redirects, or other app-specific auth settings there
+
 If you exclude a file, the updater preserves it, but you are responsible for merging future framework changes into that file manually.
 
 ## 10. Operational Notes

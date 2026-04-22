@@ -3,7 +3,7 @@ title: Authentication
 description: Manage session-backed authentication in Caspian with `casp.auth`, `AuthSettings`, the global `auth` object, centralized `auth_config.py`, page decorators, RPC protection, role-based routes, and optional Google or GitHub OAuth providers.
 related:
   title: Related docs
-    description: Use the fetch-data guide when sign-in happens through RPC, then use the state guide for transient auth-adjacent request state, validation to guard credentials, and routing or project structure to place auth files correctly.
+  description: Use the fetch-data guide when sign-in or signout happens through RPC, then use the state guide for transient auth-adjacent request state, validation to guard credentials, and routing or project structure to place auth files correctly.
   links:
     - /docs/fetch-data
     - /docs/state
@@ -50,6 +50,7 @@ from casp.auth import (
 
 - Define app-wide auth behavior in `build_auth_settings()` and apply it once at startup with `configure_auth(...)`.
 - Use `auth.sign_in(...)` and `auth.sign_out(...)` instead of setting or clearing session keys directly.
+- Prefer `pp.rpc(...)` plus `@rpc(require_auth=True)` for signout buttons or menus rendered in pages or components. Use a dedicated signout route only when you need a plain HTML form POST or a no-JavaScript fallback.
 - Use `@require_auth`, `@require_role`, and `@guest_only` for page access rules.
 - Use `@rpc(require_auth=True, allowed_roles=[...])` for browser-triggered actions that need protection.
 - Use `StateManager` only for transient auth-adjacent request state; keep the authenticated session itself owned by `casp.auth`.
@@ -112,11 +113,51 @@ Important behavior from the current implementation:
 - `default_token_validity` is parsed by the installed auth runtime with the format `^\d+(s|m|h|d)$`. Use values such as `30m`, `1h`, or `7d`.
 - `token_auto_refresh` only changes behavior when the request lifecycle calls `auth.refresh_session()`. In the installed `auth.py`, the flag alone does not refresh expiry by itself.
 - The framework `AuthSettings` dataclass defaults `is_all_routes_private=True`, but the project example above explicitly changes that to `False`.
+- In generated app-owned config like this workspace, `src/lib/auth/auth_config.py` starts with `is_all_routes_private=False`, so routes are public by default until the app chooses stricter route protection.
 - `public_routes`, `auth_routes`, `private_routes`, and `role_based_routes` are exact path matches in the installed `Auth` methods.
 - `private_routes` matters only when `is_all_routes_private=False`.
 - `role_based_routes` currently expects `PATH -> [ROLES]`, not role names keyed to paths the other way around.
 - `role_identifier` defaults to `role`, and the current `auth.sign_in(...)` flow also normalizes `userRole` into `role` when possible.
 - `api_auth_prefix` defaults to `/api/auth` and should stay centralized here rather than being hard-coded across routes.
+
+## Choosing Public vs Private Route Mode
+
+Make this decision at app setup time in `src/lib/auth/auth_config.py`.
+
+- In the default app-owned starter pattern used in this workspace, routes start public because `is_all_routes_private=False` in `src/lib/auth/auth_config.py`.
+- If the application has only a few public pages and most routes require auth, set `is_all_routes_private=True` and list the exceptions in `public_routes`.
+- If the application has many public pages and only a few protected areas, keep `is_all_routes_private=False` and list only the protected routes in `private_routes`.
+- In the current runtime, `auth_routes=["/signin", "/signup"]` stays public by default, and most apps do not need to change it unless the user explicitly asks for different auth routes.
+- In all-private mode, the default `public_routes=["/"]` keeps the home page public unless you change that list.
+- `token_auto_refresh=True` does not make routes private. It only enables sliding-session refresh when the request lifecycle calls `auth.refresh_session()`.
+- You do not need to modify Caspian core files for this decision. Keep the policy in `src/lib/auth/auth_config.py`.
+- If you customize `src/lib/auth/auth_config.py`, add it to `excludeFiles` in `caspian.config.json` so update commands do not overwrite your local auth policy.
+
+Example all-private setup with a few public exceptions:
+
+```python
+return AuthSettings(
+    default_token_validity="1h",
+    token_auto_refresh=False,
+    is_all_routes_private=True,
+    public_routes=["/", "/pricing", "/about"],
+    auth_routes=["/signin", "/signup"],
+    private_routes=[],
+)
+```
+
+Example mixed app with many public routes and only a few protected areas:
+
+```python
+return AuthSettings(
+    default_token_validity="1h",
+    token_auto_refresh=False,
+    is_all_routes_private=False,
+    public_routes=["/"],
+    auth_routes=["/signin", "/signup"],
+    private_routes=["/dashboard", "/settings", "/billing"],
+)
+```
 
 ## Environment Variables
 
@@ -414,16 +455,58 @@ src/
             signup/
                 index.py
                 index.html
-        signout/
-            index.py
+            signout/
+                index.py
         dashboard/
             index.py
             index.html
 ```
 
-Use `guest_only()` on signin and signup routes, use `auth.sign_in(...)` inside the owning RPC action after validation and credential checks, and protect private destinations with `require_auth()` or central route policy.
+Use `guest_only()` on signin and signup routes, use `auth.sign_in(...)` inside the owning RPC action after validation and credential checks, prefer RPC for signout UI actions, and protect private destinations with `require_auth()` or central route policy.
 
-Simple signout route example:
+Preferred signout pattern: auth-protected RPC from a page or component.
+
+Use this when the logout trigger lives in a page, layout, header, dropdown, or reusable component. The HTML can live at page level or component level.
+
+```html
+<div>
+    <button onclick="signout()">
+        Sign out
+    </button>
+
+    <script>
+        async function signout() {
+            await pp.rpc("signout");
+        }
+    </script>
+</div>
+```
+
+```python
+from casp.auth import auth
+from casp.rpc import rpc
+
+
+@rpc(require_auth=True)
+def signout():
+    return auth.sign_out()
+```
+
+Fallback signout pattern: dedicated route.
+
+Use this when you need a plain HTML form POST, a no-JavaScript fallback, or a full-route signout endpoint.
+
+HTML:
+
+```html
+<form action="/signout" method="post">
+    <button type="submit">
+        <span>Log Out</span>
+    </button>
+</form>
+```
+
+Route: `src/app/(auth)/signout/index.py`
 
 ```python
 from casp.auth import auth, require_auth
@@ -659,11 +742,17 @@ Validate and authenticate close to the input boundary.
 Common placement patterns are:
 
 - put centralized policy in `src/lib/auth/auth_config.py`
+- decide public-vs-private route mode at app start in `src/lib/auth/auth_config.py` instead of scattering route privacy logic across route files
+- use `is_all_routes_private=True` only when most routes should require auth; otherwise keep `is_all_routes_private=False` and maintain `private_routes`
+- keep public exceptions in `public_routes`, and leave `auth_routes=["/signin", "/signup"]` alone unless the app explicitly needs different auth endpoints
 - call `configure_auth(build_auth_settings())` during startup
-- keep sign-in, signup, signout, and reset-password handlers in the owning route backend under `src/app/**/index.py`
+- keep sign-in, signup, and reset-password handlers in the owning route backend under `src/app/**/index.py`
+- prefer signout through `pp.rpc("signout")` with `@rpc(require_auth=True)` when the trigger lives in page or component UI
+- use a dedicated signout route only for no-JavaScript, form-post, or full-navigation edge cases
 - use `@rpc()` for browser-triggered auth actions and page decorators for full-route protection
 - use `Validate` and `Rule` from `casp.validate` before password checks, user lookup, persistence, or external provider flows
 - keep reusable auth helpers in `src/lib/auth/`
+- protect customized auth policy files from updater overwrite with `excludeFiles` in `caspian.config.json`
 
 For browser-triggered auth forms, pair this page with `fetch-data.md`. For credential and form validation, pair it with `validation.md`.
 
@@ -673,15 +762,22 @@ If an AI agent is deciding how to handle auth in Caspian, apply these rules firs
 
 - Treat `casp.auth` as the default authentication layer.
 - Centralize route visibility, redirects, and RBAC policy in `src/lib/auth/auth_config.py`.
+- Decide route mode early in `src/lib/auth/auth_config.py`: use `is_all_routes_private=True` when most routes should require auth, otherwise keep `is_all_routes_private=False` and list protected routes in `private_routes`.
+- In app-owned starter config like this workspace, treat `is_all_routes_private=False` as the default starting point, which means routes begin public until the app opts into stricter protection.
+- Treat `public_routes` as the public exception list for all-private apps. In the current defaults, `/` stays public and `auth_routes=["/signin", "/signup"]` stays public too.
 - Apply settings at startup in `main.py` with `configure_auth(build_auth_settings())`.
 - Register provider instances in `main.py` with `Auth.set_providers(...)` when Google or GitHub OAuth is enabled.
 - Use `auth.sign_in(...)` and `auth.sign_out(...)` for session lifecycle changes.
+- Prefer `pp.rpc("signout")` plus `@rpc(require_auth=True)` for logout buttons or menus in pages and components.
+- Use a dedicated `/signout` route only for plain HTML form POST, no-JavaScript fallback, or other full-navigation edge cases.
+- Do not treat `token_auto_refresh` as a route-privacy switch. In the current app it only affects sliding-session refresh if `auth.refresh_session()` is called.
 - Use `@require_auth`, `@require_role`, and `@guest_only` for page-level access rules.
 - Use `@rpc(require_auth=True, allowed_roles=[...])` for protected browser-triggered actions.
 - Keep `SessionMiddleware` outermost so auth, CSRF, and RPC handlers can read `request.session`.
 - Use [state.md](./state.md) only for transient auth-adjacent request state, not as the auth session store.
 - Align `SESSION_LIFETIME_HOURS` with `default_token_validity` unless you intentionally want different cookie and auth-payload expiry windows.
 - Prefer exact route strings in `public_routes`, `auth_routes`, `private_routes`, and `role_based_routes`.
+- Protect customized `src/lib/auth/auth_config.py` from updater overwrite by adding it to `excludeFiles` in `caspian.config.json`.
 - Keep auth secrets and OAuth provider credentials in `.env`.
 - Set `AUTH_COOKIE_NAME` explicitly so the session middleware cookie name and auth settings stay aligned.
 - Use `.venv/Lib/site-packages/casp/auth.py` only when the task is about framework auth internals or debugging installed behavior.

@@ -88,7 +88,7 @@ Once the project is scaffolded:
 
 - Read `database.md` when the app includes Prisma ORM support or needs database changes.
 - Read `mcp.md` when the app includes MCP support or needs FastMCP server, config, or launch-flow changes.
-- Read `auth.md` before wiring session config, sign-in or signout routes, route guards, or OAuth providers.
+- Read `auth.md` before choosing public-vs-private route mode, wiring session config, sign-in or signout flows, route guards, or OAuth providers.
 - Read `pulsepoint.md` before generating interactive frontend behavior.
 - Read `fetch-data.md` before adding browser-triggered reads, writes, uploads, or streams.
 - Read `validation.md` before handling forms, auth input, or RPC payloads.
