@@ -16,6 +16,8 @@ This page documents the Prisma workflow present in this workspace.
 
 This repo currently uses Prisma for schema management, migrations, and seed tooling on the Node side. The local `prisma/schema.prisma` uses `generator client { provider = "prisma-client-js" }`, `prisma.config.ts` seeds through `tsx prisma/seed.ts`, and this workspace already includes an app-owned Python database layer under `src/lib/prisma/`. If Python routes or RPC actions need database access, reuse that package instead of creating another helper.
 
+Treat `caspian.config.json` as the single source of truth for whether Prisma is enabled in a workspace. If `prisma` is false and the user wants Prisma, ask first, then update `caspian.config.json` and run `npx casp update project` before assuming Prisma-managed files exist.
+
 ## Overview
 
 The standard Prisma flow in Caspian is:

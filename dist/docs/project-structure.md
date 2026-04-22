@@ -27,6 +27,8 @@ For public pages that can safely reuse rendered HTML, Caspian also supports rout
 
 Before an AI agent decides which Caspian features are available in a workspace, it should read `./caspian.config.json` almost immediately. That file is the feature gate for project capabilities such as `backendOnly`, `tailwindcss`, `mcp`, `prisma`, `typescript`, and `componentScanDirs`.
 
+Treat `caspian.config.json` as the single source of truth for optional feature enablement. Use feature-specific files and docs only after the matching flag is confirmed as enabled. If a feature is disabled and the user wants it, ask first, then update `caspian.config.json` and follow the update workflow in `commands.md`.
+
 ## Top-Level Areas
 
 - `src/` contains routes, page templates, styles, and shared libraries.
@@ -81,6 +83,8 @@ my-app/
         docs/
 ```
 
+Optional directories such as `src/lib/mcp/` appear only when the relevant feature flag is enabled in `caspian.config.json`.
+
 ## Directory Breakdown
 
 ### `src/`
@@ -133,12 +137,14 @@ Use this folder for authentication-specific project code. The main auth configur
 
 Use this folder for app-owned Model Context Protocol server files.
 
-In the current workspace:
+When `caspian.config.json` has `mcp: true`:
 
 - `src/lib/mcp/mcp_server.py` defines `mcp = FastMCP(...)` and the current tool set.
-- `src/lib/mcp/fastmcp.json` is the default FastMCP config used by `npm run mcp`.
+- `src/lib/mcp/fastmcp.json` is the default FastMCP config file for any workspace-defined MCP launcher, such as `npm run mcp` when that script exists.
 
 Keep MCP tool definitions here instead of placing them in route files, `main.py`, or framework internals.
+
+In the current workspace, `mcp: false`, so do not assume this folder exists until the feature is enabled and the update workflow has run.
 
 ### `prisma/`
 
@@ -171,7 +177,7 @@ The core feature configuration file for the application.
 
 AI agents should read this file before making almost any feature-level decision. Use it to confirm which capabilities are enabled, which code generation paths make sense, and which directories should be scanned for components or other project assets.
 
-In the current workspace, `caspian.config.json` shows `backendOnly: false`, `tailwindcss: true`, `mcp: true`, `prisma: true`, `typescript: false`, and `componentScanDirs: ["src"]`.
+In the current workspace, `caspian.config.json` shows `backendOnly: false`, `tailwindcss: true`, `mcp: false`, `prisma: true`, `typescript: false`, and `componentScanDirs: ["src"]`.
 
 ### `src/lib/auth/auth_config.py`
 
@@ -179,11 +185,11 @@ The project auth configuration file. Use this path when changing authentication 
 
 ### `src/lib/mcp/mcp_server.py`
 
-The app-owned FastMCP server module for this workspace. It exports the `mcp` server instance and should be the default place for workspace MCP tools.
+When `caspian.config.json` has `mcp: true`, this is the app-owned FastMCP server module. It exports the `mcp` server instance and should be the default place for workspace MCP tools.
 
 ### `src/lib/mcp/fastmcp.json`
 
-The default FastMCP config file for this workspace.
+When `caspian.config.json` has `mcp: true`, this is the default FastMCP config file for the workspace.
 
 Because this file is nested under `src/lib/mcp/`, direct FastMCP commands should pass the explicit path, for example `fastmcp run src/lib/mcp/fastmcp.json`, unless the launch working directory changes.
 
@@ -229,14 +235,19 @@ The packaged Caspian documentation location distributed with the current toolcha
 If an AI agent is deciding where to make changes, use these rules first.
 
 - Read `caspian.config.json` almost immediately before making feature, tooling, or file-placement decisions. It tells you which Caspian features are enabled in the current workspace.
+- Treat `caspian.config.json` as the single source of truth for optional feature enablement. Use feature-specific docs and file paths only when the matching flag is enabled.
+- If an optional feature is disabled and the user wants it, ask first, then update `caspian.config.json` and use `npx casp update project` before assuming feature-managed files exist.
+- Treat `package.json` scripts as opt-in operations. Do not run `npm run dev` or `npm run build` unless the user explicitly asks, the task genuinely requires that exact script, or deployment prep needs `npm run build`.
+- Treat `__pycache__/` directories, `.pyc` files, `public/css/styles.css`, `settings/component-map.json`, and `settings/files-list.json` as generated artifacts when the local stack is intentionally running. They are not authored source files.
+- Inspect `settings/component-map.json` and `settings/files-list.json` when you need the generated component or route inventory, but do not hand-edit them. The workspace regenerates them from `settings/component-map.ts` and `settings/files-list.ts`.
 - Put route templates and route-specific backend logic in `src/app/`.
 - Check [routing.md](./routing.md) when you need URL segment rules, layout nesting behavior, or dynamic route conventions.
 - Put reusable component files in `src/components/` and check [components.md](./components.md) for `@component`, `render_html(__file__)`, import comments, and single-root template rules.
-- Use [mcp.md](./mcp.md) when the task involves FastMCP tool definitions, nested config discovery, or local MCP commands.
+- Use [mcp.md](./mcp.md) only when `caspian.config.json` enables MCP and the task involves FastMCP tool definitions, nested config discovery, or local MCP commands.
 - Keep `<!-- @import ... -->` comments above the single authored root element in route, layout, and component HTML files.
 - For route and component HTML files, always emit one top-level lowercase HTML element. Good: one wrapper containing the content and a plain `<script>` when needed. Bad: a wrapper element followed by a sibling top-level `<script>`, or handwritten `pp-component="..."` and `type="text/pp"` attributes in source.
 - Put shared helpers and reusable libraries in `src/lib/`.
-- Put app-owned FastMCP code in `src/lib/mcp/`.
+- Put app-owned FastMCP code in `src/lib/mcp/` only when `caspian.config.json` enables MCP.
 - Use PulsePoint conventions in route templates for reactive frontend behavior.
 - Use `@rpc()` in route/backend code and `pp.rpc()` in client code for browser-triggered data flows.
 - Use `casp.cache_handler` when a route's first-render HTML should be reused safely across requests.

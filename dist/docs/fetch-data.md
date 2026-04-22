@@ -20,7 +20,7 @@ This page explains how data fetching works in Caspian. Use route functions for i
 
 Treat RPC as the default way for browser code to talk to Python in Caspian. Do not reach for ad hoc fetch calls to custom JSON endpoints, alternate transport layers, or older helper names unless the task explicitly requires that shape.
 
-MCP is a separate integration surface. Do not place app-owned FastMCP tools in route `index.py` files or treat `@rpc()` actions as a replacement for MCP tools. In this workspace, MCP tool definitions live under `src/lib/mcp/` and are documented in `mcp.md`.
+MCP is a separate integration surface. Do not place app-owned FastMCP tools in route `index.py` files or treat `@rpc()` actions as a replacement for MCP tools. Use `mcp.md` and `src/lib/mcp/` only when `caspian.config.json` has `mcp: true`. In this workspace, `mcp: false`, so do not assume those files exist.
 
 ## Overview
 
@@ -73,7 +73,7 @@ Notes:
 - Put shared section-level props in `layout.py` when multiple child routes need the same synchronous payload. The current layout engine does not await `layout()`.
 - Keep reusable database or API clients under `src/lib/`; keep route-specific orchestration in `src/app/`.
 
-If the data source is Prisma, see `database.md` for the current workspace's schema, migration, and generation workflow. This scaffold does not generate Python-side Prisma helpers under `src/lib/` by default.
+If the data source is Prisma, confirm `caspian.config.json` has `prisma: true`, then see `database.md` for the current workspace's schema, migration, and generation workflow. In this workspace, Prisma is enabled and the app-owned Python database layer lives under `src/lib/prisma/`.
 
 ## Interactive Data With RPC
 

@@ -1,9 +1,9 @@
 ---
 title: MCP
-description: Use the workspace FastMCP setup through src/lib/mcp/mcp_server.py, src/lib/mcp/fastmcp.json, and settings/restart-mcp.ts, with npm-driven startup and explicit manual paths when running FastMCP directly.
+description: Check `caspian.config.json` first. When it enables MCP, this page becomes the relevant guide for reviewing, fixing, launching, and extending the workspace MCP feature.
 related:
   title: Related docs
-  description: Start with project structure for file placement, then use commands for local run flows and index for documentation routing.
+  description: Start with project structure for file placement, then use commands for feature enablement and local run flows, and index for documentation routing.
   links:
     - /docs/project-structure
     - /docs/commands
@@ -11,92 +11,65 @@ related:
     - /docs/index
 ---
 
-This page documents the Model Context Protocol workflow present in this workspace.
+This page documents the Model Context Protocol workflow for Caspian workspaces.
 
-The current repo enables MCP in `caspian.config.json`, keeps the app-owned FastMCP server at `src/lib/mcp/mcp_server.py`, keeps the FastMCP config at `src/lib/mcp/fastmcp.json`, and starts it through `npm run mcp`, which runs `settings/restart-mcp.ts`.
+Treat `caspian.config.json` as the single source of truth for whether MCP is enabled. If `caspian.config.json` confirms `"mcp": true`, this page is relevant, the MCP-specific files in the workspace are the correct files to analyze, and the feature can be reviewed, fixed, launched, or extended here.
 
-## Overview
+If `caspian.config.json` has `"mcp": false`, treat this page as reference material only. Do not assume `src/lib/mcp/**`, `settings/restart-mcp.ts`, or MCP-related npm scripts exist until the user chooses to enable MCP and the update workflow has run.
 
-Use these rules as the default MCP workflow in this workspace:
+## Enablement Workflow
 
-1. Read `caspian.config.json` and confirm `mcp: true` before assuming MCP files should exist or be started.
-2. Edit `src/lib/mcp/mcp_server.py` when changing FastMCP tools, server instructions, or server-owned helper logic.
-3. Edit `src/lib/mcp/fastmcp.json` when changing the transport, host, port, path, or server entrypoint.
-4. Edit `settings/restart-mcp.ts` when changing discovery order, environment overrides, or MCP log filtering.
-5. Use `npm run mcp` as the normal local launch flow.
+1. Read `caspian.config.json` and confirm `mcp: true` before assuming MCP files or scripts should exist.
+2. If `mcp` is false and the user wants MCP, ask for confirmation first.
+3. After the user confirms, update `caspian.config.json` and run `npx casp update project` so framework-managed MCP files align with the new feature set.
+4. After the update, inspect the actual `package.json`, `src/lib/mcp/`, and any launcher files that the workspace now contains.
 
-## Current Workspace Layout
+## MCP-Enabled Workspace Layout
 
-- `src/lib/mcp/mcp_server.py` defines `mcp = FastMCP(...)` and the current workspace tools.
-- `src/lib/mcp/fastmcp.json` points to `src/lib/mcp/mcp_server.py` and configures `streamable-http` on `127.0.0.1:5101/mcp`.
-- `settings/restart-mcp.ts` is the npm-facing launcher. It resolves MCP config paths, starts FastMCP, and trims noisy banner or warning output down to essential lines.
-- `package.json` defines `npm run mcp` as `tsx settings/restart-mcp.ts` and includes `mcp` in `npm run dev`.
-- `caspian.config.json` is the feature gate. If `mcp` is false, the MCP runner exits cleanly without starting a server.
+When `caspian.config.json` has `mcp: true`, these are the main MCP surfaces to inspect:
 
-## Current Tools
+- `src/lib/mcp/mcp_server.py` for the app-owned FastMCP server, tool definitions, instructions, and MCP-specific helper logic.
+- `src/lib/mcp/fastmcp.json` for the default FastMCP config, transport, host, port, path, and server entrypoint.
+- `settings/restart-mcp.ts` for workspace-specific launcher logic, discovery order, environment overrides, or log filtering when that file is present.
+- `package.json` for the actual MCP-related scripts that the current workspace defines.
 
-The app-owned MCP server currently exposes these read-only tools:
+If these files exist in the workspace, they are the right files to analyze when reviewing or fixing MCP behavior.
 
-- `project_info` returns the project name, root path, version metadata, browser sync target, feature flags, and component scan directories.
-- `workspace_files` returns the generated workspace file list, optionally filtered to `all`, `app`, or `public`.
-- `component_inventory` returns the latest generated component map from `settings/component-map.json`.
+## What To Review
 
-Add or change tools in `src/lib/mcp/mcp_server.py`.
+When `mcp: true` and an MCP issue needs investigation, inspect the files in this order:
 
-## Running The Server
+1. `caspian.config.json` to confirm the feature is enabled.
+2. `package.json` to see which MCP scripts the workspace actually exposes.
+3. `src/lib/mcp/mcp_server.py` for tool implementation and server behavior.
+4. `src/lib/mcp/fastmcp.json` for config and entrypoint details.
+5. `settings/restart-mcp.ts` when the workspace includes it and launcher behavior is part of the issue.
 
-### Preferred local commands
+## Running MCP
 
-```bash
-npm run mcp
-npm run dev
-```
+Only when `caspian.config.json` has `mcp: true` and the relevant files or scripts exist:
 
-Use `npm run mcp` when you want the MCP server only. Use `npm run dev` when you want BrowserSync, Tailwind, the Python app server, and MCP together.
-
-### Direct FastMCP commands
-
-On this Windows workspace, the direct FastMCP commands are:
+- Use the workspace-defined `npm run mcp` command when `package.json` provides it.
+- Use `npm run dev` only if the workspace wires MCP into the full local stack and the user explicitly wants that full stack running.
+- Use direct FastMCP commands against `src/lib/mcp/fastmcp.json` when that config file exists, for example:
 
 ```powershell
 .venv\Scripts\fastmcp.exe inspect src/lib/mcp/fastmcp.json
 .venv\Scripts\fastmcp.exe run src/lib/mcp/fastmcp.json --no-banner
 ```
 
-Because the config file lives under `src/lib/mcp/`, plain `fastmcp run` from the project root does not auto-detect it. Use `npm run mcp` or pass the explicit config path.
+Because script names and launcher wiring can vary by workspace version, always confirm the actual scripts in `package.json` instead of assuming them from docs alone.
 
-## Config And Discovery Rules
+## Current Workspace Status
 
-`settings/restart-mcp.ts` currently resolves MCP server specs in this order:
-
-1. `MCP_SERVER_SPEC`
-2. `src/lib/mcp/fastmcp.json`
-3. `fastmcp.json`
-4. `mcp.json`
-
-The runner also forwards these optional overrides to FastMCP:
-
-- `MCP_TRANSPORT`
-- `MCP_HOST`
-- `MCP_PORT`
-- `MCP_PATH`
-- `MCP_LOG_LEVEL`
-
-Keep the `source.path` value in `src/lib/mcp/fastmcp.json` root-relative as `src/lib/mcp/mcp_server.py`. Do not shorten it to `mcp_server.py` unless the launch working directory changes too, because FastMCP resolves that path from the current working directory.
+- `caspian.config.json` currently has `mcp: false`.
+- `package.json` does not currently define `npm run mcp`.
+- The current repo tree should not be treated as if `src/lib/mcp/**` is guaranteed to exist.
 
 ## AI Routing Notes
 
-If an AI tool is working on MCP in this workspace, use this order:
-
-1. Read `caspian.config.json` to confirm `mcp: true`.
-2. Read `node_modules/caspian-utils/dist/docs/mcp.md` for the current workspace MCP rules.
-3. Read `src/lib/mcp/mcp_server.py` for tool definitions and server instructions.
-4. Read `src/lib/mcp/fastmcp.json` for transport and entrypoint configuration.
-5. Read `settings/restart-mcp.ts` and `package.json` for local start behavior.
-
-Default placement rules:
-
-- Put app-owned FastMCP tools in `src/lib/mcp/mcp_server.py`.
-- Keep the default FastMCP config in `src/lib/mcp/fastmcp.json`.
-- Keep npm-facing launch behavior in `settings/restart-mcp.ts`.
-- If the MCP file layout changes, update this page, `AGENTS.md`, `.github/copilot-instructions.md`, and any workspace runner logic together.
+1. Read `caspian.config.json` first.
+2. If `mcp` is false, do not infer MCP files, scripts, or launch flow from generic Caspian examples.
+3. If the user wants MCP while it is disabled, ask first, then update `caspian.config.json` and use `npx casp update project` before continuing.
+4. If `mcp` is true, this page becomes the relevant MCP guide and the MCP-specific files in the workspace become the correct analysis surface.
+5. Inspect the actual generated files and scripts in the workspace before editing or starting anything.

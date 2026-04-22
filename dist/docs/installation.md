@@ -56,6 +56,10 @@ The interactive wizard walks through the main project options, including:
 - Feature toggles such as backend-only mode, Tailwind CSS, Prisma, MCP, and TypeScript
 - Other scaffold options exposed by the current CLI version
 
+After scaffold, read `caspian.config.json` and treat it as the single source of truth for which optional features are enabled in that project. Use feature-specific docs only after the matching flag is confirmed as enabled.
+
+If a feature is disabled and the user wants it later, ask whether they want to enable it first, then update `caspian.config.json` and run `npx casp update project` so framework-managed files align with the new feature set.
+
 If the project enables MCP, use `mcp.md` after scaffold to place the app-owned FastMCP server and config files correctly for the current workspace conventions.
 
 ## Recommended VS Code Setup
@@ -82,6 +86,12 @@ npm run dev
 
 In this workspace, `npm run dev` is backed by BrowserSync plus PostCSS watchers, not a Vite dev server.
 
+For AI agents and other automated helpers, this is an opt-in local-stack command, not a default validation step. Do not run `package.json` scripts just because a route, feature, or doc changed.
+
+If `npm run dev` is intentionally running, let that stack own generated outputs such as `public/css/styles.css`, `settings/component-map.json`, `settings/files-list.json`, `__pycache__/`, and `.pyc` files. Use `npm run build` only for deployment prep or when the user explicitly asks for a build.
+
+Inspect `settings/component-map.json` and `settings/files-list.json` when you need the generated component or route inventory, but do not hand-edit them. The framework refreshes them from `settings/component-map.ts` and `settings/files-list.ts`.
+
 ## After Setup
 
 Once the project is scaffolded:
@@ -102,6 +112,9 @@ If an AI agent is reading this page, treat it as the source for new-project inst
 - Use this workflow when the user is creating a Caspian app from scratch.
 - Do not use existing-project migration or update commands unless the project already exists.
 - After scaffold, default to PulsePoint for interactive UI, RPC for browser-to-server data flow, and `casp.validate` for validation.
+- Treat `package.json` scripts as opt-in commands after scaffold. Do not auto-run `npm run dev` or `npm run build` for ordinary source edits.
+- Read `caspian.config.json` after scaffold and treat it as the single source of truth for optional features before using feature-specific docs.
+- If an optional feature is disabled and the user wants it, ask first, then update `caspian.config.json` and use `npx casp update project` before assuming the framework-managed files exist.
 - If MCP is enabled, read [mcp.md](./mcp.md) before editing FastMCP files or assuming where the server config should live.
 - Once the app exists, check [routing.md](./routing.md) before creating or changing routes under `src/app/`.
 - Check [index.md](./index.md) first when deciding which local doc to follow.
