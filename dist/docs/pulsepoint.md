@@ -376,6 +376,7 @@ RPC notes:
 - Passing `true` as the third argument means `abortPrevious: true`.
 - The options object supports `abortPrevious`, `onStream`, `onStreamError`, `onStreamComplete`, `onUploadProgress`, and `onUploadComplete`.
 - File uploads switch to the XHR path when upload progress callbacks are needed.
+- For file managers, use upload callbacks for progress UI but replace the asset list from returned RPC state with `pp.state(...)` and `pp-for` instead of manual DOM repainting. See [file-uploads.md](./file-uploads.md).
 - Streamed `text/event-stream` responses are supported when a stream handler is provided.
 - Redirect headers are honored through `pp.redirect()`.
 
@@ -419,6 +420,7 @@ Use these rules when generating or editing PulsePoint runtime code:
 - Use native `on*` attributes, not framework-specific event syntax.
 - Use refs and portals only through the implemented `pp` APIs.
 - Use `pp.rpc()` for the bundled runtime API instead of older `pp.fetchFunction()` wording.
+- For upload managers, keep the authoritative asset list in `pp.state(...)` and route uploads through `pp.rpc()` with `onUploadProgress` as needed.
 - Avoid generating internal runtime attributes.
 - Avoid scriptless nested components when the child template contains its own bindings.
 - Prefer authored-template examples over runtime-inspected HTML examples unless the doc is specifically explaining runtime internals.

@@ -273,6 +273,18 @@ async def create_user(email: str, name: str | None = None):
 
 Use validation before writes, especially for form payloads and public RPC actions. See `validation.md` for the recommended boundary checks.
 
+## Upload Metadata Pattern
+
+When a Caspian file manager needs durable metadata, keep the blob and the metadata in separate layers.
+
+- Write the uploaded blob to disk or object storage.
+- Persist the durable metadata in Prisma.
+- Store fields such as owner relation, original name, stored name, asset path, MIME type, collection, kind, size, and uploaded timestamp in the Prisma model.
+- Remove both the stored blob and the Prisma row during delete flows.
+- Do not use JSON manifests as the primary metadata store when Prisma is enabled.
+
+See [file-uploads.md](./file-uploads.md) for the route-local RPC plus public asset storage pattern.
+
 ## Advanced Features
 
 ### Aggregations
@@ -338,6 +350,7 @@ If an AI agent is working on a Caspian app with Prisma enabled, apply these rule
 - Never hand-edit generated Prisma or Python ORM classes.
 - Read `prisma.config.ts` and `prisma/seed.ts` when you need the current workspace's Prisma tooling examples.
 - Reuse the existing `src/lib/prisma/` package when the Python app needs database access.
+- For file managers and uploads, persist metadata in Prisma and keep blob storage separate. See [file-uploads.md](./file-uploads.md).
 - Put reusable database helpers in `src/lib/`; keep route and RPC orchestration in `src/app/`.
 - Use `async def page()` for first-render reads. Keep `layout()` synchronous in the current runtime, and use `@rpc()` plus `pp.rpc()` for browser-triggered reads and writes.
 - Check `fetch-data.md` for route versus RPC guidance and `validation.md` before writing public mutations.

@@ -12,6 +12,7 @@ related:
     - /docs/routing
     - /docs/cache
     - /docs/database
+    - /docs/file-uploads
     - /docs/index
 ---
 
@@ -40,6 +41,7 @@ Treat `caspian.config.json` as the single source of truth for optional feature e
 - `src/lib/mcp/` contains the app-owned FastMCP server and nested FastMCP config when MCP is enabled.
 - `prisma/` contains the Prisma schema and seed scripts.
 - `public/` contains static assets served directly.
+- `settings/` contains BrowserSync, build, restart, and generated-project helper files.
 - `main.py` is the application entry point.
 - `caspian.config.json` is the core feature configuration file.
 - `.venv/Lib/site-packages/casp/` contains the installed Caspian framework core.
@@ -54,6 +56,9 @@ my-app/
   prisma/
     schema.prisma
     seed.ts
+  settings/
+    bs-config.ts
+    build.ts
   public/
   src/
     app/
@@ -126,6 +131,8 @@ Use this folder for shared helpers, reusable validators, RPC-facing service wrap
 
 If the code is primarily rendered UI that will be imported as a component tag, prefer `src/components/`. If the code is a helper, service, adapter, validator, or other non-visual support module, prefer `src/lib/`.
 
+For file upload and manager flows, keep route-owned `@rpc()` actions in `src/app/**/index.py` and keep shared storage, naming, filesystem, and Prisma-backed persistence helpers in `src/lib/`.
+
 This workspace already includes an app-owned Python database layer under `src/lib/prisma/`. Reuse that package for Python-side data access and keep any additional shared database helpers in `src/lib/`.
 
 When MCP is enabled in the current workspace, this folder also contains the app-owned FastMCP server under `src/lib/mcp/`.
@@ -161,6 +168,10 @@ This folder contains your database model definitions in `schema.prisma` and any 
 
 Store static assets here, including images, fonts, and generated frontend assets that should be served directly.
 
+Runtime-uploaded public blobs can also live here. In this workspace, file-manager uploads are stored under `public/assets/file-manager/`.
+
+If the local BrowserSync stack is running, keep that upload directory in `settings/bs-config.ts` `PUBLIC_IGNORE_DIRS` so new uploads do not force a full browser reload.
+
 ## Key Files
 
 ### `main.py`
@@ -186,6 +197,12 @@ AI agents should read this file before making almost any feature-level decision.
 
 In the current workspace, `caspian.config.json` shows `backendOnly: false`, `tailwindcss: true`, `mcp: false`, `prisma: true`, `typescript: false`, and `componentScanDirs: ["src"]`.
 
+### `settings/bs-config.ts`
+
+The BrowserSync watcher configuration for the local stack lives here.
+
+When runtime uploads write into `public/assets/file-manager/`, keep `public/assets/file-manager` in `PUBLIC_IGNORE_DIRS` and match it against workspace-relative paths so nested uploaded files do not trigger reloads.
+
 ### `src/lib/auth/auth_config.py`
 
 The project auth configuration file. Use this path when changing authentication behavior.
@@ -209,6 +226,8 @@ If this layout imports reusable components, place each `<!-- @import ... -->` co
 ### `src/app/index.py`
 
 The backend logic for the route. This is where route behavior can load first-render data, expose `@rpc()` actions, and import framework features such as auth helpers, `casp.validate`, and route-level `Cache(...)` declarations.
+
+When a route owns a file manager or upload UI, keep the owning upload and delete `@rpc()` actions in that route's `index.py` and move reusable filesystem or Prisma helpers into `src/lib/`. Do not move ordinary upload behavior into `main.py`.
 
 ### `src/app/index.html`
 
@@ -249,6 +268,7 @@ If an AI agent is deciding where to make changes, use these rules first.
 - Inspect `settings/component-map.json` and `settings/files-list.json` when you need the generated component or route inventory, but do not hand-edit them. The workspace regenerates them from `settings/component-map.ts` and `settings/files-list.ts`.
 - Put route templates and route-specific backend logic in `src/app/`.
 - As the app grows, keep route-owned code in `src/app/`, reusable rendered UI in `src/components/`, and reusable non-UI support code in `src/lib/`.
+- Read [file-uploads.md](./file-uploads.md) when the task involves upload widgets, media libraries, or file-manager flows.
 - Check [routing.md](./routing.md) when you need URL segment rules, layout nesting behavior, or dynamic route conventions.
 - Put reusable component files in `src/components/` and check [components.md](./components.md) for `@component`, `render_html(__file__)`, import comments, and single-root template rules.
 - When deciding between `src/components/` and `src/lib/`, use `src/components/` for anything rendered as reusable UI and `src/lib/` for helpers, services, validators, adapters, and shared business logic.
@@ -256,6 +276,7 @@ If an AI agent is deciding where to make changes, use these rules first.
 - Keep `<!-- @import ... -->` comments above the single authored root element in route, layout, and component HTML files.
 - For route and component HTML files, always emit one top-level lowercase HTML element. Good: one wrapper containing the content and a plain `<script>` when needed. Bad: a wrapper element followed by a sibling top-level `<script>`, or handwritten `pp-component="..."` and `type="text/pp"` attributes in source.
 - Put shared helpers and reusable libraries in `src/lib/`.
+- Use `settings/bs-config.ts` when uploaded public assets should not trigger BrowserSync reloads during the local stack.
 - Put app-owned FastMCP code in `src/lib/mcp/` only when `caspian.config.json` enables MCP.
 - Use PulsePoint conventions in route templates for reactive frontend behavior.
 - Use `@rpc()` in route/backend code and `pp.rpc()` in client code for browser-triggered data flows.

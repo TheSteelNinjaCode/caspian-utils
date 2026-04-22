@@ -8,6 +8,7 @@ related:
     - /docs/installation
     - /docs/database
     - /docs/mcp
+    - /docs/file-uploads
     - /docs/routing
     - /docs/project-structure
     - /docs/index
@@ -19,7 +20,7 @@ This page documents the current Caspian command families used with this workspac
 
 The current workspace includes a local `prisma` binary, but it does not include local `create-caspian-app`, `casp`, or `ppy` binaries under `node_modules/.bin`. Treat project creation, project update, and Python ORM generation as external `npx` workflows rather than project-local executables.
 
-The current workspace `package.json` defines `projectName`, `tailwind`, `tailwind:build`, `browserSync`, `browserSync:build`, `dev`, and `build`. It does not currently define `npm run mcp` because `caspian.config.json` has `mcp: false`.
+The current workspace `package.json` defines `projectName`, `tailwind`, `tailwind:build`, `mcp`, `browserSync`, `browserSync:build`, `dev`, and `build`.
 
 Examples below use `npx create-caspian-app` for readability. If you want to force the latest published scaffold package explicitly, you can use `npx create-caspian-app@latest` instead.
 
@@ -83,6 +84,8 @@ Use when the user explicitly wants the local BrowserSync plus PostCSS developmen
 
 In this workspace, `npm run dev` is a long-running command that can regenerate framework-owned outputs such as `public/css/styles.css`, `settings/component-map.json`, `settings/files-list.json`, `__pycache__/`, and `.pyc` files.
 
+Because runtime uploads write to `public/assets/file-manager/`, `settings/bs-config.ts` keeps that directory in `PUBLIC_IGNORE_DIRS` so uploads do not trigger BrowserSync reloads.
+
 ### Build generated assets for deployment
 
 ```bash
@@ -117,6 +120,7 @@ Use when `prisma/schema.prisma` changes and you need migrations, seed flow, and 
 - Use `npm run build` only for deployment prep or an explicit build request.
 - Treat `public/css/styles.css`, `settings/component-map.json`, `settings/files-list.json`, `__pycache__/`, and `.pyc` files as generated outputs when a script intentionally runs.
 - Analyze `settings/component-map.json` and `settings/files-list.json` when needed, but do not hand-edit them. `settings/component-map.ts` and `settings/files-list.ts` regenerate them during the intentional dev and build flows.
+- Keep runtime upload directories such as `public/assets/file-manager` in `settings/bs-config.ts` `PUBLIC_IGNORE_DIRS` so BrowserSync does not reload on every uploaded blob.
 - Do not edit `__pycache__/` directories or `.pyc` files, and do not leave them in the final diff.
 
 ## 3. Supported Flags And Options

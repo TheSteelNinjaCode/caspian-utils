@@ -7,6 +7,7 @@ related:
   links:
     - /docs/commands
     - /docs/mcp
+    - /docs/file-uploads
     - /docs/routing
     - /docs/project-structure
     - /docs/index
@@ -92,6 +93,8 @@ If `npm run dev` is intentionally running, let that stack own generated outputs 
 
 Inspect `settings/component-map.json` and `settings/files-list.json` when you need the generated component or route inventory, but do not hand-edit them. The framework refreshes them from `settings/component-map.ts` and `settings/files-list.ts`.
 
+If runtime uploads write into `public/assets/file-manager/`, keep that directory in `settings/bs-config.ts` `PUBLIC_IGNORE_DIRS` so BrowserSync does not reload on every uploaded file.
+
 ## After Setup
 
 Once the project is scaffolded:
@@ -101,6 +104,7 @@ Once the project is scaffolded:
 - Read `auth.md` before choosing public-vs-private route mode, wiring session config, sign-in or signout flows, route guards, or OAuth providers.
 - Read `pulsepoint.md` before generating interactive frontend behavior.
 - Read `fetch-data.md` before adding browser-triggered reads, writes, uploads, or streams.
+- Read `file-uploads.md` before building file pickers, media libraries, or Prisma-backed file-manager flows.
 - Read `validation.md` before handling forms, auth input, or RPC payloads.
 - Read `routing.md` to learn how `src/app` folders map to URLs.
 - Read `project-structure.md` to place route code, shared libraries, config, and database files in the correct directories.

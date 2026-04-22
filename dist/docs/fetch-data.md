@@ -9,6 +9,7 @@ related:
     - /docs/mcp
     - /docs/state
     - /docs/database
+    - /docs/file-uploads
     - /docs/cache
     - /docs/routing
     - /docs/pulsepoint
@@ -174,28 +175,68 @@ Use streaming when the user should see partial progress instead of waiting for a
 
 ## File Uploads
 
-RPC actions can accept FastAPI upload types.
+RPC actions can accept FastAPI upload types, but the preferred Caspian pattern is route-local upload actions in `src/app/**/index.py`, shared persistence helpers in `src/lib/`, and reactive client updates through `pp.rpc()`.
 
-Example:
+Example route-local upload action:
 
 ```python
 from fastapi import File, UploadFile
 from casp.rpc import rpc
-import shutil
 
-@rpc()
-def upload_file(file: UploadFile = File(...)):
-    with open(f"uploads/{file.filename}", "wb") as buffer:
-        shutil.copyfileobj(file.file, buffer)
+from src.lib.dashboard.file_manager import (
+    build_file_manager_payload,
+    save_file_manager_upload,
+)
+
+@rpc(require_auth=True)
+async def upload_file(file: UploadFile = File(...), collection: str = "auto"):
+    user_id = current_user_id()
+    content = await file.read()
+
+    uploaded = await save_file_manager_upload(
+        user_id,
+        file_name=file.filename or "file",
+        content=content,
+        mime_type=file.content_type,
+        desired_group=collection,
+    )
 
     return {
-        "status": "success",
-        "filename": file.filename,
-        "size": file.size,
+        "success": True,
+        "uploaded": uploaded,
+        "data": await build_file_manager_payload(user_id),
     }
 ```
 
-On the client, call `pp.rpc()` and pass `onUploadProgress` when the UI needs progress updates.
+Client example:
+
+```html
+<script>
+  async function uploadSelectedFiles(fileList, collection = "auto") {
+    for (const file of Array.from(fileList ?? [])) {
+      const response = await pp.rpc("upload_file", { file, collection }, {
+        onUploadProgress: (progress) => {
+          console.log(progress.percentage ?? 0);
+        },
+      });
+
+      if (response?.data) {
+        setFileManagerData(response.data);
+      }
+    }
+  }
+</script>
+```
+
+Use this pattern for real file managers:
+
+- Keep upload and delete actions in the owning route `index.py`, not in `main.py`.
+- Use `page()` to render the initial manager payload.
+- Store durable metadata in Prisma and store the browser-accessible blob separately under `public/assets/file-manager/`.
+- Use `pp.state(...)` plus `pp-for` for the list UI instead of manual `innerHTML` writes.
+- Add `public/assets/file-manager` to `PUBLIC_IGNORE_DIRS` in `settings/bs-config.ts` so runtime uploads do not trigger BrowserSync reloads during `npm run dev`.
+
+Read [file-uploads.md](./file-uploads.md) for the complete file-manager pattern.
 
 ## Auth, Roles, And Limits
 
@@ -255,6 +296,7 @@ If an AI agent is choosing how to load data in Caspian, apply these rules first.
 - Use `@rpc()` for backend functions that should be callable from the browser.
 - Use `pp.rpc()` for client-side calls; do not prefer older `pp.fetchFunction()` wording.
 - Prefer route-render data plus RPC over inventing parallel REST endpoints for normal Caspian page interactions.
+- Read [file-uploads.md](./file-uploads.md) when the task involves file pickers, upload progress, media libraries, or file-manager UI.
 - Use [cache.md](./cache.md) when a route's initial HTML should be reused across requests and invalidated after writes.
 - Use [state.md](./state.md) when an RPC mutation needs transient request-scoped success or error state outside the direct response payload.
 - Use `onStream` for streamed responses and `onUploadProgress` for upload-aware client calls.

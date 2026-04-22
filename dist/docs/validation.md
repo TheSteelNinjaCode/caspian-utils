@@ -203,6 +203,8 @@ The installed file includes upload-oriented helpers and rules.
 
 Use these rules for RPC uploads and form submissions that accept files.
 
+Combine them with explicit auth, size, and storage-boundary checks in the owning RPC action before writing files to disk or Prisma. See [file-uploads.md](./file-uploads.md) for the recommended file-manager pattern.
+
 ## Sanitization
 
 Validation in Caspian is more than rule checking. The installed implementation also sanitizes or normalizes several values.

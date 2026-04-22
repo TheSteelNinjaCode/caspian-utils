@@ -8,6 +8,7 @@ related:
     - /docs/installation
     - /docs/commands
     - /docs/mcp
+    - /docs/file-uploads
     - /docs/project-structure
     - /docs/components
 ---
@@ -46,6 +47,7 @@ The packaged Caspian docs distributed by the current toolchain also live here:
 - `components.md` - Create reusable Python components, template-backed UI, JSX-style imports, and the single-parent root rule for component HTML files
 - `pulsepoint.md` - Default reactive frontend runtime contract for component scripts, state, effects, directives, and client-side behaviors
 - `fetch-data.md` - Initial server-side data loading and browser-triggered RPC flows with `pp.rpc()`, streaming, uploads, and auth-aware actions
+- `file-uploads.md` - Route-local file uploads and file-manager flows with `@rpc()`, `pp.rpc()`, Prisma metadata, public asset storage, and BrowserSync ignore rules
 - `state.md` - Request-scoped server state with `StateManager`, session-backed JSON persistence, and listener callbacks for transient flows
 - `cache.md` - Route-level HTML caching with `Cache`, `CacheHandler`, TTL behavior, file-system storage, and invalidation patterns
 - `validation.md` - Input validation and sanitization with `Validate`, `Rule`, direct field checks, and multi-rule workflows for routes and RPC actions
@@ -66,11 +68,12 @@ Preferred lookup order:
 5. Treat generated outputs such as `public/css/styles.css`, `settings/component-map.json`, `settings/files-list.json`, `__pycache__/`, and `.pyc` files as framework-managed artifacts when the local stack is intentionally running. They are not authored source files and should not be kept in the final diff unless the task explicitly requires them.
 6. Analyze `settings/component-map.json` and `settings/files-list.json` when you need the current generated view of components or routes, but do not hand-edit them. The framework regenerates them through `settings/component-map.ts` and `settings/files-list.ts` when the dev or build pipeline intentionally runs.
 7. Read `database.md` only when `caspian.config.json` enables Prisma, read `mcp.md` only when `caspian.config.json` enables MCP, and use `auth.md`, `components.md`, `pulsepoint.md`, `fetch-data.md`, `state.md`, `cache.md`, and `validation.md` as the next routing docs for those non-flagged concerns.
-8. As the app grows, standardize on `src/app/` for route-owned files, `src/components/` for reusable rendered UI, and `src/lib/` for reusable non-UI support code such as services, validators, adapters, and shared helpers.
-9. For authored component, route, and layout HTML files, generate exactly one top-level lowercase HTML element. Think React-style single parent wrapper: keep any owned PulsePoint logic in a plain `<script>` inside that root, do not handwrite `pp-component="..."` or `type="text/pp"` because Caspian injects those runtime attributes automatically, and treat `<!-- @import ... -->` comments as file-level directives that belong above the authored root element instead of inside `<div>`, `<section>`, or `<html>`. When several component tags come from one Python file, import them from that exact file path, for example `<!-- @import { Breadcrumb, BreadcrumbItem, BreadcrumbList } from "../components/Breadcrumb.py" -->`.
-10. Prefer local docs before generating code, commands, or migration guidance.
-11. Check `node_modules/caspian-utils/dist/docs/` for packaged Caspian docs when local docs need more detail.
-12. Only fall back to upstream documentation when local and packaged markdown do not cover the topic.
+8. Read `file-uploads.md` when the task mentions uploads, file pickers, file managers, media libraries, upload progress, or BrowserSync-safe public upload directories.
+9. As the app grows, standardize on `src/app/` for route-owned files, `src/components/` for reusable rendered UI, and `src/lib/` for reusable non-UI support code such as services, validators, adapters, and shared helpers.
+10. For authored component, route, and layout HTML files, generate exactly one top-level lowercase HTML element. Think React-style single parent wrapper: keep any owned PulsePoint logic in a plain `<script>` inside that root, do not handwrite `pp-component="..."` or `type="text/pp"` because Caspian injects those runtime attributes automatically, and treat `<!-- @import ... -->` comments as file-level directives that belong above the authored root element instead of inside `<div>`, `<section>`, or `<html>`. When several component tags come from one Python file, import them from that exact file path, for example `<!-- @import { Breadcrumb, BreadcrumbItem, BreadcrumbList } from "../components/Breadcrumb.py" -->`.
+11. Prefer local docs before generating code, commands, or migration guidance.
+12. Check `node_modules/caspian-utils/dist/docs/` for packaged Caspian docs when local docs need more detail.
+13. Only fall back to upstream documentation when local and packaged markdown do not cover the topic.
 
 ## Maintenance
 

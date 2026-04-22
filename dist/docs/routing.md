@@ -8,6 +8,7 @@ related:
     - /docs/project-structure
     - /docs/components
     - /docs/cache
+    - /docs/file-uploads
     - /docs/metadata
     - /docs/pulsepoint
     - /docs/index
@@ -168,6 +169,8 @@ async def page():
 ```
 
 Use this pattern when the route needs to fetch data, compute metadata, or do other non-blocking server work before rendering.
+
+When a route owns a file manager or upload UI, keep the owning upload and delete `@rpc()` actions in that same `index.py` and move reusable filesystem or Prisma helpers into `src/lib/`. Do not move ordinary upload behavior into `main.py`. See [file-uploads.md](./file-uploads.md).
 
 For static and dynamic metadata rules, inheritance order, and social card fields, see [metadata.md](./metadata.md).
 
