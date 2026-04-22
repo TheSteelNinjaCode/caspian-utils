@@ -18,12 +18,14 @@ Import them into a template with an `@import` comment, then render them with JSX
 
 For the current workspace, component tooling scans Python files under the paths listed in `caspian.config.json`. Right now that means `src/`, so `src/components/` is the clean default location for reusable UI, even though any scanned path under `src/` can work.
 
+As the app grows, treat `src/components/` as the default home for reusable application UI. Keep route-owned markup in `src/app/`, and keep non-UI helpers or services in `src/lib/`.
+
 ## Mental Model
 
 - Use a Python component when you want a reusable server-rendered UI building block.
 - Return an HTML string directly for small presentational components.
 - Use `render_html(...)` with a same-name `.html` file when the component has more markup, PulsePoint behavior, or clearer separation between Python logic and UI.
-- Keep page-level workflows in `src/app/`, and move reusable UI into components.
+- Keep page-level workflows in `src/app/`, move reusable UI into `src/components/`, and keep helpers, services, validators, and adapters in `src/lib/`.
 
 ## Basic Component
 

@@ -51,7 +51,7 @@ The packaged Caspian docs distributed by the current toolchain also live here:
 - `validation.md` - Input validation and sanitization with `Validate`, `Rule`, direct field checks, and multi-rule workflows for routes and RPC actions
 - `metadata.md` - Static and dynamic metadata, SEO inheritance, and Open Graph or Twitter card tags
 - `routing.md` - Next.js App Router-style file-based routing with `src/app`, dynamic segments, route groups, nested layouts, and single-root route templates
-- `project-structure.md` - Default Caspian layout and where routes, templates, shared code, and database files belong
+- `project-structure.md` - Default Caspian layout and where route files, reusable UI in `src/components/`, reusable non-UI code in `src/lib/`, and database files belong
 
 ## AI Awareness Notes
 
@@ -66,10 +66,11 @@ Preferred lookup order:
 5. Treat generated outputs such as `public/css/styles.css`, `settings/component-map.json`, `settings/files-list.json`, `__pycache__/`, and `.pyc` files as framework-managed artifacts when the local stack is intentionally running. They are not authored source files and should not be kept in the final diff unless the task explicitly requires them.
 6. Analyze `settings/component-map.json` and `settings/files-list.json` when you need the current generated view of components or routes, but do not hand-edit them. The framework regenerates them through `settings/component-map.ts` and `settings/files-list.ts` when the dev or build pipeline intentionally runs.
 7. Read `database.md` only when `caspian.config.json` enables Prisma, read `mcp.md` only when `caspian.config.json` enables MCP, and use `auth.md`, `components.md`, `pulsepoint.md`, `fetch-data.md`, `state.md`, `cache.md`, and `validation.md` as the next routing docs for those non-flagged concerns.
-8. For authored component, route, and layout HTML files, generate exactly one top-level lowercase HTML element. Think React-style single parent wrapper: keep any owned PulsePoint logic in a plain `<script>` inside that root, do not handwrite `pp-component="..."` or `type="text/pp"` because Caspian injects those runtime attributes automatically, and treat `<!-- @import ... -->` comments as file-level directives that belong above the authored root element instead of inside `<div>`, `<section>`, or `<html>`. When several component tags come from one Python file, import them from that exact file path, for example `<!-- @import { Breadcrumb, BreadcrumbItem, BreadcrumbList } from "../components/Breadcrumb.py" -->`.
-9. Prefer local docs before generating code, commands, or migration guidance.
-10. Check `node_modules/caspian-utils/dist/docs/` for packaged Caspian docs when local docs need more detail.
-11. Only fall back to upstream documentation when local and packaged markdown do not cover the topic.
+8. As the app grows, standardize on `src/app/` for route-owned files, `src/components/` for reusable rendered UI, and `src/lib/` for reusable non-UI support code such as services, validators, adapters, and shared helpers.
+9. For authored component, route, and layout HTML files, generate exactly one top-level lowercase HTML element. Think React-style single parent wrapper: keep any owned PulsePoint logic in a plain `<script>` inside that root, do not handwrite `pp-component="..."` or `type="text/pp"` because Caspian injects those runtime attributes automatically, and treat `<!-- @import ... -->` comments as file-level directives that belong above the authored root element instead of inside `<div>`, `<section>`, or `<html>`. When several component tags come from one Python file, import them from that exact file path, for example `<!-- @import { Breadcrumb, BreadcrumbItem, BreadcrumbList } from "../components/Breadcrumb.py" -->`.
+10. Prefer local docs before generating code, commands, or migration guidance.
+11. Check `node_modules/caspian-utils/dist/docs/` for packaged Caspian docs when local docs need more detail.
+12. Only fall back to upstream documentation when local and packaged markdown do not cover the topic.
 
 ## Maintenance
 

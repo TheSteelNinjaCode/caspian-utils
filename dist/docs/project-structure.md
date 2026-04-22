@@ -21,6 +21,8 @@ This page explains the default layout of a Caspian application, where Caspian co
 
 Caspian uses a lean project layout that keeps application code in `src`, database files in `prisma`, static assets in `public`, configuration in `caspian.config.json`, and framework internals in the installed package.
 
+As an app grows, keep reusable rendered UI in `src/components/`, keep reusable non-UI support code in `src/lib/`, and keep route-owned files in `src/app/`. That split keeps page composition separate from shared component and service code.
+
 In that layout, the default stack is Python components for reusable UI, PulsePoint in templates for reactive browser behavior, RPC for browser-triggered server calls, and `casp.validate` for input validation at route and action boundaries.
 
 For public pages that can safely reuse rendered HTML, Caspian also supports route-level page caching through `casp.cache_handler`.
@@ -31,8 +33,9 @@ Treat `caspian.config.json` as the single source of truth for optional feature e
 
 ## Top-Level Areas
 
-- `src/` contains routes, page templates, styles, and shared libraries.
-- `src/components/` contains reusable Python components and optional same-name HTML templates.
+- `src/` contains routes, page templates, styles, reusable components, and shared libraries.
+- `src/components/` contains reusable application UI components and optional same-name HTML templates.
+- `src/lib/` contains reusable non-UI code such as helpers, services, validators, adapters, and shared support modules.
 - `src/lib/auth/auth_config.py` contains auth-specific configuration for the app.
 - `src/lib/mcp/` contains the app-owned FastMCP server and nested FastMCP config when MCP is enabled.
 - `prisma/` contains the Prisma schema and seed scripts.
@@ -105,6 +108,8 @@ See `routing.md` for the full App Router-style rules for dynamic segments, route
 
 Use this folder for reusable UI components that should be imported into route templates or other component templates.
 
+As the app grows, default to `src/components/` for application-level UI that will be shared across routes or features. Keep page-only markup close to the route in `src/app/`, but move shared cards, forms, shells, navigation, and other reusable visual building blocks into `src/components/`.
+
 The common Caspian pattern is a Python file such as `Button.py` with `@component`, optionally paired with a same-name HTML file such as `Button.html` when the component has richer markup or PulsePoint behavior.
 
 One Python file can also export multiple related `@component` functions. When that happens, import those tags from that exact file path in HTML, for example `<!-- @import { Breadcrumb, BreadcrumbItem, BreadcrumbList } from "../components/Breadcrumb.py" -->`, instead of assuming each tag has its own sibling `.py` file.
@@ -117,7 +122,9 @@ This workspace's component tooling scans `src/` based on `caspian.config.json`, 
 
 ### `src/lib/`
 
-Use this folder for shared helpers, reusable validators, RPC-facing service wrappers, reusable UI utilities, and app-level support code.
+Use this folder for shared helpers, reusable validators, RPC-facing service wrappers, data-access helpers, formatting utilities, and other app-level support code that is not itself a reusable rendered component.
+
+If the code is primarily rendered UI that will be imported as a component tag, prefer `src/components/`. If the code is a helper, service, adapter, validator, or other non-visual support module, prefer `src/lib/`.
 
 This workspace already includes an app-owned Python database layer under `src/lib/prisma/`. Reuse that package for Python-side data access and keep any additional shared database helpers in `src/lib/`.
 
@@ -241,8 +248,10 @@ If an AI agent is deciding where to make changes, use these rules first.
 - Treat `__pycache__/` directories, `.pyc` files, `public/css/styles.css`, `settings/component-map.json`, and `settings/files-list.json` as generated artifacts when the local stack is intentionally running. They are not authored source files.
 - Inspect `settings/component-map.json` and `settings/files-list.json` when you need the generated component or route inventory, but do not hand-edit them. The workspace regenerates them from `settings/component-map.ts` and `settings/files-list.ts`.
 - Put route templates and route-specific backend logic in `src/app/`.
+- As the app grows, keep route-owned code in `src/app/`, reusable rendered UI in `src/components/`, and reusable non-UI support code in `src/lib/`.
 - Check [routing.md](./routing.md) when you need URL segment rules, layout nesting behavior, or dynamic route conventions.
 - Put reusable component files in `src/components/` and check [components.md](./components.md) for `@component`, `render_html(__file__)`, import comments, and single-root template rules.
+- When deciding between `src/components/` and `src/lib/`, use `src/components/` for anything rendered as reusable UI and `src/lib/` for helpers, services, validators, adapters, and shared business logic.
 - Use [mcp.md](./mcp.md) only when `caspian.config.json` enables MCP and the task involves FastMCP tool definitions, nested config discovery, or local MCP commands.
 - Keep `<!-- @import ... -->` comments above the single authored root element in route, layout, and component HTML files.
 - For route and component HTML files, always emit one top-level lowercase HTML element. Good: one wrapper containing the content and a plain `<script>` when needed. Bad: a wrapper element followed by a sibling top-level `<script>`, or handwritten `pp-component="..."` and `type="text/pp"` attributes in source.
