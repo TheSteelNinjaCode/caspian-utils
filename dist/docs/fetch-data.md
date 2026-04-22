@@ -1,6 +1,6 @@
 ---
 title: Fetch Data
-description: Fetch first-render and interactive data in Caspian with async route functions, `@rpc()` actions, `pp.rpc()`, streaming, and uploads, with RPC as the default browser-to-server data path.
+description: Use this page when the task mentions `page()`, `layout()`, `@rpc()`, `pp.rpc()`, streaming, interactive fetches, uploads, or browser-triggered data loads in Caspian.
 related:
   title: Related docs
   description: Use the routing guide to place route logic correctly, then use the auth guide for protected actions, the MCP guide for AI-facing tools, the state guide for transient request-scoped mutation state, the cache guide for reusable first-render HTML, and the PulsePoint runtime guide for client-side `pp.rpc()` details.
@@ -21,7 +21,7 @@ This page explains how data fetching works in Caspian. Use route functions for i
 
 Treat RPC as the default way for browser code to talk to Python in Caspian. Do not reach for ad hoc fetch calls to custom JSON endpoints, alternate transport layers, or older helper names unless the task explicitly requires that shape.
 
-MCP is a separate integration surface. Do not place app-owned FastMCP tools in route `index.py` files or treat `@rpc()` actions as a replacement for MCP tools. Use `mcp.md` and `src/lib/mcp/` only when `caspian.config.json` has `mcp: true`. In this workspace, `mcp: false`, so do not assume those files exist.
+MCP is a separate integration surface. Do not place app-owned FastMCP tools in route `index.py` files or treat `@rpc()` actions as a replacement for MCP tools. Use `mcp.md` and `src/lib/mcp/` only when `caspian.config.json` has `mcp: true`. If `mcp` is false, do not assume those files exist.
 
 ## Overview
 
@@ -74,7 +74,7 @@ Notes:
 - Put shared section-level props in `layout.py` when multiple child routes need the same synchronous payload. The current layout engine does not await `layout()`.
 - Keep reusable database or API clients under `src/lib/`; keep route-specific orchestration in `src/app/`.
 
-If the data source is Prisma, confirm `caspian.config.json` has `prisma: true`, then see `database.md` for the current workspace's schema, migration, and generation workflow. In this workspace, Prisma is enabled and the app-owned Python database layer lives under `src/lib/prisma/`.
+If the data source is Prisma, confirm `caspian.config.json` has `prisma: true`, then see `database.md` for the project's schema, migration, and generation workflow. If the project includes an app-owned Python database layer under `src/lib/prisma/`, reuse it instead of creating another helper.
 
 ## Interactive Data With RPC
 
@@ -285,7 +285,7 @@ A common pattern is:
 
 If the first-render HTML is expensive to produce and safe to share between visitors, add route-level caching with [cache.md](./cache.md) and invalidate affected URIs after successful mutations.
 
-## AI Routing Notes
+## AI Retrieval Notes
 
 If an AI agent is choosing how to load data in Caspian, apply these rules first.
 

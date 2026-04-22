@@ -1,6 +1,6 @@
 ---
 title: Project Structure
-description: Understand the default Caspian project layout so AI agents place routes, reusable components, PulsePoint templates, RPC actions, validation helpers, auth code, MCP files, configuration, and database changes in the correct directories.
+description: Understand the default Caspian project layout so AI agents place routes, reusable components, `src/lib` helpers, auth code, MCP files, public assets, and database changes in the correct directories. Use when deciding where project files belong.
 related:
   title: Related docs
   description: Start with installation for new apps, then use the component guide for reusable UI, the auth guide for bootstrap and session wiring, the MCP guide for server layout, the routing guide to map URLs correctly, and the cache guide when route HTML should be reused safely.
@@ -17,6 +17,8 @@ related:
 ---
 
 This page explains the default layout of a Caspian application, where Caspian core files live, and which paths AI agents should treat as project code versus framework internals.
+
+Treat it as a framework guide for Caspian projects. Use `caspian.config.json` and the actual repository tree to confirm which optional directories and files exist in the current project.
 
 ## Overview
 
@@ -123,7 +125,7 @@ For component HTML files, follow the same one-parent rule as route HTML files: o
 
 Do not handwrite `pp-component="..."` or `type="text/pp"` in component source templates either. Write plain `<script>` inside the single root and let the render pipeline inject the runtime shape.
 
-This workspace's component tooling scans `src/` based on `caspian.config.json`, so `src/components/` is a conventionally clean location, not a hard-coded runtime requirement.
+The directories listed in `componentScanDirs` determine where component tooling scans. When that list includes `src/`, `src/components/` is a conventionally clean location, not a hard-coded runtime requirement.
 
 ### `src/lib/`
 
@@ -133,15 +135,15 @@ If the code is primarily rendered UI that will be imported as a component tag, p
 
 For file upload and manager flows, keep route-owned `@rpc()` actions in `src/app/**/index.py` and keep shared storage, naming, filesystem, and Prisma-backed persistence helpers in `src/lib/`.
 
-This workspace already includes an app-owned Python database layer under `src/lib/prisma/`. Reuse that package for Python-side data access and keep any additional shared database helpers in `src/lib/`.
+When a project includes an app-owned Python database layer under `src/lib/prisma/`, reuse that package for Python-side data access and keep any additional shared database helpers in `src/lib/`.
 
-When MCP is enabled in the current workspace, this folder also contains the app-owned FastMCP server under `src/lib/mcp/`.
+When MCP is enabled for the project, this folder also contains the app-owned FastMCP server under `src/lib/mcp/`.
 
 ### Shared Database Helpers
 
 If your Python routes or RPC actions need reusable database access code, keep that helper layer under `src/lib/` and extend the existing `src/lib/prisma/` package.
 
-In this workspace, Prisma schema and seed files live under `prisma/`, while the Python-side adapter is application-owned code under `src/lib/prisma/`.
+In a Prisma-enabled Caspian project, schema and seed files typically live under `prisma/`, while the Python-side adapter lives in application-owned code under `src/lib/prisma/` when that layer exists.
 
 ### `src/lib/auth/`
 
@@ -158,7 +160,7 @@ When `caspian.config.json` has `mcp: true`:
 
 Keep MCP tool definitions here instead of placing them in route files, `main.py`, or framework internals.
 
-In the current workspace, `mcp: false`, so do not assume this folder exists until the feature is enabled and the update workflow has run.
+If `caspian.config.json` has `mcp: false`, do not assume this folder exists until the feature is enabled and the update workflow has run.
 
 ### `prisma/`
 
@@ -168,7 +170,7 @@ This folder contains your database model definitions in `schema.prisma` and any 
 
 Store static assets here, including images, fonts, and generated frontend assets that should be served directly.
 
-Runtime-uploaded public blobs can also live here. In this workspace, file-manager uploads are stored under `public/assets/file-manager/`.
+Runtime-uploaded public blobs can also live here. Confirm the actual upload path in the project code and keep that directory aligned with any BrowserSync ignore rules.
 
 If the local BrowserSync stack is running, keep that upload directory in `settings/bs-config.ts` `PUBLIC_IGNORE_DIRS` so new uploads do not force a full browser reload.
 
@@ -195,7 +197,7 @@ The core feature configuration file for the application.
 
 AI agents should read this file before making almost any feature-level decision. Use it to confirm which capabilities are enabled, which code generation paths make sense, and which directories should be scanned for components or other project assets.
 
-In the current workspace, `caspian.config.json` shows `backendOnly: false`, `tailwindcss: true`, `mcp: false`, `prisma: true`, `typescript: false`, and `componentScanDirs: ["src"]`.
+Read the actual values in `caspian.config.json` instead of inferring feature state from this doc.
 
 ### `settings/bs-config.ts`
 
@@ -256,11 +258,11 @@ Notable internal files include:
 
 The packaged Caspian documentation location distributed with the current toolchain.
 
-## AI Routing Notes
+## AI Retrieval Notes
 
 If an AI agent is deciding where to make changes, use these rules first.
 
-- Read `caspian.config.json` almost immediately before making feature, tooling, or file-placement decisions. It tells you which Caspian features are enabled in the current workspace.
+- Read `caspian.config.json` almost immediately before making feature, tooling, or file-placement decisions. It tells you which Caspian features are enabled in the current project.
 - Treat `caspian.config.json` as the single source of truth for optional feature enablement. Use feature-specific docs and file paths only when the matching flag is enabled.
 - If an optional feature is disabled and the user wants it, ask first, then update `caspian.config.json` and use `npx casp update project` before assuming feature-managed files exist.
 - Treat `package.json` scripts as opt-in operations. Do not run `npm run dev` or `npm run build` unless the user explicitly asks, the task genuinely requires that exact script, or deployment prep needs `npm run build`.
@@ -282,7 +284,7 @@ If an AI agent is deciding where to make changes, use these rules first.
 - Use `@rpc()` in route/backend code and `pp.rpc()` in client code for browser-triggered data flows.
 - Use `casp.cache_handler` when a route's first-render HTML should be reused safely across requests.
 - Use `casp.validate` at route and RPC boundaries, and move reusable validators into `src/lib/` when multiple routes share them.
-- Use `database.md` when the task involves Prisma schema changes, migrations, seed logic, or workspace-specific database helper conventions.
+- Use `database.md` when the task involves Prisma schema changes, migrations, seed logic, or project-specific database helper conventions.
 - Put authentication configuration in `src/lib/auth/auth_config.py`.
 - Put auth bootstrap, session middleware, and provider registration changes in `main.py`.
 - Put database models and seed logic in `prisma/`.

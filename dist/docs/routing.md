@@ -1,6 +1,6 @@
 ---
 title: Routing
-description: Understand Caspian's Next.js App Router-style file-based routing, including src/app conventions, index files, dynamic segments, route groups, nested layouts, and component-friendly route templates.
+description: Use this page when the task mentions `src/app`, `index.py`, `index.html`, `layout.py`, dynamic routes, route groups, nested layouts, or file-based routing in Caspian.
 related:
   title: Related docs
   description: Read the structure guide first, then use the components guide for reusable UI, the metadata guide for SEO fields, the cache guide for route-level HTML reuse, and the PulsePoint runtime guide for interactive route templates.
@@ -307,7 +307,7 @@ src/
         index.py
 ```
 
-## AI Routing Notes
+## AI Retrieval Notes
 
 If an AI agent is choosing where to add or update route code, apply these rules first.
 

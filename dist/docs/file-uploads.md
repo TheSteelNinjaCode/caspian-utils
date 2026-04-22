@@ -1,6 +1,6 @@
 ---
 title: File Uploads And File Managers
-description: Build Caspian file upload and file manager flows with route-local `@rpc()` actions, `pp.rpc()`, Prisma metadata, public asset storage, and BrowserSync-safe upload directories.
+description: Use this page when the task mentions file uploads, file managers, file pickers, upload progress, public storage paths, or BrowserSync-safe upload directories in Caspian.
 related:
   title: Related docs
   description: Use fetch-data for the route versus RPC split, PulsePoint for client runtime behavior, database for Prisma persistence, project structure for file placement, validation for upload guards, and commands for local watcher behavior.
@@ -14,7 +14,7 @@ related:
     - /docs/index
 ---
 
-This page documents the recommended file upload and file manager pattern for this workspace and similar Caspian applications.
+This page documents the recommended file upload and file manager pattern for Caspian projects.
 
 Treat uploads as normal route behavior. Keep the owning browser UI in the route template, keep upload and delete `@rpc()` actions in the owning route `index.py`, and move reusable storage or persistence helpers into `src/lib/`.
 
@@ -23,7 +23,7 @@ Treat uploads as normal route behavior. Keep the owning browser UI in the route 
 - Keep first-render file manager data in `page()` so the initial HTML already contains the current asset list and storage summary.
 - Keep upload and delete actions in the route's `index.py`; do not move ordinary upload flows into `main.py`.
 - Keep reusable file-manager helpers in `src/lib/`.
-- Store uploaded blobs under `public/assets/file-manager/...` when the files should be browser-accessible.
+- Store uploaded blobs under a project-owned public directory such as `public/storage/...` when the files should be browser-accessible.
 - Store durable metadata in Prisma, not in JSON manifests or ad hoc metadata files.
 - Use `pp.state(...)` plus `pp-for` to render and update the file list from returned server payloads.
 - Use `onUploadProgress` only for progress UI; let the RPC return refreshed manager data for the authoritative post-upload state.
@@ -36,8 +36,8 @@ Treat uploads as normal route behavior. Keep the owning browser UI in the route 
 | Upload and delete `@rpc()` actions | `src/app/**/index.py` | Keep these route-local so they stay close to the owning page. |
 | Shared storage, normalization, and persistence helpers | `src/lib/**` | Reuse helpers across routes without pushing route behavior into app bootstrap. |
 | Upload metadata model | `prisma/schema.prisma` | Persist owner, file name, MIME type, path, size, collection, and timestamps in Prisma. |
-| Browser-accessible uploaded blobs | `public/assets/file-manager/**` | Keep the public path predictable and derived from stored metadata. |
-| BrowserSync upload ignore | `settings/bs-config.ts` | Keep `public/assets/file-manager` in `PUBLIC_IGNORE_DIRS`. |
+| Browser-accessible uploaded blobs | `public/storage/**` or another app-owned public directory | Keep the public path predictable and derived from stored metadata. |
+| BrowserSync upload ignore | `settings/bs-config.ts` | Keep the active public upload directory in `PUBLIC_IGNORE_DIRS`. |
 
 ## Route Flow
 
@@ -161,7 +161,7 @@ Match those entries against workspace-relative paths so nested uploads such as `
 - Do not manually repaint the file list with `innerHTML` when PulsePoint state can own the list.
 - Do not leave uploaded public directories out of BrowserSync ignore rules.
 
-## AI Routing Notes
+## AI Retrieval Notes
 
 - Read this page first when the task mentions uploads, file pickers, file managers, media libraries, or upload progress UI.
 - Use `fetch-data.md` for the route-render versus RPC split.

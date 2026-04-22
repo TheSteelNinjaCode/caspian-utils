@@ -1,6 +1,6 @@
 ---
 title: PulsePoint Runtime Guide
-description: Learn how AI agents should author PulsePoint against the shipped browser runtime in `public/js/pp-reactive-v2.js` and the Caspian render pipeline that injects runtime attributes automatically.
+description: Use this page when the task mentions PulsePoint, `pp.state`, `pp.effect`, `pp-ref`, `pp-for`, portals, SPA navigation, or `public/js/pp-reactive-v2.js`.
 related:
   title: Related docs
   description: Read the components, routing, data-fetching, and project-structure docs alongside the PulsePoint runtime contract.
@@ -14,19 +14,19 @@ related:
 
 ## Purpose
 
-This file documents the current PulsePoint contract for this workspace. Treat it as the AI-facing source of truth when generating or reviewing interactive Caspian UI.
+This file documents the PulsePoint contract for the shipped Caspian browser runtime. Treat it as the AI-facing source of truth when generating or reviewing interactive Caspian UI.
 
 If a task involves `pp.state`, `pp.effect`, `pp.layoutEffect`, `pp-ref`, `pp-spread`, `pp-for`, context, portals, SPA navigation, or component boundary behavior, read this page first and keep generated code aligned with the runtime implemented in this repo.
 
-Use `components.md` for authoring Python `@component` files and same-name HTML templates. Use this page for the browser-side PulsePoint contract, the authoring rules that feed it, and the React-style mental model used by the current runtime.
+Use `components.md` for authoring Python `@component` files and same-name HTML templates. Use this page for the browser-side PulsePoint contract, the authoring rules that feed it, and the React-style mental model used by the shipped runtime.
 
-PulsePoint is the default reactive frontend layer for Caspian. In this workspace it follows a React-like component pattern, but it is HTML-first rather than JSX-first.
+PulsePoint is the default reactive frontend layer for Caspian. In the current runtime it follows a React-like component pattern, but it is HTML-first rather than JSX-first.
 
 Do not assume React, Vue, Svelte, JSX, Alpine, HTMX, or older PulsePoint docs unless the task explicitly asks for a different frontend contract.
 
 ## Source Of Truth
 
-For the current workspace, follow this order when documenting or generating PulsePoint code:
+When documenting or generating PulsePoint code, follow this order:
 
 - `public/js/pp-reactive-v2.js` is the shipped browser runtime contract AI should follow.
 - `main.py` is the render-pipeline source of truth for how Caspian injects runtime attributes and rewrites scripts before the browser sees the HTML.

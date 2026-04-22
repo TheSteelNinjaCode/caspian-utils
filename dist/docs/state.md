@@ -1,6 +1,6 @@
 ---
 title: State Management
-description: Manage transient Caspian server state with `casp.state_manager` and `StateManager`, using request-scoped ContextVar storage, shallow AttributeDict reads, listener callbacks, and session-backed JSON persistence.
+description: Use this page when the task mentions `StateManager`, `request.state.session`, request-scoped state, listeners, or session-backed JSON state in Caspian.
 related:
   title: Related docs
   description: Pair server request state with auth and RPC flows, then read the PulsePoint guide when the state really belongs in the browser instead of the request lifecycle.
@@ -64,7 +64,7 @@ Important implementation detail:
 
 In other words, cross-request persistence depends on the surrounding Caspian middleware keeping `request.state.session` available and in sync with session storage.
 
-In this workspace's current `main.py`, `SessionMiddleware` exposes `request.session`, but the middleware stack does not mirror that into `request.state.session`. Treat persistence as opt-in until you add that bridge explicitly.
+Inspect the current project's `main.py`: if `SessionMiddleware` exposes `request.session` but the middleware stack does not mirror that into `request.state.session`, treat persistence as opt-in until you add that bridge explicitly.
 
 ## Request Lifecycle
 
@@ -251,7 +251,7 @@ Poor candidates are:
 
 For browser-triggered writes and route actions, pair this page with [fetch-data.md](./fetch-data.md). For middleware and session-aware auth flows, pair it with [auth.md](./auth.md).
 
-## AI Routing Notes
+## AI Retrieval Notes
 
 If an AI agent is deciding how to use transient state in a Caspian app, apply these rules first.
 

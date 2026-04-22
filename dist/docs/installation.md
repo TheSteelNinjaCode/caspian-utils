@@ -1,6 +1,6 @@
 ---
 title: Installation
-description: Learn how to create a new Caspian application so AI agents use the first-time setup flow instead of assuming an existing project is already in place.
+description: Use this page when creating a new Caspian application, scaffolding a project, running first-time setup, or choosing optional features during install.
 related:
   title: Related docs
   description: Continue with the routing, structure, and MCP guides after scaffold so the new app follows Caspian conventions and keeps optional FastMCP files in the right place.
@@ -19,7 +19,7 @@ This page documents the first-time Caspian setup flow for new applications.
 
 Caspian provides a scaffold flow for new apps with a FastAPI backend and a PulsePoint-based reactive frontend workflow.
 
-In this workspace, the local `caspian-utils` package ships documentation only, so scaffold commands are resolved through external `npx` packages rather than project-local binaries.
+These packaged docs can exist inside an already-created Caspian project, but scaffold commands themselves are typically resolved through external `npx` packages rather than from this docs directory.
 
 ## Default App Stack
 
@@ -61,7 +61,7 @@ After scaffold, read `caspian.config.json` and treat it as the single source of 
 
 If a feature is disabled and the user wants it later, ask whether they want to enable it first, then update `caspian.config.json` and run `npx casp update project` so framework-managed files align with the new feature set.
 
-If the project enables MCP, use `mcp.md` after scaffold to place the app-owned FastMCP server and config files correctly for the current workspace conventions.
+If the project enables MCP, use `mcp.md` after scaffold to place the app-owned FastMCP server and config files correctly for that project's conventions.
 
 ## Recommended VS Code Setup
 
@@ -85,7 +85,7 @@ cd my-app
 npm run dev
 ```
 
-In this workspace, `npm run dev` is backed by BrowserSync plus PostCSS watchers, not a Vite dev server.
+Confirm what `npm run dev` does in the generated project's `package.json`. Many Caspian projects use BrowserSync plus PostCSS watchers rather than a Vite dev server, but the actual script wins.
 
 For AI agents and other automated helpers, this is an opt-in local-stack command, not a default validation step. Do not run `package.json` scripts just because a route, feature, or doc changed.
 
@@ -93,7 +93,7 @@ If `npm run dev` is intentionally running, let that stack own generated outputs 
 
 Inspect `settings/component-map.json` and `settings/files-list.json` when you need the generated component or route inventory, but do not hand-edit them. The framework refreshes them from `settings/component-map.ts` and `settings/files-list.ts`.
 
-If runtime uploads write into `public/assets/file-manager/`, keep that directory in `settings/bs-config.ts` `PUBLIC_IGNORE_DIRS` so BrowserSync does not reload on every uploaded file.
+If runtime uploads write into a public upload directory, keep that directory in `settings/bs-config.ts` `PUBLIC_IGNORE_DIRS` so BrowserSync does not reload on every uploaded file.
 
 ## After Setup
 
@@ -109,7 +109,7 @@ Once the project is scaffolded:
 - Read `routing.md` to learn how `src/app` folders map to URLs.
 - Read `project-structure.md` to place route code, shared libraries, config, and database files in the correct directories.
 
-## AI Routing Notes
+## AI Retrieval Notes
 
 If an AI agent is reading this page, treat it as the source for new-project installation steps.
 

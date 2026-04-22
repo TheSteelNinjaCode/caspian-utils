@@ -1,6 +1,6 @@
 ---
 title: Metadata & SEO
-description: Define static and dynamic metadata in Caspian so titles, descriptions, and social cards inherit correctly from layouts to pages.
+description: Use this page when the task mentions metadata, SEO, page titles, descriptions, Open Graph, Twitter cards, or layout-to-page metadata inheritance in Caspian.
 related:
   title: Related docs
   description: Use the routing guide to place layout.py and index.py files correctly, then use the structure guide when deciding where metadata defaults belong.
@@ -185,7 +185,7 @@ Keep visual layout data and SEO metadata separate.
 - Put page-specific static metadata in `index.py`.
 - Put dynamic metadata inside `page()` after you have route params or fetched data.
 
-## AI Routing Notes
+## AI Retrieval Notes
 
 If an AI agent is deciding where to put SEO fields, apply these rules first.
 

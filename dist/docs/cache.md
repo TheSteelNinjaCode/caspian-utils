@@ -1,6 +1,6 @@
 ---
 title: Cache
-description: Cache rendered Caspian route HTML with `casp.cache_handler`, `Cache`, and `CacheHandler`, using route-level TTLs, file-system storage, and explicit invalidation for public read-heavy pages.
+description: Use this page when the task mentions `Cache`, `CacheHandler`, page caching, route HTML reuse, TTLs, or invalidation in Caspian.
 related:
   title: Related docs
   description: Use the routing guide to place route-level cache declarations correctly, then pair cache with fetch-data when deciding what can be safely served from reused HTML.
@@ -242,7 +242,7 @@ Poor candidates are:
 - forms whose server-rendered HTML includes request-specific or sensitive state
 - pages that need sub-second freshness unless you have reliable invalidation hooks
 
-## AI Routing Notes
+## AI Retrieval Notes
 
 If an AI agent is deciding whether or how to cache a Caspian route, apply these rules first.
 

@@ -1,6 +1,6 @@
 ---
 title: Commands
-description: Use the current Caspian CLI reference to choose the right scaffold, starter-kit, update, and Prisma regeneration workflow for the current workspace.
+description: Use this Caspian command reference for scaffolding, project updates, feature enablement, builds, and ORM regeneration. Use when the task mentions `create-caspian-app`, `casp update project`, `npm run dev`, `npm run build`, `prisma migrate`, or `ppy generate`.
 related:
   title: Related docs
   description: Start with installation for new apps, then use database, MCP, and structure docs when commands affect schema, server tooling, generated ORM files, or project layout.
@@ -14,13 +14,13 @@ related:
     - /docs/index
 ---
 
-This page documents the current Caspian command families used with this workspace and the surrounding docs toolchain.
+This page documents the main Caspian command families and the checks an AI agent should make before running them in a project.
 
 ## Overview
 
-The current workspace includes a local `prisma` binary, but it does not include local `create-caspian-app`, `casp`, or `ppy` binaries under `node_modules/.bin`. Treat project creation, project update, and Python ORM generation as external `npx` workflows rather than project-local executables.
+Project creation, project updates, and Python ORM generation are commonly driven through `npx` workflows plus any project-local `package.json` scripts that a given project defines.
 
-The current workspace `package.json` defines `projectName`, `tailwind`, `tailwind:build`, `mcp`, `browserSync`, `browserSync:build`, `dev`, and `build`.
+Do not assume a local binary, script, or generated file exists just because a doc mentions it. Confirm the actual `package.json`, repository tree, and `caspian.config.json` values in the project you are working on.
 
 Examples below use `npx create-caspian-app` for readability. If you want to force the latest published scaffold package explicitly, you can use `npx create-caspian-app@latest` instead.
 
@@ -33,7 +33,7 @@ This updated reference includes the newer updater behavior and the current scaff
 - Windows-safe execution that resolves `npx.cmd` on Win32
 - scaffold behavior that reuses an existing `.venv` instead of recreating it every time
 
-Before running update commands, read `caspian.config.json` because it controls feature flags and `excludeFiles` overwrite protection. In the current workspace that config shows `backendOnly: false`, `tailwindcss: true`, `mcp: false`, `prisma: true`, `typescript: false`, and `componentScanDirs: ["src"]`.
+Before running update commands, read `caspian.config.json` because it controls feature flags and any `excludeFiles` overwrite protection.
 
 Treat `caspian.config.json` as the single source of truth for optional feature enablement. Use feature-specific docs, files, or commands only after the matching flag is confirmed as enabled.
 
@@ -82,9 +82,9 @@ npm run dev
 
 Use when the user explicitly wants the local BrowserSync plus PostCSS development stack.
 
-In this workspace, `npm run dev` is a long-running command that can regenerate framework-owned outputs such as `public/css/styles.css`, `settings/component-map.json`, `settings/files-list.json`, `__pycache__/`, and `.pyc` files.
+Only use this when the current project's `package.json` actually defines `npm run dev`.
 
-Because runtime uploads write to `public/assets/file-manager/`, `settings/bs-config.ts` keeps that directory in `PUBLIC_IGNORE_DIRS` so uploads do not trigger BrowserSync reloads.
+Long-running local stack commands can regenerate framework-owned outputs such as built CSS, generated component maps, route maps, `__pycache__/`, and `.pyc` files. Treat project-specific generated outputs as artifacts when those workflows intentionally run.
 
 ### Build generated assets for deployment
 
@@ -93,6 +93,8 @@ npm run build
 ```
 
 Use when preparing deployment or when the user explicitly asks for a build.
+
+Only use this when the current project's `package.json` actually defines `npm run build`.
 
 Do not use `npm run build` as the default validation step for routine route, feature, or documentation edits.
 
@@ -120,7 +122,7 @@ Use when `prisma/schema.prisma` changes and you need migrations, seed flow, and 
 - Use `npm run build` only for deployment prep or an explicit build request.
 - Treat `public/css/styles.css`, `settings/component-map.json`, `settings/files-list.json`, `__pycache__/`, and `.pyc` files as generated outputs when a script intentionally runs.
 - Analyze `settings/component-map.json` and `settings/files-list.json` when needed, but do not hand-edit them. `settings/component-map.ts` and `settings/files-list.ts` regenerate them during the intentional dev and build flows.
-- Keep runtime upload directories such as `public/assets/file-manager` in `settings/bs-config.ts` `PUBLIC_IGNORE_DIRS` so BrowserSync does not reload on every uploaded blob.
+- Keep any runtime upload directory that the project uses in the BrowserSync ignore list so uploads do not trigger reloads on every new blob.
 - Do not edit `__pycache__/` directories or `.pyc` files, and do not leave them in the final diff.
 
 ## 3. Supported Flags And Options
@@ -583,7 +585,7 @@ Result: parsing error because more than one version source was provided.
 
 ## 8. Prisma And Python ORM Regeneration
 
-The create and update commands above are not the whole maintenance story for this workspace. When `prisma/schema.prisma` changes, follow the ORM flow below so the TypeScript Prisma client, database state, and Python ORM layer stay aligned.
+The create and update commands above are not the whole maintenance story for a Prisma-enabled Caspian project. When `prisma/schema.prisma` changes, follow the ORM flow below so the TypeScript Prisma client, database state, and Python ORM layer stay aligned.
 
 ### Required order after schema changes
 
@@ -663,7 +665,7 @@ If you exclude a file, the updater preserves it, but you are responsible for mer
 4. Starter kits still support later overrides via explicit CLI flags.
 5. Frontend-oriented flags are only fully meaningful when `backendOnly` is false.
 
-## AI Routing Notes
+## AI Retrieval Notes
 
 If an AI agent is deciding which command flow to use, apply these rules first.
 

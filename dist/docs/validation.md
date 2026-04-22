@@ -1,15 +1,15 @@
 ---
 title: Validation
-description: Validate and sanitize Caspian inputs with `casp.validate`, `Validate`, `Rule`, direct validators, rule-based checks, and file or date or ID validation before route or RPC logic persists data, with Validate as the default server-side validation layer.
+description: Use this page when the task mentions `Validate`, `Rule`, sanitization, form validation, credential checks, or guarding route and RPC inputs in Caspian.
 related:
-  title: Related docs
+    title: Related docs
     description: Use the auth guide for session and credential flows, the fetch-data guide when validation runs inside RPC actions, then use the structure guide to place reusable validators in the right layer.
-  links:
+    links:
         - /docs/auth
-    - /docs/fetch-data
-    - /docs/routing
-    - /docs/project-structure
-    - /docs/index
+        - /docs/fetch-data
+        - /docs/routing
+        - /docs/project-structure
+        - /docs/index
 ---
 
 This page explains the current installed Caspian validation API for direct field checks, rule-based validation, sanitization, and reusable input guards.
@@ -278,7 +278,7 @@ def create_account(data: dict):
     return {"success": True}
 ```
 
-## AI Routing Notes
+## AI Retrieval Notes
 
 If an AI agent is deciding how to validate input in Caspian, apply these rules first.
 

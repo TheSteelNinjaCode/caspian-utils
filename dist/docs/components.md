@@ -1,6 +1,6 @@
 ---
 title: Components
-description: Create reusable Caspian components as `@component` Python functions, import them into templates as `<MyComponent />`, and split interactive UI into same-name HTML templates when PulsePoint logic is involved.
+description: Use this page when the task mentions `@component`, reusable UI, component imports, same-name `.html` templates, or where shared components belong in a Caspian project.
 related:
   title: Related docs
   description: Use the structure guide for file placement, the routing guide for route templates, the PulsePoint guide for browser-side scripts, and the data guide for component-owned RPC flows.
@@ -16,7 +16,7 @@ Components in Caspian are Python functions decorated with `@component`.
 
 Import them into a template with an `@import` comment, then render them with JSX-style tags such as `<MyComponent />` or `<MyComponent>...</MyComponent>`.
 
-For the current workspace, component tooling scans Python files under the paths listed in `caspian.config.json`. Right now that means `src/`, so `src/components/` is the clean default location for reusable UI, even though any scanned path under `src/` can work.
+Component tooling scans Python files under the paths listed in `caspian.config.json`. When `componentScanDirs` includes `src/`, `src/components/` is the clean default location for reusable UI, even though any scanned path can work.
 
 As the app grows, treat `src/components/` as the default home for reusable application UI. Keep route-owned markup in `src/app/`, and keep non-UI helpers or services in `src/lib/`.
 

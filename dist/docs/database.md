@@ -1,6 +1,6 @@
 ---
 title: Database
-description: Use Prisma in this workspace through `prisma/schema.prisma`, `prisma.config.ts`, migrations, seeding, and the generated client defined by the local schema.
+description: Use this page when the task mentions Prisma, `schema.prisma`, `prisma.config.ts`, migrations, `seed.ts`, Prisma Client, or `ppy generate` in a Caspian project.
 related:
   title: Related docs
   description: Use the project structure guide to place database files correctly, then use the fetch-data guide when Prisma calls need to power route rendering or RPC actions.
@@ -12,9 +12,9 @@ related:
     - /docs/index
 ---
 
-This page documents the Prisma workflow present in this workspace.
+This page documents the Prisma workflow for Caspian projects where `caspian.config.json` enables Prisma.
 
-This repo currently uses Prisma for schema management, migrations, and seed tooling on the Node side. The local `prisma/schema.prisma` uses `generator client { provider = "prisma-client-js" }`, `prisma.config.ts` seeds through `tsx prisma/seed.ts`, and this workspace already includes an app-owned Python database layer under `src/lib/prisma/`. If Python routes or RPC actions need database access, reuse that package instead of creating another helper.
+When a project enables Prisma, use `prisma/schema.prisma` for schema management, `prisma.config.ts` for Prisma config and seed wiring, and reuse an app-owned `src/lib/prisma/` package when the project includes one.
 
 Treat `caspian.config.json` as the single source of truth for whether Prisma is enabled in a workspace. If `prisma` is false and the user wants Prisma, ask first, then update `caspian.config.json` and run `npx casp update project` before assuming Prisma-managed files exist.
 
@@ -102,7 +102,7 @@ model Post {
 }
 ```
 
-After changing the schema, use this order in the current workspace:
+After changing the schema, use this order:
 
 1. Run `npx prisma migrate dev`.
 2. If seed data or the seed script needs the new schema, run `npx prisma generate` and then `npx prisma db seed`.
@@ -129,21 +129,21 @@ Default rule:
 - Use migrations for tracked application changes.
 - Use `db push` only when you intentionally want a faster, migration-free prototype loop.
 
-## Prisma Files In This Workspace
+## Prisma Files To Inspect
 
-The current repo ships Prisma files in these locations:
+In a Prisma-enabled Caspian project, inspect these locations:
 
 ### `prisma/schema.prisma`
 
-This file is the schema source of truth. It currently defines a `prisma-client-js` generator.
+This file is the schema source of truth. Confirm the actual datasource and generator configuration in the current project.
 
 ### `prisma.config.ts`
 
-This file configures the schema path, migrations path, and the seed entry point. In this workspace it runs seeds through `tsx prisma/seed.ts`.
+This file configures the schema path, migrations path, and the seed entry point. Confirm the actual seed command and import path in the current project.
 
 ### `prisma/seed.ts`
 
-This file is the current example of code that imports and uses the generated Prisma client.
+This file is the project-local example of code that imports and uses the generated Prisma client.
 
 ### `node_modules/@prisma/client/`
 
@@ -151,13 +151,13 @@ After `npx prisma generate`, Prisma writes the generated JavaScript client into 
 
 ### `src/lib/prisma/`
 
-This workspace already includes an app-owned async Python database package that exports `prisma`, `PrismaClient`, generated models, and helper types.
+If the project includes an app-owned async Python database package here, it typically exports `prisma`, `PrismaClient`, generated models, and helper types.
 
 If Python route or RPC code needs database access, import from `src.lib.prisma` and keep that import path explicit in application code. Refresh generated classes with `npx ppy generate` instead of editing them manually.
 
 ## Python Route Usage
 
-This workspace already ships an app-owned Python Prisma-style layer under `src/lib/prisma/`. Treat it as async-first and reuse it from route and RPC code.
+If the project ships an app-owned Python Prisma-style layer under `src/lib/prisma/`, treat it as async-first and reuse it from route and RPC code.
 
 Example:
 
@@ -338,7 +338,7 @@ Use raw SQL sparingly. Prefer the generated Prisma API when the query can be exp
 - Validate incoming mutation data before calling `create`, `update`, or `delete` operations.
 - Prefer Prisma queries over raw SQL, and prefer raw SQL over undocumented custom query helpers.
 
-## AI Routing Notes
+## AI Retrieval Notes
 
 If an AI agent is working on a Caspian app with Prisma enabled, apply these rules first.
 
@@ -348,7 +348,7 @@ If an AI agent is working on a Caspian app with Prisma enabled, apply these rule
 - If the schema change requires seed data, run `npx prisma generate` and then `npx prisma db seed`.
 - Run `npx ppy generate` after schema changes to refresh the Python ORM classes.
 - Never hand-edit generated Prisma or Python ORM classes.
-- Read `prisma.config.ts` and `prisma/seed.ts` when you need the current workspace's Prisma tooling examples.
+- Read `prisma.config.ts` and `prisma/seed.ts` when you need the current project's Prisma tooling examples.
 - Reuse the existing `src/lib/prisma/` package when the Python app needs database access.
 - For file managers and uploads, persist metadata in Prisma and keep blob storage separate. See [file-uploads.md](./file-uploads.md).
 - Put reusable database helpers in `src/lib/`; keep route and RPC orchestration in `src/app/`.

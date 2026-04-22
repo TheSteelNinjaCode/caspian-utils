@@ -1,6 +1,6 @@
 ---
 title: Authentication
-description: Manage session-backed authentication in Caspian with `casp.auth`, `AuthSettings`, the global `auth` object, centralized `auth_config.py`, page decorators, RPC protection, role-based routes, and optional Google or GitHub OAuth providers.
+description: Use this page when the task mentions `auth_config.py`, sign-in, signout, protected routes, `require_auth`, RBAC, auth decorators, or Google or GitHub OAuth in Caspian.
 related:
   title: Related docs
   description: Use the fetch-data guide when sign-in or signout happens through RPC, then use the state guide for transient auth-adjacent request state, validation to guard credentials, and routing or project structure to place auth files correctly.
@@ -113,7 +113,7 @@ Important behavior from the current implementation:
 - `default_token_validity` is parsed by the installed auth runtime with the format `^\d+(s|m|h|d)$`. Use values such as `30m`, `1h`, or `7d`.
 - `token_auto_refresh` only changes behavior when the request lifecycle calls `auth.refresh_session()`. In the installed `auth.py`, the flag alone does not refresh expiry by itself.
 - The framework `AuthSettings` dataclass defaults `is_all_routes_private=True`, but the project example above explicitly changes that to `False`.
-- In generated app-owned config like this workspace, `src/lib/auth/auth_config.py` starts with `is_all_routes_private=False`, so routes are public by default until the app chooses stricter route protection.
+- In generated app-owned starter config, `src/lib/auth/auth_config.py` starts with `is_all_routes_private=False`, so routes are public by default until the app chooses stricter route protection.
 - `public_routes`, `auth_routes`, `private_routes`, and `role_based_routes` are exact path matches in the installed `Auth` methods.
 - `private_routes` matters only when `is_all_routes_private=False`.
 - `role_based_routes` currently expects `PATH -> [ROLES]`, not role names keyed to paths the other way around.
@@ -124,7 +124,7 @@ Important behavior from the current implementation:
 
 Make this decision at app setup time in `src/lib/auth/auth_config.py`.
 
-- In the default app-owned starter pattern used in this workspace, routes start public because `is_all_routes_private=False` in `src/lib/auth/auth_config.py`.
+- In the default app-owned starter pattern, routes start public because `is_all_routes_private=False` in `src/lib/auth/auth_config.py`.
 - If the application has only a few public pages and most routes require auth, set `is_all_routes_private=True` and list the exceptions in `public_routes`.
 - If the application has many public pages and only a few protected areas, keep `is_all_routes_private=False` and list only the protected routes in `private_routes`.
 - In the current runtime, `auth_routes=["/signin", "/signup"]` stays public by default, and most apps do not need to change it unless the user explicitly asks for different auth routes.
@@ -756,14 +756,14 @@ Common placement patterns are:
 
 For browser-triggered auth forms, pair this page with `fetch-data.md`. For credential and form validation, pair it with `validation.md`.
 
-## AI Routing Notes
+## AI Retrieval Notes
 
 If an AI agent is deciding how to handle auth in Caspian, apply these rules first.
 
 - Treat `casp.auth` as the default authentication layer.
 - Centralize route visibility, redirects, and RBAC policy in `src/lib/auth/auth_config.py`.
 - Decide route mode early in `src/lib/auth/auth_config.py`: use `is_all_routes_private=True` when most routes should require auth, otherwise keep `is_all_routes_private=False` and list protected routes in `private_routes`.
-- In app-owned starter config like this workspace, treat `is_all_routes_private=False` as the default starting point, which means routes begin public until the app opts into stricter protection.
+- In app-owned starter config, treat `is_all_routes_private=False` as the default starting point, which means routes begin public until the app opts into stricter protection.
 - Treat `public_routes` as the public exception list for all-private apps. In the current defaults, `/` stays public and `auth_routes=["/signin", "/signup"]` stays public too.
 - Apply settings at startup in `main.py` with `configure_auth(build_auth_settings())`.
 - Register provider instances in `main.py` with `Auth.set_providers(...)` when Google or GitHub OAuth is enabled.
