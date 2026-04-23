@@ -1,6 +1,6 @@
 ---
 title: PulsePoint Runtime Guide
-description: Use this page when the task mentions PulsePoint, `pp.state`, `pp.effect`, `pp-ref`, `pp-for`, portals, SPA navigation, or `public/js/pp-reactive-v2.js`.
+description: Use this page when the task mentions PulsePoint, `pp.state`, `pp.effect`, `pp-ref`, `pp-style`, `pp-for`, portals, SPA navigation, or `public/js/pp-reactive-v2.js`.
 related:
   title: Related docs
   description: Read the components, routing, data-fetching, and project-structure docs alongside the PulsePoint runtime contract.
@@ -16,7 +16,7 @@ related:
 
 This file documents the PulsePoint contract for the shipped Caspian browser runtime. Treat it as the AI-facing source of truth when generating or reviewing interactive Caspian UI.
 
-If a task involves `pp.state`, `pp.effect`, `pp.layoutEffect`, `pp-ref`, `pp-spread`, `pp-for`, context, portals, SPA navigation, or component boundary behavior, read this page first and keep generated code aligned with the runtime implemented in this repo.
+If a task involves `pp.state`, `pp.effect`, `pp.layoutEffect`, `pp-ref`, `pp-style`, `pp-spread`, `pp-for`, context, portals, SPA navigation, or component boundary behavior, read this page first and keep generated code aligned with the runtime implemented in this repo.
 
 Use `components.md` for authoring Python `@component` files and same-name HTML templates. Use this page for the browser-side PulsePoint contract, the authoring rules that feed it, and the React-style mental model used by the shipped runtime.
 
@@ -262,6 +262,9 @@ Nested components:
 
 - Use `{expression}` in text nodes and attribute values.
 - Pure bindings like `value="{count}"` are evaluated as expressions.
+- For dynamic inline styles in authored templates, prefer `pp-style="{styleText}"` over `style="{styleText}"` so HTML/CSS tooling does not parse the brace expression as raw CSS.
+- `pp-style` is an authoring alias. The compiler rewrites it to a native `style` attribute in rendered output.
+- If the same element already has a static `style` attribute, `pp-style` is merged into that `style` value during compilation.
 - Mixed text like `class="card {isActive ? 'active' : ''}"` is supported.
 - Arrays in template expressions are joined without commas.
 - `null`, `undefined`, and boolean expression results render as an empty string in text output.
@@ -275,9 +278,12 @@ Example:
 
 ```html
 <div>
+  <p pp-style="{noticeStyle}">Notice</p>
   <button pp-spread="{...buttonAttrs}" hidden="{isLoading}">Save</button>
 
   <script>
+    const noticeStyle = "color: red;";
+
     const buttonAttrs = {
       class: "btn btn-primary",
       "aria-label": "save",
