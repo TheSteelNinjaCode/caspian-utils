@@ -44,6 +44,8 @@ If docs, generated examples, or older notes disagree with `public/js/pp-reactive
 When a Caspian page needs reactive browser behavior, use PulsePoint.
 
 - Use PulsePoint component roots, scripts, directives, and runtime helpers for interactive UI.
+- Use PulsePoint state, effects, refs, and template directives as the default reactivity model in authored Caspian templates.
+- When the browser needs CRUD operations or follow-up reads from the backend, call `pp.rpc()` from PulsePoint code and back it with route or backend `@rpc()` actions.
 - Keep server-rendered HTML plus PulsePoint enhancement as the baseline architecture.
 - Only introduce another frontend runtime when the user explicitly asks for it or the project already depends on one.
 
@@ -413,10 +415,12 @@ These are runtime details.
 Use these rules when generating or editing PulsePoint runtime code:
 
 - Treat PulsePoint as the default reactive frontend for Caspian app code.
+- Treat `pp.rpc()` as the default browser-to-server path for CRUD operations and interactive backend reads.
 - Use `public/js/pp-reactive-v2.js` as the shipped runtime contract AI should follow.
 - Keep `main.py` in view because it injects the runtime-facing attributes and rewrites authored scripts before the browser sees them.
 - If a development-only source tree exists behind the shipped runtime, treat it as optional implementation detail rather than something generated apps are guaranteed to contain.
 - In authored Caspian templates, do not handwrite `pp-component` or `type="text/pp"`; let the render pipeline inject them.
+- Prefer PulsePoint state and template directives over manual DOM mutation for reactive updates.
 - If you are explicitly editing raw runtime HTML or internals, keep `pp-component` unique per live instance.
 - In authored templates, use a plain `<script>` inside the root. In runtime HTML, the owned script appears as `script[type="text/pp"]`.
 - Keep template-facing variables at top level.

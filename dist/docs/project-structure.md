@@ -26,7 +26,7 @@ Caspian uses a lean project layout that keeps application code in `src`, databas
 
 As an app grows, keep reusable rendered UI in `src/components/`, keep reusable non-UI support code in `src/lib/`, and keep route-owned files in `src/app/`. That split keeps page composition separate from shared component and service code.
 
-In that layout, the default stack is Python components for reusable UI, PulsePoint in templates for reactive browser behavior, RPC for browser-triggered server calls, and `casp.validate` for input validation at route and action boundaries.
+In that layout, the default stack is Python components for reusable UI, PulsePoint in templates for reactive browser behavior, RPC for CRUD operations and browser-triggered backend reads, and `casp.validate` for input validation at route and action boundaries.
 
 For public pages that can safely reuse rendered HTML, Caspian also supports route-level page caching through `casp.cache_handler`.
 
@@ -104,6 +104,8 @@ This is the main application area. It contains route files, templates, styles, a
 ### `src/app/`
 
 This directory handles file-based routing. Route templates and route-specific backend logic live here.
+
+For any route that renders UI, keep that markup in `src/app/**/index.html`. If the route is UI-only, `index.html` alone is enough. Add `src/app/**/index.py` only as a companion when the same route needs metadata, `page()`, `@rpc()` actions, auth checks, caching, redirects, or other server-side behavior. Use a lone `index.py` only for non-visual routes such as redirect-only or action-only handlers.
 
 When authoring a route HTML file such as `src/app/**/index.html`, keep the whole template inside exactly one top-level lowercase HTML element. Treat it the same way you would a React component returning one parent element: wrap the route markup and any owned PulsePoint script in the same root.
 
@@ -227,13 +229,17 @@ If this layout imports reusable components, place each `<!-- @import ... -->` co
 
 ### `src/app/index.py`
 
-The backend logic for the route. This is where route behavior can load first-render data, expose `@rpc()` actions, and import framework features such as auth helpers, `casp.validate`, and route-level `Cache(...)` declarations.
+The backend logic companion for the route. Use this file when the same route needs first-render data, metadata, `@rpc()` actions, auth helpers, `casp.validate`, route-level `Cache(...)` declarations, redirects, or other server behavior.
+
+If the route renders UI, keep the markup in the sibling `index.html` and let `index.py` call `render_page(__file__, ...)` with whatever context the template needs. Do not store route HTML in `index.py`. A lone `index.py` should be reserved for non-visual routes.
 
 When a route owns a file manager or upload UI, keep the owning upload and delete `@rpc()` actions in that route's `index.py` and move reusable filesystem or Prisma helpers into `src/lib/`. Do not move ordinary upload behavior into `main.py`.
 
 ### `src/app/index.html`
 
 The route template. It supports standard HTML, `<!-- @import ... -->` component imports, and PulsePoint directives, and it should be the default place for reactive frontend behavior in Caspian.
+
+If a route renders UI and needs no backend behavior, this file alone is sufficient. If the route also has an `index.py` companion, keep the visible page markup here.
 
 Treat import comments as top-of-file directives that belong above the route's single authored root element.
 
@@ -281,7 +287,7 @@ If an AI agent is deciding where to make changes, use these rules first.
 - Use `settings/bs-config.ts` when uploaded public assets should not trigger BrowserSync reloads during the local stack.
 - Put app-owned FastMCP code in `src/lib/mcp/` only when `caspian.config.json` enables MCP.
 - Use PulsePoint conventions in route templates for reactive frontend behavior.
-- Use `@rpc()` in route/backend code and `pp.rpc()` in client code for browser-triggered data flows.
+- Use `@rpc()` in route/backend code and `pp.rpc()` in client code for browser-triggered data flows, especially CRUD operations and interactive backend reads.
 - Use `casp.cache_handler` when a route's first-render HTML should be reused safely across requests.
 - Use `casp.validate` at route and RPC boundaries, and move reusable validators into `src/lib/` when multiple routes share them.
 - Use `database.md` when the task involves Prisma schema changes, migrations, seed logic, or project-specific database helper conventions.

@@ -31,6 +31,8 @@ Metadata is typically defined in one of two files:
 - `layout.py` for defaults shared by everything below that folder
 - `index.py` for route-specific metadata
 
+On routes that render UI, keep the page markup in the sibling `index.html`. `index.py` is the metadata and backend companion, not the place to store route HTML. If a route needs no metadata or backend behavior, omit `index.py` and keep the page as `index.html` only.
+
 The current `Metadata` implementation supports three fields:
 
 - `title`

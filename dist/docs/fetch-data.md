@@ -17,9 +17,9 @@ related:
     - /docs/index
 ---
 
-This page explains how data fetching works in Caspian. Use route functions for initial page data and use RPC actions for browser-triggered reads, writes, streams, and uploads.
+This page explains how data fetching works in Caspian. Use route functions for initial page data and use RPC actions for browser-triggered reads, writes, streams, uploads, and normal CRUD work.
 
-Treat RPC as the default way for browser code to talk to Python in Caspian. Do not reach for ad hoc fetch calls to custom JSON endpoints, alternate transport layers, or older helper names unless the task explicitly requires that shape.
+Treat RPC as the default way for browser code to talk to Python in Caspian. For CRUD operations and any browser-initiated backend reads after first render, default to `@rpc()` on the server and `pp.rpc()` in PulsePoint code. Do not reach for ad hoc fetch calls to custom JSON endpoints, alternate transport layers, or older helper names unless the task explicitly requires that shape.
 
 MCP is a separate integration surface. Do not place app-owned FastMCP tools in route `index.py` files or treat `@rpc()` actions as a replacement for MCP tools. Use `mcp.md` and `src/lib/mcp/` only when `caspian.config.json` has `mcp: true`. If `mcp` is false, do not assume those files exist.
 
@@ -36,15 +36,18 @@ In practice, most pages use both:
 2. Render that data into `index.html`.
 3. Call `pp.rpc()` for refreshes, form submits, toggles, infinite scroll, or streamed updates.
 
+If a route only needs UI and does not need first-render data, metadata, or other backend behavior, skip `index.py` and keep the page in `index.html` alone.
+
 ## Default Data Rule
 
 - Use `page()` for async or route-level data required before HTML renders, and use `layout()` only for synchronous shared props or metadata.
-- Use `@rpc()` on the server and `pp.rpc()` in PulsePoint code for all browser-triggered data work after first render.
+- When a route renders UI and also needs backend work, keep the HTML in the sibling `index.html`; `index.py` should prepare data and call `render_page(__file__, ...)`, not inline the route markup.
+- Use `@rpc()` on the server and `pp.rpc()` in PulsePoint code for all browser-triggered data work after first render, including CRUD operations and follow-up reads.
 - Keep custom REST or other endpoint patterns as explicit exceptions, not the baseline Caspian approach.
 
 ## Initial Data In `index.py`
 
-Use the route's backend file for data that should exist before the template is rendered.
+Use the route's backend file for data that should exist before the template is rendered. Keep the rendered page markup in the sibling `index.html`; if no backend data or logic is needed, omit `index.py` entirely.
 
 Example:
 
@@ -120,6 +123,7 @@ Call it from the client with `pp.rpc()`:
 
 Use RPC for:
 
+- CRUD reads and writes after the initial render
 - Button-triggered refreshes
 - Form submissions and mutations
 - Polling or background refreshes
@@ -292,7 +296,7 @@ If an AI agent is choosing how to load data in Caspian, apply these rules first.
 - Put first-render data loading in `src/app/**/index.py`.
 - Put shared section props in `layout.py` only when multiple child routes need the same synchronous data.
 - Keep async I/O in `page()` or `@rpc()` because the current layout engine does not await `layout()`.
-- Treat RPC as the default read and write layer between PulsePoint code and Python route logic.
+- Treat RPC as the default read and write layer between PulsePoint code and Python route logic, especially for CRUD and interactive backend reads.
 - Use `@rpc()` for backend functions that should be callable from the browser.
 - Use `pp.rpc()` for client-side calls; do not prefer older `pp.fetchFunction()` wording.
 - Prefer route-render data plus RPC over inventing parallel REST endpoints for normal Caspian page interactions.

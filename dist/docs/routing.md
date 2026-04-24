@@ -25,8 +25,10 @@ Caspian uses a high-performance file-system router built on top of FastAPI. Your
 Start with these rules:
 
 - Put application routes in `src/app/`.
-- Use `index.html` for a template-only route.
-- Use `index.py` when the route needs metadata or async server-side logic.
+- For any route that renders a page, put the markup in `index.html`.
+- If a route is UI-only, `index.html` by itself is enough.
+- Add `index.py` only when the same route needs metadata, `page()`, `@rpc()` actions, auth checks, caching, redirects, or other server-side logic.
+- Use a standalone `index.py` only for non-visual routes such as redirects or action-only handlers.
 - Use `layout.html` to wrap child routes.
 - Use `layout.py` when a layout needs shared synchronous props or metadata before rendering.
 
@@ -46,7 +48,7 @@ If you already know the Next.js App Router, use this translation layer:
 | Next.js concept | Caspian equivalent |
 | --- | --- |
 | `app/` | `src/app/` |
-| `page.tsx` | `index.html` or `index.py` |
+| `page.tsx` | `index.html` plus optional `index.py` companion |
 | `layout.tsx` | `layout.html` and optional `layout.py` |
 | `[id]` | `[id]` |
 | `[...slug]` | `[...slug]` |
@@ -61,19 +63,31 @@ This means most App Router habits carry over directly:
 
 ## Core Concepts
 
-Every route lives inside `src/app`. A route is a folder that contains either an `index.html` file, an `index.py` file, or both as part of the route implementation.
+Every route lives inside `src/app`. For routes that render UI, `index.html` owns the markup and `index.py` is only an optional companion for server logic or metadata.
+
+Use this decision rule when creating routes:
+
+| Route shape | Files |
+| --- | --- |
+| UI only | `index.html` |
+| UI plus backend logic or metadata | `index.html` and `index.py` |
+| No rendered page, backend only | `index.py` |
 
 Examples:
 
-| File | URL |
+| Files | URL |
 | --- | --- |
 | `src/app/index.html` | `/` |
-| `src/app/about/index.py` | `/about` |
+| `src/app/about/index.html` | `/about` |
+| `src/app/dashboard/index.html` and `src/app/dashboard/index.py` | `/dashboard` |
 | `src/app/blog/posts/index.html` | `/blog/posts` |
+| `src/app/(auth)/signout/index.py` | `/signout` |
 
 ### `index.html`
 
 Use `index.html` for the route template. This is the route's view layer.
+
+If a route renders visible page content, that content belongs here even when the route also has an `index.py` companion.
 
 Route templates can import reusable Python components with `<!-- @import ... -->` comments and render them with JSX-style tags such as `<Button />`. Use [components.md](./components.md) for the component authoring rules.
 
@@ -152,7 +166,9 @@ Write the first form. Caspian produces the second form by injecting `pp-componen
 
 ### `index.py`
 
-Use `index.py` when the route needs metadata or async server-side logic. Because Caspian runs on FastAPI, the page entry should be async.
+Use `index.py` as the backend companion when a route needs metadata or async server-side logic. For routes that render UI, keep the markup in the sibling `index.html` and let `page()` call `render_page(__file__, ...)`. Do not inline route HTML inside `index.py`.
+
+Use `index.py` by itself only for non-visual routes such as redirects or action-only handlers. Because Caspian runs on FastAPI, the page entry should be async when it performs async work.
 
 Example:
 
@@ -168,7 +184,7 @@ async def page():
     return render_page(__file__)
 ```
 
-Use this pattern when the route needs to fetch data, compute metadata, or do other non-blocking server work before rendering.
+Use this pattern when the route needs to fetch data, compute metadata, or do other non-blocking server work before rendering the sibling `index.html`.
 
 When a route owns a file manager or upload UI, keep the owning upload and delete `@rpc()` actions in that same `index.py` and move reusable filesystem or Prisma helpers into `src/lib/`. Do not move ordinary upload behavior into `main.py`. See [file-uploads.md](./file-uploads.md).
 
@@ -186,9 +202,11 @@ Wrap a folder name in brackets to make it variable.
 
 | File | Example URL |
 | --- | --- |
-| `src/app/users/[id]/index.py` | `/users/123` |
+| `src/app/users/[id]/index.html` | `/users/123` |
 
 These segments are compiled into FastAPI path parameters for efficient route matching.
+
+Add a sibling `index.py` when the dynamic route needs params during render, metadata, or other backend logic.
 
 In the current `main.py` router, path params are collected into a single dict and passed as the first positional argument to `page()`. Matching query params can still be injected by name, and `request` is passed by keyword when declared.
 
@@ -208,9 +226,11 @@ Use an ellipsis inside brackets to match multiple path parts.
 
 | File | Example URL |
 | --- | --- |
-| `src/app/docs/[...slug]/index.py` | `/docs/getting-started/setup` |
+| `src/app/docs/[...slug]/index.html` | `/docs/getting-started/setup` |
 
 Use catch-all routes when the number of path segments is not fixed ahead of time.
+
+Add a sibling `index.py` when that catch-all route also needs backend logic or metadata.
 
 ## Route Groups
 
@@ -218,10 +238,10 @@ Wrap a folder name in parentheses to organize code without adding that segment t
 
 Examples:
 
-| File | URL |
+| Files | URL |
 | --- | --- |
-| `src/app/(auth)/login/index.py` | `/login` |
-| `src/app/(auth)/register/index.py` | `/register` |
+| `src/app/(auth)/signin/index.html` and `src/app/(auth)/signin/index.py` | `/signin` |
+| `src/app/(auth)/signup/index.html` and `src/app/(auth)/signup/index.py` | `/signup` |
 
 Route groups are useful when you want to:
 
@@ -292,18 +312,25 @@ src/
       index.html
     users/
       [id]/
+        index.html
         index.py
     docs/
       [...slug]/
+        index.html
         index.py
     (auth)/
       login/
+        index.html
         index.py
       register/
+        index.html
+        index.py
+      signout/
         index.py
     dashboard/
       layout.html
       settings/
+        index.html
         index.py
 ```
 
@@ -313,7 +340,8 @@ If an AI agent is choosing where to add or update route code, apply these rules 
 
 - Treat `src/app/` as the routing source of truth.
 - Use folder names to model URL segments.
-- Use `index.html` for route templates and `index.py` for route-level async logic.
+- If a route renders UI, create or update `index.html` for the markup.
+- Add `index.py` only when the same route needs metadata or server behavior; do not place route HTML in `index.py`.
 - Use [cache.md](./cache.md) when an `index.py` route should opt into page-level HTML caching.
 - Use `layout.html` for shared wrappers and `layout.py` for layout-level synchronous props or metadata.
 - Keep `<!-- @import ... -->` directives at the top of `index.html` and `layout.html`, above the single authored root element.
