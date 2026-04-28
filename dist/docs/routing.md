@@ -186,6 +186,37 @@ async def page():
 
 Use this pattern when the route needs to fetch data, compute metadata, or do other non-blocking server work before rendering the sibling `index.html`.
 
+`page()` may also return a 2-item tuple: `(page_html, layout_props_dict)`.
+
+- The first item is the rendered page HTML, usually `render_page(__file__, page_context)`.
+- The second item must be a dict. Its keys are merged into the wrapping layout context and become available to parent layouts as `[[ layout.* ]]`.
+
+Use that tuple form when one route needs to influence a wrapper without turning that value into a section-wide default. A common example is a dashboard page that needs to lock the root body with `overflow-hidden` while the rest of the app keeps normal scrolling.
+
+Example root layout:
+
+```html
+<body class="[[ layout.dashboard_body_class | default('') ]]">
+  [[ children | safe ]]
+</body>
+```
+
+Example route:
+
+```python
+from casp.layout import render_page
+
+async def page():
+  return (
+    render_page(__file__),
+    {"dashboard_body_class": "w-screen h-screen overflow-hidden"},
+  )
+```
+
+The key name is arbitrary, but it must match exactly between the dict returned from `page()` and the `[[ layout.some_key ]]` lookup in `layout.html`.
+
+Use distinct names for those layout props. In the current router, the second dict is merged into the full layout context after path params and `request`, so a key such as `slug` or `request` can shadow an existing value.
+
 When a route owns a file manager or upload UI, keep the owning upload and delete `@rpc()` actions in that same `index.py` and move reusable filesystem or Prisma helpers into `src/lib/`. Do not move ordinary upload behavior into `main.py`. See [file-uploads.md](./file-uploads.md).
 
 For static and dynamic metadata rules, inheritance order, and social card fields, see [metadata.md](./metadata.md).
@@ -289,11 +320,46 @@ def layout(context_data):
 
     return {
         "user": user,
+    "dashboard_body_class": "w-screen h-screen overflow-hidden",
         "theme": "dark",
     }
 ```
 
 `context_data` includes URL parameters such as dynamic route values.
+
+In the common case, return a dict and let the sibling `layout.html` read those values through `[[ layout.* ]]`.
+
+`layout()` currently supports these result shapes:
+
+- `dict`: load the sibling `layout.html` and expose the dict as `[[ layout.* ]]`
+- `str`: use that string as the layout content
+- `(layout_html, props_dict)`: use the first item as the layout content and expose the second dict as `[[ layout.* ]]`
+- `None`: fall back to the sibling `layout.html` with no extra layout props
+
+If you intentionally want to render `layout.html` immediately with direct local variables instead of the `layout.*` namespace, call `render_layout(__file__, {...})` and reference those keys directly in the template.
+
+Example:
+
+```python
+from casp.layout import render_layout
+
+def layout():
+  return render_layout(__file__, {"my_class": "size-8"})
+```
+
+In that pattern, the matching `layout.html` reads `[[ my_class ]]`, not `[[ layout.my_class ]]`, because the template string was already rendered before the nested layout pipeline continues.
+
+If you need both a custom layout string and standard `[[ layout.* ]]` props, return a tuple:
+
+```python
+from casp.layout import render_layout
+
+def layout():
+  return (
+    render_layout(__file__),
+    {"dashboard_body_class": "w-screen h-screen overflow-hidden"},
+  )
+```
 
 `layout()` currently runs synchronously in `casp.layout`. If you need async I/O, load it in `page()` instead of `layout.py`.
 
@@ -344,6 +410,8 @@ If an AI agent is choosing where to add or update route code, apply these rules 
 - Add `index.py` only when the same route needs metadata or server behavior; do not place route HTML in `index.py`.
 - Use [cache.md](./cache.md) when an `index.py` route should opt into page-level HTML caching.
 - Use `layout.html` for shared wrappers and `layout.py` for layout-level synchronous props or metadata.
+- When one route needs to change a parent layout, return `(render_page(__file__, ...), {"dashboard_body_class": ...})` from `page()` and read that value as `[[ layout.dashboard_body_class ]]` in the wrapping `layout.html`.
+- Use `layout.py` for layout props that should apply across an entire subtree. Use `render_layout(__file__, {...})` only when the layout should consume direct local variables such as `[[ my_class ]]` instead of the standard `[[ layout.* ]]` namespace.
 - Keep `<!-- @import ... -->` directives at the top of `index.html` and `layout.html`, above the single authored root element.
 - Use [metadata.md](./metadata.md) when a route or layout needs SEO fields.
 - Use `[segment]` for single dynamic parameters.

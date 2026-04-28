@@ -176,6 +176,7 @@ Use stable, publicly reachable image paths for social cards so crawlers can fetc
 Keep visual layout data and SEO metadata separate.
 
 - Values returned from `layout()` are exposed as `[[ layout.* ]]`.
+- The second dict returned from `page()` as `(page_html, layout_props_dict)` is also exposed to wrapping layouts as `[[ layout.* ]]`.
 - SEO values are exposed as `[[ metadata.* ]]`.
 - Do not return `title` or `description` from `layout()` expecting SEO changes.
 - The layout engine explicitly strips `title` and `description` from layout props to avoid mixing visual props with metadata.
@@ -195,6 +196,7 @@ If an AI agent is deciding where to put SEO fields, apply these rules first.
 - Prefer module-level `metadata = Metadata(...)` for static routes.
 - Instantiate `Metadata(...)` inside `page()` when metadata depends on params, fetched records, or generated content.
 - Put shared defaults in `layout.py` and let leaf pages override only what they need.
+- If a single route only needs to tweak a wrapping layout, return `(render_page(__file__, ...), {"dashboard_body_class": ...})` from `page()` instead of moving that prop into metadata.
 - Use `extra` for Open Graph and Twitter card tags.
 - Access `extra` values in templates with bracket syntax such as `metadata['og:image']`.
 - Keep `layout()` return data in `[[ layout.* ]]` and keep SEO fields in `Metadata(...)`.
