@@ -16,9 +16,9 @@ related:
 
 This file documents the PulsePoint contract for the shipped Caspian browser runtime. Treat it as the AI-facing source of truth when generating or reviewing interactive Caspian UI.
 
-If a task involves `pp.state`, `pp.effect`, `pp.layoutEffect`, `pp-ref`, `pp-style`, `pp-spread`, `pp-for`, context, portals, SPA navigation, or component boundary behavior, read this page first and keep generated code aligned with the runtime implemented in this repo.
+If a task involves `pp.state`, `pp.effect`, `pp.layoutEffect`, `pp-ref`, `pp-style`, `pp-spread`, `pp-for`, context, portals, SPA navigation, or component boundary behavior, read this page first and keep generated code aligned with the current Caspian runtime.
 
-Use `components.md` for authoring Python `@component` files and same-name HTML templates. Use this page for the browser-side PulsePoint contract, the authoring rules that feed it, and the React-style mental model used by the shipped runtime.
+Use `components.md` for authoring Python `@component` files, same-name HTML templates, and HTML-first `x-*` component tags. Use this page for the browser-side PulsePoint contract, the authoring rules that feed it, and the React-style mental model used by the shipped runtime.
 
 PulsePoint is the default reactive frontend layer for Caspian. In the current runtime it follows a React-like component pattern, but it is HTML-first rather than JSX-first.
 
@@ -36,6 +36,7 @@ Important current facts:
 
 - `public/js/pp-reactive-v2.js` exposes the global `pp` runtime and auto-mounts on DOM ready.
 - `main.py` renders the final HTML, runs `transform_components(...)`, then runs `transform_scripts(...)` before returning the response.
+- Authored route and component templates compose reusable server components as HTML-first `x-*` tags before the browser runtime mounts.
 
 If docs, generated examples, or older notes disagree with `public/js/pp-reactive-v2.js` plus `main.py`, follow the code that actually runs.
 
@@ -51,7 +52,7 @@ When a Caspian page needs reactive browser behavior, use PulsePoint.
 
 ## Authoring Model
 
-PulsePoint authoring in this repo is split into two layers:
+PulsePoint authoring is split into two layers:
 
 - The authored layer: route, layout, and component templates under `src/` with plain HTML plus a plain `<script>`.
 - The runtime layer: the browser sees `pp-component` roots and `script[type="text/pp"]` after Caspian transforms the HTML.

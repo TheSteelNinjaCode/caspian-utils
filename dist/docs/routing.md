@@ -89,7 +89,7 @@ Use `index.html` for the route template. This is the route's view layer.
 
 If a route renders visible page content, that content belongs here even when the route also has an `index.py` companion.
 
-Route templates can import reusable Python components with `<!-- @import ... -->` comments and render them with JSX-style tags such as `<Button />`. Use [components.md](./components.md) for the component authoring rules.
+Route templates can import reusable Python components with `<!-- @import ... -->` comments and render them with HTML-first `x-*` tags such as `<x-button />`. Use [components.md](./components.md) for the component authoring rules.
 
 Place those import comments at the top of the file, above the authored root element. They are file-level directives, not children of the route root.
 
@@ -130,7 +130,7 @@ Also bad:
 ```html
 <section class="dashboard-shell">
   <!-- @import StatsCard from "../components" -->
-  <StatsCard title="Users" value="42" />
+  <x-stats-card title="Users" value="42" />
 </section>
 ```
 
@@ -140,7 +140,7 @@ Example authored route template:
 <!-- @import StatsCard from "../components" -->
 
 <section class="dashboard-shell">
-  <StatsCard title="Users" value="42" />
+  <x-stats-card title="Users" value="42" />
 
   <script>
     const [filter, setFilter] = pp.state("all");

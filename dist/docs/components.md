@@ -1,6 +1,6 @@
 ---
 title: Components
-description: Use this page when the task mentions `@component`, reusable UI, component imports, same-name `.html` templates, or where shared components belong in a Caspian project.
+description: Use this page when the task mentions `@component`, reusable UI, HTML-first `x-*` component tags, component imports, same-name `.html` templates, or where shared components belong in a Caspian project.
 related:
   title: Related docs
   description: Use the structure guide for file placement, the routing guide for route templates, the PulsePoint guide for browser-side scripts, and the data guide for component-owned RPC flows.
@@ -12,9 +12,11 @@ related:
     - /docs/index
 ---
 
-Components in Caspian are Python functions decorated with `@component`.
+Components in Caspian are implemented as Python functions decorated with `@component`.
 
-Import them into a template with an `@import` comment, then render them with JSX-style tags such as `<MyComponent />` or `<MyComponent>...</MyComponent>`.
+In authored HTML, import them with an `@import` comment and render them with HTML-first kebab-cased `x-*` tags such as `<x-my-component />` or `<x-my-component>...</x-my-component>`.
+
+Treat that `x-*` form as the current Caspian component contract for authored templates.
 
 Component tooling scans Python files under the paths listed in `caspian.config.json`. When `componentScanDirs` includes `src/`, `src/components/` is the clean default location for reusable UI, even though any scanned path can work.
 
@@ -60,17 +62,17 @@ Place component imports at the top of the HTML template, above the authored root
 ```html
 <!-- @import Container from "../components" -->
 
-<Container class="py-10">
+<x-container class="py-10">
   <h1>Dashboard</h1>
-</Container>
+</x-container>
 ```
 
-The import comment is the bridge between the Python component file and the JSX-style tag.
+The import comment is the bridge between the Python component export and the `x-*` tag you author in HTML.
 
 Treat `<!-- @import ... -->` as a file-level directive, not as rendered markup. It does not count as the template root, and it should not be nested inside the root wrapper element.
 
 - `<!-- @import Container from "../components" -->` resolves `Container.py` from that folder.
-- The component function name should match the tag name you render, such as `Container` for `<Container />`.
+- The exported component name maps to the tag you render by kebab-casing it and prefixing `x-`, such as `Container` for `<x-container />` or `CommandDialog` for `<x-command-dialog />`.
 - Grouped imports and aliases are also supported, for example `<!-- @import { Button, Card as UserCard } from "../components/ui" -->`.
 - If one Python file exports several `@component` functions, point `from` at that exact file instead of assuming one file per tag.
 - In that case, prefer one grouped import so every rendered tag resolves back to the same Python module.
@@ -81,9 +83,9 @@ Good:
 <!-- @import { Button, Input, Label } from "../../../lib/maddex" -->
 
 <section class="auth-panel auth-panel-compact fade-up">
-  <Label>Email</Label>
-  <Input type="email" />
-  <Button>Continue</Button>
+  <x-label>Email</x-label>
+  <x-input type="email" />
+  <x-button>Continue</x-button>
 </section>
 ```
 
@@ -106,17 +108,17 @@ If `Breadcrumb.py` defines `Breadcrumb`, `BreadcrumbList`, `BreadcrumbItem`, `Br
 <!-- @import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from "../maddex/Breadcrumb.py" -->
 
 <div class="dashboard-topbar">
-  <Breadcrumb class="dashboard-breadcrumbs" aria-label="Dashboard breadcrumbs">
-    <BreadcrumbList class="dashboard-breadcrumbs__list">
-      <BreadcrumbItem class="dashboard-breadcrumbs__item">
-        <BreadcrumbLink href="/dashboard">Dashboard</BreadcrumbLink>
-      </BreadcrumbItem>
-      <BreadcrumbSeparator class="dashboard-breadcrumbs__separator" />
-      <BreadcrumbItem class="dashboard-breadcrumbs__item">
-        <BreadcrumbPage class="dashboard-breadcrumbs__page">Reports</BreadcrumbPage>
-      </BreadcrumbItem>
-    </BreadcrumbList>
-  </Breadcrumb>
+  <x-breadcrumb class="dashboard-breadcrumbs" aria-label="Dashboard breadcrumbs">
+    <x-breadcrumb-list class="dashboard-breadcrumbs__list">
+      <x-breadcrumb-item class="dashboard-breadcrumbs__item">
+        <x-breadcrumb-link href="/dashboard">Dashboard</x-breadcrumb-link>
+      </x-breadcrumb-item>
+      <x-breadcrumb-separator class="dashboard-breadcrumbs__separator" />
+      <x-breadcrumb-item class="dashboard-breadcrumbs__item">
+        <x-breadcrumb-page class="dashboard-breadcrumbs__page">Reports</x-breadcrumb-page>
+      </x-breadcrumb-item>
+    </x-breadcrumb-list>
+  </x-breadcrumb>
 </div>
 ```
 
@@ -317,7 +319,7 @@ Keep synchronous components as the default. Switch to `async def` only when the 
 
 - Put reusable components in `src/components/` and keep route files in `src/app/`.
 - If the component includes PulsePoint behavior, prefer a thin Python wrapper plus a same-name `.html` template.
-- Keep the component file name, exported function name, and tag name aligned, such as `Button.py`, `def Button(...)`, and `<Button />`.
+- Keep the component file name, exported function name, and authored tag aligned, such as `Button.py`, `def Button(...)`, and `<x-button />`.
 - Accept `children` or `**props` when the component should support nested content.
 - Keep page-level data loading in `page()` when the data is not intrinsic to the component itself.
 - If you add `@rpc()` functions inside a component file, keep their names globally unique because component RPCs are not route-scoped.

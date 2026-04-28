@@ -119,9 +119,9 @@ Use this folder for reusable UI components that should be imported into route te
 
 As the app grows, default to `src/components/` for application-level UI that will be shared across routes or features. Keep page-only markup close to the route in `src/app/`, but move shared cards, forms, shells, navigation, and other reusable visual building blocks into `src/components/`.
 
-The common Caspian pattern is a Python file such as `Button.py` with `@component`, optionally paired with a same-name HTML file such as `Button.html` when the component has richer markup or PulsePoint behavior.
+The common Caspian pattern is a Python file such as `Button.py` with `@component`, optionally paired with a same-name HTML file such as `Button.html` when the component has richer markup or PulsePoint behavior. In authored HTML, that component is consumed as `<x-button />`.
 
-One Python file can also export multiple related `@component` functions. When that happens, import those tags from that exact file path in HTML, for example `<!-- @import { Breadcrumb, BreadcrumbItem, BreadcrumbList } from "../components/Breadcrumb.py" -->`, instead of assuming each tag has its own sibling `.py` file.
+One Python file can also export multiple related `@component` functions. When that happens, import those tags from that exact file path in HTML, for example `<!-- @import { Breadcrumb, BreadcrumbItem, BreadcrumbList } from "../components/Breadcrumb.py" -->`, and render them as `<x-breadcrumb />`, `<x-breadcrumb-item />`, and `<x-breadcrumb-list />` instead of assuming each tag has its own sibling `.py` file.
 
 For component HTML files, follow the same one-parent rule as route HTML files: one top-level lowercase HTML element only, with no sibling roots and no top-level script sitting outside that root.
 
@@ -243,7 +243,7 @@ If a route renders UI and needs no backend behavior, this file alone is sufficie
 
 Treat import comments as top-of-file directives that belong above the route's single authored root element.
 
-Use `components.md` when the task involves authoring reusable `<MyComponent />` tags backed by Python files.
+Use `components.md` when the task involves authoring reusable `<x-my-component />` tags backed by Python files.
 
 ### `src/app/globals.css`
 
@@ -278,7 +278,7 @@ If an AI agent is deciding where to make changes, use these rules first.
 - As the app grows, keep route-owned code in `src/app/`, reusable rendered UI in `src/components/`, and reusable non-UI support code in `src/lib/`.
 - Read [file-uploads.md](./file-uploads.md) when the task involves upload widgets, media libraries, or file-manager flows.
 - Check [routing.md](./routing.md) when you need URL segment rules, layout nesting behavior, or dynamic route conventions.
-- Put reusable component files in `src/components/` and check [components.md](./components.md) for `@component`, `render_html(__file__)`, import comments, and single-root template rules.
+- Put reusable component files in `src/components/` and check [components.md](./components.md) for `@component`, `render_html(__file__)`, `x-*` component tags, import comments, and single-root template rules.
 - When deciding between `src/components/` and `src/lib/`, use `src/components/` for anything rendered as reusable UI and `src/lib/` for helpers, services, validators, adapters, and shared business logic.
 - Use [mcp.md](./mcp.md) only when `caspian.config.json` enables MCP and the task involves FastMCP tool definitions, nested config discovery, or local MCP commands.
 - Keep `<!-- @import ... -->` comments above the single authored root element in route, layout, and component HTML files.
