@@ -26,6 +26,7 @@ Before making feature, tooling, or file-placement decisions in a Caspian project
 When generating or editing a Caspian app, treat these as the default choices unless the task explicitly requires something else:
 
 - Use PulsePoint for reactive frontend behavior.
+- When `caspian.config.json` has `tailwindcss: true`, use Python `merge_classes(...)` plus browser `twMerge(...)` as the only supported Tailwind class-merging path.
 - Use `@rpc()` plus `pp.rpc()` for browser-triggered reads, writes, streaming, and uploads.
 - Use `Validate` and `Rule` from `casp.validate` for server-side input validation and sanitization.
 
@@ -42,8 +43,8 @@ The packaged Caspian docs referenced by this index live here:
 - `mcp.md` - MCP-specific layout, launch flow, and AI routing rules for projects where `caspian.config.json` enables MCP
 - `database.md` - Prisma schema, migration, seed, and client-generation workflow for projects where `caspian.config.json` enables Prisma, plus Python-side helper caveats
 - `auth.md` - Session-backed authentication with `casp.auth`, centralized `auth_config.py`, public-vs-private route mode guidance, RPC-first signout guidance, RBAC, and OAuth provider helpers
-- `components.md` - Create reusable Python components, template-backed UI, HTML-first `x-*` component tags, and the single-parent root rule for component HTML files
-- `pulsepoint.md` - Default reactive frontend runtime contract for component scripts, state, effects, directives, and client-side behaviors
+- `components.md` - Create reusable Python components, template-backed UI, HTML-first `x-*` component tags, the single-parent root rule for component HTML files, and the Python-side `merge_classes(...)` contract when Tailwind CSS is enabled
+- `pulsepoint.md` - Default reactive frontend runtime contract for component scripts, state, effects, directives, client-side behaviors, and direct browser `twMerge(...)` usage when Tailwind CSS is enabled
 - `fetch-data.md` - Initial server-side data loading and browser-triggered RPC flows with `pp.rpc()`, streaming, uploads, and auth-aware actions
 - `file-uploads.md` - Route-local file uploads and file-manager flows with `@rpc()`, `pp.rpc()`, Prisma metadata, public asset storage, and BrowserSync ignore rules
 - `state.md` - Request-scoped server state with `StateManager`, session-backed JSON persistence, and listener callbacks for transient flows

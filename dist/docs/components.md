@@ -1,6 +1,6 @@
 ---
 title: Components
-description: Use this page when the task mentions `@component`, reusable UI, HTML-first `x-*` component tags, component imports, same-name `.html` templates, or where shared components belong in a Caspian project.
+description: Use this page when the task mentions `@component`, reusable UI, HTML-first `x-*` component tags, component imports, same-name `.html` templates, `merge_classes(...)`, `twMerge(...)`, or where shared components belong in a Caspian project.
 related:
   title: Related docs
   description: Use the structure guide for file placement, the routing guide for route templates, the PulsePoint guide for browser-side scripts, and the data guide for component-owned RPC flows.
@@ -31,7 +31,7 @@ As the app grows, treat `src/components/` as the default home for reusable appli
 
 ## Basic Component
 
-This is the simplest pattern: accept props, merge classes or attributes, and return HTML.
+This is the simplest pattern: accept props, assemble the final class value, and return HTML.
 
 ```python
 from casp.component_decorator import component
@@ -53,7 +53,44 @@ Notes:
 
 - `children` receives the inner content passed between opening and closing tags.
 - `**props` lets the component accept additional HTML attributes such as `id`, `data-*`, and `aria-*`.
-- The runtime normalizes `class`, `className`, and `class_name` into a merged `class` value before the component is called.
+- The runtime normalizes `class`, `className`, and `class_name` into one `class` value before the component is called.
+- Pass the `merge_classes(...)` result straight into `get_attributes(...)` or the rendered `class` attribute; do not wrap it in another helper.
+
+## Tailwind Merge Contract
+
+When `caspian.config.json` has `tailwindcss: true`, Caspian uses a frontend-first Tailwind merge contract.
+
+- In Python components, use `merge_classes(...)` to assemble class defaults plus incoming class props.
+- `merge_classes(...)` emits a frontend-ready `{twMerge(...)}` expression instead of doing Python-side Tailwind conflict resolution.
+- In authored PulsePoint markup and scripts, use global `twMerge(...)` directly for attribute expressions and script-local derived values.
+
+Python example:
+
+```python
+from casp.component_decorator import component
+from casp.html_attrs import get_attributes, merge_classes
+
+@component
+def IconButton(**props) -> str:
+    incoming_class = props.pop("class", "")
+    final_class = merge_classes("size-4 rounded-md", incoming_class)
+
+    attributes = get_attributes({
+        "class": final_class,
+    }, props)
+
+    return f'<button {attributes}></button>'
+```
+
+Authored PulsePoint examples:
+
+```html
+<p class="{twMerge(baseClass, inputClass)}">Merged badge preview</p>
+
+<script>
+  const merged = twMerge(baseClass, inputClass);
+</script>
+```
 
 ## Import And Use Components
 
