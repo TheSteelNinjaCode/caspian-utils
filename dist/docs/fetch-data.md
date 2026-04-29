@@ -236,9 +236,10 @@ Use this pattern for real file managers:
 
 - Keep upload and delete actions in the owning route `index.py`, not in `main.py`.
 - Use `page()` to render the initial manager payload.
-- Store durable metadata in Prisma and store the browser-accessible blob separately under `public/assets/file-manager/`.
+- Store durable metadata in Prisma and store the browser-accessible blob separately under a public upload directory such as `public/uploads/`.
+- Create `public/uploads` on demand in the shared helper if the directory does not exist yet.
 - Use `pp.state(...)` plus `pp-for` for the list UI instead of manual `innerHTML` writes.
-- Add `public/assets/file-manager` to `PUBLIC_IGNORE_DIRS` in `settings/bs-config.ts` so runtime uploads do not trigger BrowserSync reloads during `npm run dev`.
+- Add the public-root-relative directory name `uploads` to `PUBLIC_IGNORE_DIRS` in `settings/bs-config.ts` when `public/uploads/` is the active upload root so runtime uploads do not trigger BrowserSync reloads during `npm run dev`.
 
 Read [file-uploads.md](./file-uploads.md) for the complete file-manager pattern.
 

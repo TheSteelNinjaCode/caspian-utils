@@ -23,7 +23,8 @@ Treat uploads as normal route behavior. Keep the owning browser UI in the route 
 - Keep first-render file manager data in `page()` so the initial HTML already contains the current asset list and storage summary.
 - Keep upload and delete actions in the route's `index.py`; do not move ordinary upload flows into `main.py`.
 - Keep reusable file-manager helpers in `src/lib/`.
-- Store uploaded blobs under a project-owned public directory such as `public/storage/...` when the files should be browser-accessible.
+- Store uploaded blobs under a project-owned public directory such as `public/uploads/...` when the files should be browser-accessible.
+- Create the upload directory on demand in the shared helper when it does not exist yet; do not assume the folder is committed.
 - Store durable metadata in Prisma, not in JSON manifests or ad hoc metadata files.
 - Use `pp.state(...)` plus `pp-for` to render and update the file list from returned server payloads.
 - Use `onUploadProgress` only for progress UI; let the RPC return refreshed manager data for the authoritative post-upload state.
@@ -36,7 +37,7 @@ Treat uploads as normal route behavior. Keep the owning browser UI in the route 
 | Upload and delete `@rpc()` actions | `src/app/**/index.py` | Keep these route-local so they stay close to the owning page. |
 | Shared storage, normalization, and persistence helpers | `src/lib/**` | Reuse helpers across routes without pushing route behavior into app bootstrap. |
 | Upload metadata model | `prisma/schema.prisma` | Persist owner, file name, MIME type, path, size, collection, and timestamps in Prisma. |
-| Browser-accessible uploaded blobs | `public/storage/**` or another app-owned public directory | Keep the public path predictable and derived from stored metadata. |
+| Browser-accessible uploaded blobs | `public/uploads/**` or another app-owned public directory | Keep the public path predictable and derived from stored metadata, and create the directory on demand if it may not exist yet. |
 | BrowserSync upload ignore | `settings/bs-config.ts` | Keep the active public upload directory in `PUBLIC_IGNORE_DIRS`. |
 
 ## Route Flow
@@ -143,15 +144,17 @@ Typical metadata fields include:
 
 ## BrowserSync And Uploaded Public Files
 
-If runtime uploads write into `public/assets/file-manager/`, BrowserSync should ignore that directory during local development. Otherwise every upload can trigger a full browser reload.
+If runtime uploads write into `public/uploads/`, BrowserSync should ignore that directory during local development. Otherwise every upload can trigger a full browser reload.
 
-Use a workspace-relative ignore entry in `settings/bs-config.ts`:
+The helper that stores uploaded files should create `public/uploads` before writing the first file when the directory is not present yet.
+
+Use a public-root-relative ignore entry in `settings/bs-config.ts`:
 
 ```ts
-const PUBLIC_IGNORE_DIRS = ["public/assets/file-manager"];
+const PUBLIC_IGNORE_DIRS = ["uploads"];
 ```
 
-Match those entries against workspace-relative paths so nested uploads such as `public/assets/file-manager/user-1/media/example.png` are ignored too.
+`settings/bs-config.ts` matches those entries against paths relative to the `public/` root, so nested uploads such as `uploads/user-1/media/example.png` are ignored too.
 
 ## What To Avoid
 
@@ -167,5 +170,5 @@ Match those entries against workspace-relative paths so nested uploads such as `
 - Use `fetch-data.md` for the route-render versus RPC split.
 - Use `database.md` when Prisma models or relations must change for upload metadata.
 - Use `validation.md` for MIME, extension, and other boundary checks, then keep explicit size and auth checks in the owning RPC action.
-- Use `project-structure.md` for placement rules, especially `src/app/` versus `src/lib/` and `public/assets/file-manager/`.
+- Use `project-structure.md` for placement rules, especially `src/app/` versus `src/lib/` and `public/uploads/`.
 - Use `commands.md` and `settings/bs-config.ts` when uploads should not trigger BrowserSync reloads during `npm run dev`.

@@ -172,7 +172,9 @@ This folder contains your database model definitions in `schema.prisma` and any 
 
 Store static assets here, including images, fonts, and generated frontend assets that should be served directly.
 
-Runtime-uploaded public blobs can also live here. Confirm the actual upload path in the project code and keep that directory aligned with any BrowserSync ignore rules.
+Runtime-uploaded public blobs can also live here. Confirm the actual upload path in the project code, commonly `public/uploads/`, and keep that directory aligned with any BrowserSync ignore rules.
+
+If the upload directory is created only at runtime, create it on demand in the owning upload helper instead of assuming it is already committed.
 
 If the local BrowserSync stack is running, keep that upload directory in `settings/bs-config.ts` `PUBLIC_IGNORE_DIRS` so new uploads do not force a full browser reload.
 
@@ -205,7 +207,9 @@ Read the actual values in `caspian.config.json` instead of inferring feature sta
 
 The BrowserSync watcher configuration for the local stack lives here.
 
-When runtime uploads write into `public/assets/file-manager/`, keep `public/assets/file-manager` in `PUBLIC_IGNORE_DIRS` and match it against workspace-relative paths so nested uploaded files do not trigger reloads.
+When runtime uploads write into `public/uploads/`, keep the public-root-relative entry `uploads` in `PUBLIC_IGNORE_DIRS`.
+
+`settings/bs-config.ts` matches ignore entries against paths relative to the `public/` root, so nested uploaded files do not trigger reloads.
 
 ### `src/lib/auth/auth_config.py`
 
