@@ -73,6 +73,8 @@ For authored Caspian templates:
 - Do not handwrite `pp-component="..."`.
 - Do not handwrite `type="text/pp"`.
 
+Treat that single-root rule as a hard invariant for AI-generated templates. A sibling `<script>` after the root or any second top-level element will break Caspian's `pp-component` injection and fail the render.
+
 Keep visible route, layout, and component markup in the HTML templates. Treat `index.py` and `layout.py` as backend companions for data, metadata, props, RPC actions, auth, caching, redirects, and other server-side preparation, not as template bodies.
 
 Caspian already handles those details for you during render.
@@ -101,6 +103,18 @@ Authored example:
 ```
 
 When that template reaches the browser, Caspian will already have injected the component id and rewritten the owned script to `type="text/pp"`. Those runtime attributes are for the rendered output, not for authored source examples.
+
+Invalid authored shape:
+
+```html
+<section>
+  <h2>{title}</h2>
+</section>
+
+<script>
+  const { title = "Counter" } = pp.props;
+</script>
+```
 
 ## Runtime shape
 

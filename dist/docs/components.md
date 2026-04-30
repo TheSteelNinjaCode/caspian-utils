@@ -241,9 +241,16 @@ Top-of-file `<!-- @import ... -->` directives are allowed before that root eleme
 
 In source, that parent may be a native HTML element or a single imported `x-*` component tag. After component expansion, the template must still resolve to one final native HTML root so Caspian has exactly one place to inject `pp-component`.
 
-This is not just style guidance. The installed compiler injects `pp-component` onto the final root element, and it raises an error when the template has no root, multiple sibling roots, or stray top-level text.
+This is not just style guidance. The installed compiler injects `pp-component` onto the final root element, and it raises an error when the template has no root, multiple sibling roots, a sibling script after the root, or stray top-level text.
 
 For AI-generated templates, treat this as a hard authoring rule: write the HTML the same way a React component returns one parent node. If the template needs a PulsePoint script, keep that script inside the same parent root.
+
+Failure shape to avoid:
+
+- one root element followed by a sibling `<script>`
+- two top-level sibling elements
+- top-level text outside the root
+- an imported `x-*` root that expands to multiple native siblings
 
 Good:
 
@@ -274,6 +281,18 @@ Also bad:
 ```html
 <h2>Title</h2>
 <p>Body</p>
+```
+
+Also bad:
+
+```html
+<x-card>
+  <h2>Title</h2>
+</x-card>
+
+<script>
+  const [open, setOpen] = pp.state(false);
+</script>
 ```
 
 If you choose an imported `x-*` component as the authored root of the file, make sure it resolves to one native HTML root when compiled. Do not leave an unresolved component tag as the root, and do not emit multiple top-level component siblings.

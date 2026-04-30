@@ -33,6 +33,18 @@ Start with these rules:
 - When a folder owns child routes, use `layout.html` to wrap them. This is the default pattern for dashboards, admin sections, account areas, settings trees, and route groups.
 - Use `layout.py` when a layout needs shared synchronous props or metadata before rendering.
 - Keep visible route and layout markup in `index.html` and `layout.html`. Treat `index.py` and `layout.py` as backend companions, not as places to author visible HTML.
+- Treat every authored route and layout template like a React component body: it must have exactly one top-level parent HTML element or one imported `x-*` root, and any owned plain `<script>` must live inside that same root.
+
+## Hard Template Invariant
+
+For authored route and layout templates, the single-root rule is a hard runtime requirement.
+
+- Use exactly one authored parent node.
+- Keep any `<!-- @import ... -->` directives above that root.
+- Keep any owned plain `<script>` inside that root, not after it.
+- Do not leave sibling top-level HTML tags, sibling component tags, or stray top-level text.
+
+If AI generates this incorrectly, Caspian fails render with errors like `must have exactly one top-level HTML element so Caspian can inject pp-component`.
 
 Use [cache.md](./cache.md) when an `index.py` route also needs declarative page caching via `Cache(...)`.
 
@@ -167,7 +179,7 @@ Place those import comments at the top of the file, above the authored root elem
 
 Route templates follow the same authored-vs-runtime contract documented in [pulsepoint.md](./pulsepoint.md) and the same single-root discipline documented in [components.md](./components.md): keep one authored parent node, keep any `<!-- @import ... -->` directives above that root, use a plain `<script>` inside that root when needed, and do not handwrite `pp-component` or `type="text/pp"`. That root may be a native HTML element or a single imported `x-*` component tag, but after expansion it must resolve to one final HTML root.
 
-For AI-generated route templates, treat `src/app/**/index.html` the same way you would a React component body: return one parent node that contains the entire route markup.
+For AI-generated route templates, treat `src/app/**/index.html` the same way you would a React component body: return one parent node that contains the entire route markup. This includes any owned script.
 
 Good:
 
@@ -191,6 +203,16 @@ Bad:
 <script>
   const [filter, setFilter] = pp.state("all");
 </script>
+```
+
+Also bad:
+
+```html
+<section class="dashboard-shell">
+  <h1>Dashboard</h1>
+</section>
+
+<aside class="dashboard-help">Tips</aside>
 ```
 
 Also bad:

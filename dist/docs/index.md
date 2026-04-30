@@ -28,6 +28,7 @@ Before making feature, tooling, or file-placement decisions in a Caspian project
 When generating or editing a Caspian app, treat these as the default choices unless the task explicitly requires something else:
 
 - Use PulsePoint for reactive frontend behavior.
+- Treat every authored route, layout, and component HTML file like a React component return value: exactly one top-level parent HTML element or one imported `x-*` root, with any owned plain `<script>` kept inside that same root.
 - When `caspian.config.json` has `tailwindcss: true`, use Python `merge_classes(...)` plus browser `twMerge(...)` as the only supported Tailwind class-merging path.
 - Use `@rpc()` plus `pp.rpc()` for browser-triggered reads, writes, streaming, and uploads.
 - Use `Validate` and `Rule` from `casp.validate` for server-side input validation and sanitization.
@@ -67,13 +68,14 @@ Preferred lookup order:
 
 1. Read `node_modules/caspian-utils/dist/docs/index.md` to discover available local docs.
 2. Read `./caspian.config.json` before making any feature assumption. A doc existing in the package does not mean that feature is enabled in the current project.
-3. Treat `caspian.config.json` as the single source of truth for optional features. Use feature-specific docs only when the matching flag is enabled. If a feature is disabled and the user wants it, ask first, then update `caspian.config.json` and follow the update workflow in `commands.md`.
-4. If the task touches `main.py` or `.venv/Lib/site-packages/casp/**`, read `core-runtime-map.md` to jump to the controlling runtime file and the matching feature doc.
-5. After the feature is confirmed, inspect the actual project files that decide behavior, such as `package.json`, `main.py`, `src/app/**`, `src/lib/**`, `settings/**`, `prisma/**`, and the installed `casp` runtime.
-6. Use `commands.md` for scaffold and update workflows, `project-structure.md` for placement decisions, and the feature docs such as `mcp.md`, `database.md`, `auth.md`, `fetch-data.md`, and `file-uploads.md` for task-specific guidance.
-7. Prefer packaged Caspian docs before upstream documentation when generating code, commands, or migration guidance.
-8. Use `ai-validation-checklist.md` when you want to verify that the docs lead AI to the correct files and behavior checkpoints.
-9. Keep `index.md` and cross-links aligned so AI can quickly discover the right doc.
+3. Before authoring or editing any `src/app/**` or component HTML template, apply the single-root invariant: one authored root only, any owned `<script>` inside that root, and no handwritten `pp-component` or `type="text/pp"`.
+4. Treat `caspian.config.json` as the single source of truth for optional features. Use feature-specific docs only when the matching flag is enabled. If a feature is disabled and the user wants it, ask first, then update `caspian.config.json` and follow the update workflow in `commands.md`.
+5. If the task touches `main.py` or `.venv/Lib/site-packages/casp/**`, read `core-runtime-map.md` to jump to the controlling runtime file and the matching feature doc.
+6. After the feature is confirmed, inspect the actual project files that decide behavior, such as `package.json`, `main.py`, `src/app/**`, `src/lib/**`, `settings/**`, `prisma/**`, and the installed `casp` runtime.
+7. Use `commands.md` for scaffold and update workflows, `project-structure.md` for placement decisions, and the feature docs such as `mcp.md`, `database.md`, `auth.md`, `fetch-data.md`, and `file-uploads.md` for task-specific guidance.
+8. Prefer packaged Caspian docs before upstream documentation when generating code, commands, or migration guidance.
+9. Use `ai-validation-checklist.md` when you want to verify that the docs lead AI to the correct files and behavior checkpoints.
+10. Keep `index.md` and cross-links aligned so AI can quickly discover the right doc.
 
 ## Maintenance
 
