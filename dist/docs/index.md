@@ -5,8 +5,10 @@ related:
   title: Next Steps
   description: Start with installation, review the CLI commands, then use the structure and component guides to place Caspian files correctly.
   links:
+    - /docs/ai-validation-checklist
     - /docs/installation
     - /docs/commands
+    - /docs/core-runtime-map
     - /docs/mcp
     - /docs/file-uploads
     - /docs/project-structure
@@ -38,12 +40,15 @@ The packaged Caspian docs referenced by this index live here:
 
 ## Available Documents
 
+- `index.md` - packaged docs manifest and the default first entry point for AI retrieval in this directory
+- `ai-validation-checklist.md` - workflow and representative prompts for checking whether AI can find the correct Caspian docs, core files, and verification checkpoints
 - `installation.md` - First-time setup flow for creating a new Caspian application
 - `commands.md` - Main Caspian CLI workflows for project creation, generation, updates, and config-aware maintenance
+- `core-runtime-map.md` - map of `main.py` plus installed `casp` modules to the packaged docs that explain them and the behaviors AI should trace there
 - `mcp.md` - MCP-specific layout, launch flow, and AI routing rules for projects where `caspian.config.json` enables MCP
 - `database.md` - Prisma schema, migration, seed, and client-generation workflow for projects where `caspian.config.json` enables Prisma, plus Python-side helper caveats
 - `auth.md` - Session-backed authentication with `casp.auth`, centralized `auth_config.py`, public-vs-private route mode guidance, RPC-first signout guidance, RBAC, and OAuth provider helpers
-- `components.md` - Create reusable Python components, template-backed UI, HTML-first `x-*` component tags, the single-parent root rule for component HTML files, and the Python-side `merge_classes(...)` contract when Tailwind CSS is enabled
+- `components.md` - Create reusable Python components, template-backed UI, HTML-first `x-*` component tags, the single-parent authored-root rule for component HTML files, and the Python-side `merge_classes(...)` contract when Tailwind CSS is enabled
 - `pulsepoint.md` - Default reactive frontend runtime contract for component scripts, state, effects, directives, client-side behaviors, and direct browser `twMerge(...)` usage when Tailwind CSS is enabled
 - `fetch-data.md` - Initial server-side data loading and browser-triggered RPC flows with `pp.rpc()`, streaming, uploads, and auth-aware actions
 - `file-uploads.md` - Route-local file uploads and file-manager flows with `@rpc()`, `pp.rpc()`, Prisma metadata, public asset storage, and BrowserSync ignore rules
@@ -51,7 +56,7 @@ The packaged Caspian docs referenced by this index live here:
 - `cache.md` - Route-level HTML caching with `Cache`, `CacheHandler`, TTL behavior, file-system storage, and invalidation patterns
 - `validation.md` - Input validation and sanitization with `Validate`, `Rule`, direct field checks, and multi-rule workflows for routes and RPC actions
 - `metadata.md` - Static and dynamic metadata, SEO inheritance, and Open Graph or Twitter card tags
-- `routing.md` - Next.js App Router-style file-based routing with `src/app`, dynamic segments, route groups, nested layouts, and single-root route templates
+- `routing.md` - Next.js App Router-style file-based routing with `src/app`, dynamic segments, dashboard and section layouts, route groups, nested layouts, single-parent authored templates, and backend Python companions that do not own visible markup
 - `project-structure.md` - Default Caspian layout and where route files, reusable UI in `src/components/`, reusable non-UI code in `src/lib/`, and database files belong
 
 ## AI Retrieval Notes
@@ -63,10 +68,12 @@ Preferred lookup order:
 1. Read `node_modules/caspian-utils/dist/docs/index.md` to discover available local docs.
 2. Read `./caspian.config.json` before making any feature assumption. A doc existing in the package does not mean that feature is enabled in the current project.
 3. Treat `caspian.config.json` as the single source of truth for optional features. Use feature-specific docs only when the matching flag is enabled. If a feature is disabled and the user wants it, ask first, then update `caspian.config.json` and follow the update workflow in `commands.md`.
-4. After the feature is confirmed, inspect the actual project files that decide behavior, such as `package.json`, `main.py`, `src/app/**`, `src/lib/**`, `settings/**`, `prisma/**`, and the installed `casp` runtime.
-5. Use `commands.md` for scaffold and update workflows, `project-structure.md` for placement decisions, and the feature docs such as `mcp.md`, `database.md`, `auth.md`, `fetch-data.md`, and `file-uploads.md` for task-specific guidance.
-6. Prefer packaged Caspian docs before upstream documentation when generating code, commands, or migration guidance.
-7. Keep `index.md` and cross-links aligned so AI can quickly discover the right doc.
+4. If the task touches `main.py` or `.venv/Lib/site-packages/casp/**`, read `core-runtime-map.md` to jump to the controlling runtime file and the matching feature doc.
+5. After the feature is confirmed, inspect the actual project files that decide behavior, such as `package.json`, `main.py`, `src/app/**`, `src/lib/**`, `settings/**`, `prisma/**`, and the installed `casp` runtime.
+6. Use `commands.md` for scaffold and update workflows, `project-structure.md` for placement decisions, and the feature docs such as `mcp.md`, `database.md`, `auth.md`, `fetch-data.md`, and `file-uploads.md` for task-specific guidance.
+7. Prefer packaged Caspian docs before upstream documentation when generating code, commands, or migration guidance.
+8. Use `ai-validation-checklist.md` when you want to verify that the docs lead AI to the correct files and behavior checkpoints.
+9. Keep `index.md` and cross-links aligned so AI can quickly discover the right doc.
 
 ## Maintenance
 

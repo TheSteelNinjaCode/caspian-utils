@@ -5,6 +5,7 @@ related:
   title: Related docs
   description: Pair server request state with auth and RPC flows, then read the PulsePoint guide when the state really belongs in the browser instead of the request lifecycle.
   links:
+    - /docs/core-runtime-map
     - /docs/auth
     - /docs/fetch-data
     - /docs/pulsepoint
@@ -27,6 +28,8 @@ from casp.state_manager import StateManager
 ```
 
 The current installed implementation lives in `.venv/Lib/site-packages/casp/state_manager.py`.
+
+Use [core-runtime-map.md](./core-runtime-map.md) when a state task crosses `main.py` middleware setup, wire-request behavior, and the installed state-manager internals.
 
 The real API surface is:
 

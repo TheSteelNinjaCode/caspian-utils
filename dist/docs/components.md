@@ -6,6 +6,7 @@ related:
   description: Use the structure guide for file placement, the routing guide for route templates, the PulsePoint guide for browser-side scripts, and the data guide for component-owned RPC flows.
   links:
     - /docs/project-structure
+    - /docs/core-runtime-map
     - /docs/routing
     - /docs/pulsepoint
     - /docs/fetch-data
@@ -28,6 +29,17 @@ As the app grows, treat `src/components/` as the default home for reusable appli
 - Return an HTML string directly for small presentational components.
 - Use `render_html(...)` with a same-name `.html` file when the component has more markup, PulsePoint behavior, or clearer separation between Python logic and UI.
 - Keep page-level workflows in `src/app/`, move reusable UI into `src/components/`, and keep helpers, services, validators, and adapters in `src/lib/`.
+
+## Framework Internals Note
+
+When the task is about component internals rather than normal app-owned components, these runtime files are the most relevant:
+
+- `.venv/Lib/site-packages/casp/component_decorator.py` owns `@component`, `Component`, `render_html(...)`, and component loading.
+- `.venv/Lib/site-packages/casp/components_compiler.py` owns `@import` parsing, `x-*` tag resolution, root validation, and `pp-component` injection.
+- `.venv/Lib/site-packages/casp/html_attrs.py` owns `get_attributes(...)` and the Python-side `merge_classes(...)` contract.
+- `.venv/Lib/site-packages/casp/syntax_compiler.py` owns Caspian template syntax transpilation before Jinja render.
+
+Use [core-runtime-map.md](./core-runtime-map.md) when you need the broader runtime-module map.
 
 ## Basic Component
 
@@ -105,6 +117,8 @@ Place component imports at the top of the HTML template, above the authored root
 ```
 
 The import comment is the bridge between the Python component export and the `x-*` tag you author in HTML.
+
+In section-based apps, follow the same mental model as the Next.js App Router: import shared shell components such as sidebars, topbars, breadcrumbs, and section frames in the parent folder's `layout.html`, then import page-specific components in each child route's `index.html`.
 
 Treat `<!-- @import ... -->` as a file-level directive, not as rendered markup. It does not count as the template root, and it should not be nested inside the root wrapper element.
 
@@ -208,62 +222,28 @@ This keeps the component easy to read: Python owns the server-side logic and tem
 
 ## Auto-Injected `pp-component` And PulsePoint Script Type
 
-Treat `pp-component="componentName"` and `type="text/pp"` as framework output, not authored source.
+Treat `pp-component="componentName"` and `type="text/pp"` as framework output, not authored source. The canonical authored-vs-runtime explanation lives in [pulsepoint.md](./pulsepoint.md).
 
 - Do not manually add `pp-component="..."` to route templates, layout templates, or component HTML files.
 - Do not manually add `type="text/pp"` to authored PulsePoint scripts.
 - The Python render pipeline injects `pp-component` onto the single root element during render.
 - `main.py` runs `transform_scripts(...)`, which rewrites authored body `<script>` tags to `<script type="text/pp">` before the browser runtime mounts.
-- Add a plain `<script>` only when the route or component actually needs PulsePoint logic.
-- When you do add a PulsePoint script, keep it inside that single root element.
-
-Examples in runtime docs often show rendered HTML that already contains `pp-component` and `type="text/pp"`. That is the final output shape, not the normal authoring pattern.
-
-### Authored Source vs Rendered Output
-
-Author this:
-
-`Counter.html`
-
-```html
-<div>
-  <h3>[[ label ]]</h3>
-  <button onclick="setCount(count + 1)">
-    {count}
-  </button>
-
-  <script>
-    const [count, setCount] = pp.state(0);
-  </script>
-</div>
-```
-
-Do not author this by hand:
-
-```html
-<div pp-component="counter_ab12cd34">
-  <h3>Clicks</h3>
-  <button onclick="setCount(count + 1)">0</button>
-
-  <script type="text/pp">
-    const [count, setCount] = pp.state(0);
-  </script>
-</div>
-```
-
-The second example is the runtime shape after the Python side injects `pp-component` onto the component root.
+- Add a plain `<script>` only when the route or component actually needs PulsePoint logic, and keep it inside that single root element.
+- If a runtime example already shows `pp-component` and `type="text/pp"`, treat it as rendered output rather than authored source.
 
 ## Single-Root Rule
 
-Every component HTML template must render exactly one top-level lowercase HTML element.
+Every component HTML template must render exactly one authored top-level parent node.
 
-The same rule applies to route templates such as `src/app/**/index.html`: one root element, no sibling roots, and no manual `pp-component` authoring.
+The same rule applies to route and layout templates such as `src/app/**/index.html` and `src/app/**/layout.html`. See [routing.md](./routing.md) and [pulsepoint.md](./pulsepoint.md) for the non-component versions of the same authoring contract.
 
 Top-of-file `<!-- @import ... -->` directives are allowed before that root element and do not violate the single-root rule.
 
-This is not just style guidance. The installed compiler injects `pp-component` onto the root element, and it raises an error when the template has no root, multiple sibling roots, stray top-level text, or a component tag as the root.
+In source, that parent may be a native HTML element or a single imported `x-*` component tag. After component expansion, the template must still resolve to one final native HTML root so Caspian has exactly one place to inject `pp-component`.
 
-For AI-generated templates, treat this as a hard authoring rule: write the HTML the same way a React component returns one parent element. If the template needs a PulsePoint script, keep that script inside the same parent root.
+This is not just style guidance. The installed compiler injects `pp-component` onto the final root element, and it raises an error when the template has no root, multiple sibling roots, or stray top-level text.
+
+For AI-generated templates, treat this as a hard authoring rule: write the HTML the same way a React component returns one parent node. If the template needs a PulsePoint script, keep that script inside the same parent root.
 
 Good:
 
@@ -296,9 +276,7 @@ Also bad:
 <p>Body</p>
 ```
 
-Also avoid making another component tag the root of the HTML file. The root must be a normal lowercase HTML element such as `<div>`, `<section>`, or `<article>`.
-
-Think about this rule the same way you would in a React component: one parent element per template root. In Caspian, that requirement exists so the Python renderer has exactly one place to attach `pp-component`.
+If you choose an imported `x-*` component as the authored root of the file, make sure it resolves to one native HTML root when compiled. Do not leave an unresolved component tag as the root, and do not emit multiple top-level component siblings.
 
 ## Props, Types, And Children
 
@@ -355,6 +333,7 @@ Keep synchronous components as the default. Switch to `async def` only when the 
 ## Best Practices
 
 - Put reusable components in `src/components/` and keep route files in `src/app/`.
+- For dashboards, admin areas, account sections, and route groups with child routes, put the shared shell in the parent folder's `layout.html` and compose it from reusable components there instead of repeating the same shell in every child `index.html`.
 - If the component includes PulsePoint behavior, prefer a thin Python wrapper plus a same-name `.html` template.
 - Keep the component file name, exported function name, and authored tag aligned, such as `Button.py`, `def Button(...)`, and `<x-button />`.
 - Accept `children` or `**props` when the component should support nested content.

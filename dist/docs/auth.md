@@ -5,6 +5,7 @@ related:
   title: Related docs
   description: Use the fetch-data guide when sign-in or signout happens through RPC, then use the state guide for transient auth-adjacent request state, validation to guard credentials, and routing or project structure to place auth files correctly.
   links:
+    - /docs/core-runtime-map
     - /docs/fetch-data
     - /docs/state
     - /docs/validation
@@ -63,6 +64,7 @@ from casp.auth import (
 - The installed framework implementation lives in `.venv/Lib/site-packages/casp/auth.py`.
 - Treat `auth_config.py` as project code and `casp/auth.py` as framework code.
 - If upstream docs and the installed implementation disagree, prefer the installed implementation for local project guidance.
+- Use [core-runtime-map.md](./core-runtime-map.md) when an auth task crosses `main.py` bootstrap behavior such as development cookie scoping or middleware ownership.
 
 ## Centralized Auth Settings
 
@@ -167,12 +169,15 @@ The installed auth code reads several values from `.env` when explicit values ar
 - `AUTH_COOKIE_NAME` backs `AuthSettings.cookie_name`.
 - `SESSION_LIFETIME_HOURS` controls `SessionMiddleware.max_age` in the current `main.py` bootstrap.
 - `APP_ENV=production` enables secure session cookies and the `Secure` flag on the current CSRF cookie.
+- `CASPIAN_BROWSER_SYNC_PORT` can override the development cookie scope suffix used by the current `main.py` bootstrap.
 - `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, and `GOOGLE_REDIRECT_URI` back `GoogleProvider`.
 - `GITHUB_CLIENT_ID` and `GITHUB_CLIENT_SECRET` back `GithubProvider`.
 
 Keep these secrets out of route files and out of committed source.
 
 In the current bootstrap, set `AUTH_COOKIE_NAME` explicitly in `.env`. The pasted `main.py` uses `session` as the fallback `SessionMiddleware` cookie name, while `AuthSettings` falls back to `auth_token` when the env var is absent.
+
+In development, the current `main.py` does not always use those base cookie names directly. `_scoped_cookie_name(...)` appends the active BrowserSync or dev port to both the session cookie name and the CSRF cookie name when `APP_ENV` is not `production`. The scope is resolved from `CASPIAN_BROWSER_SYNC_PORT`, then from `settings/bs-config.json`, then from `PORT`. That means a local stack can emit names such as `session_5091` and `pp_csrf_5091` instead of the unsuffixed production names.
 
 ## Startup Wiring
 
@@ -279,7 +284,7 @@ Because Starlette runs the last-added middleware first, the effective request or
 Current behavior by layer:
 
 - `SessionMiddleware` provides `request.session` for the rest of the stack.
-- `CSRFMiddleware` ensures `request.session["csrf_token"]` exists and emits a `pp_csrf` cookie.
+- `CSRFMiddleware` ensures `request.session["csrf_token"]` exists and emits a scoped CSRF cookie based on `pp_csrf`, for example `pp_csrf_5091` in development or plain `pp_csrf` when no dev scope is active.
 - `AuthMiddleware` sets request context with `Auth.set_request(request)`, initializes `StateManager`, runs provider callbacks, skips configured static asset paths, and enforces public, auth, private, and role-based route redirects.
 - `RPCMiddleware` handles `POST` requests with `X-PP-RPC: true` and forwards them to Caspian's RPC handler after auth and session setup are already available.
 
@@ -449,6 +454,7 @@ A typical credential-based auth setup often uses this route shape:
 src/
     app/
         (auth)/
+            layout.html
             signin/
                 index.py
                 index.html
@@ -458,11 +464,16 @@ src/
             signout/
                 index.py
         dashboard/
-            index.py
             index.html
+            layout.html
+            settings/
+                index.py
+                index.html
 ```
 
 Use `guest_only()` on signin and signup routes, use `auth.sign_in(...)` inside the owning RPC action after validation and credential checks, prefer RPC for signout UI actions, and protect private destinations with `require_auth()` or central route policy.
+
+When auth pages share a wrapper without adding a URL segment, use a route group such as `(auth)/layout.html`. When a protected area such as `dashboard` owns multiple child routes, apply the section layout pattern from [routing.md](./routing.md): put the shared shell in `dashboard/layout.html` and place child routes such as `dashboard/settings/index.html` beneath it.
 
 Preferred signout pattern: auth-protected RPC from a page or component.
 
@@ -530,6 +541,24 @@ def page():
         "user": auth.get_payload(),
     })
 ```
+
+If the protected destination is a section rather than a single page, prefer a folder-level layout for the shared shell.
+
+```text
+src/
+    app/
+        dashboard/
+            layout.html
+            index.html
+            settings/
+                index.py
+                index.html
+            billing/
+                index.py
+                index.html
+```
+
+In that pattern, `dashboard/layout.html` owns the shared sidebar, header, and frame, while each child route decides whether it needs its own `index.py` for auth checks, metadata, RPC actions, or server-side data.
 
 For signup flows, use the same route ownership pattern as signin: validate the input, create the user, build a safe payload without password fields, and then call `auth.sign_in(...)` with the redirect target you want.
 
@@ -765,6 +794,7 @@ If an AI agent is deciding how to handle auth in Caspian, apply these rules firs
 - Decide route mode early in `src/lib/auth/auth_config.py`: use `is_all_routes_private=True` when most routes should require auth, otherwise keep `is_all_routes_private=False` and list protected routes in `private_routes`.
 - In app-owned starter config, treat `is_all_routes_private=False` as the default starting point, which means routes begin public until the app opts into stricter protection.
 - Treat `public_routes` as the public exception list for all-private apps. In the current defaults, `/` stays public and `auth_routes=["/signin", "/signup"]` stays public too.
+- For protected grouped sections, follow the section layout pattern in [routing.md](./routing.md) and keep auth-specific route policy in `src/lib/auth/auth_config.py`.
 - Apply settings at startup in `main.py` with `configure_auth(build_auth_settings())`.
 - Register provider instances in `main.py` with `Auth.set_providers(...)` when Google or GitHub OAuth is enabled.
 - Use `auth.sign_in(...)` and `auth.sign_out(...)` for session lifecycle changes.

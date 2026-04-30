@@ -5,6 +5,7 @@ related:
   title: Related docs
   description: Use the routing guide to place route-level cache declarations correctly, then pair cache with fetch-data when deciding what can be safely served from reused HTML.
   links:
+    - /docs/core-runtime-map
     - /docs/routing
     - /docs/fetch-data
     - /docs/project-structure
@@ -27,6 +28,8 @@ from casp.cache_handler import Cache, CacheHandler
 
 The current installed implementation lives in `.venv/Lib/site-packages/casp/cache_handler.py`.
 
+Use [core-runtime-map.md](./core-runtime-map.md) when a cache task crosses `main.py` request flow, cache lookup timing, and the installed cache-handler internals.
+
 The real API surface is:
 
 - declarative route config with `Cache(ttl=..., enabled=...)`
@@ -41,7 +44,8 @@ Use caching when a route is expensive to render but the final HTML is stable eno
 
 - Use `Cache(...)` at module scope in a route's `index.py` when you want that route to participate in Caspian's page cache.
 - Cache public HTML that is safe to share between visitors.
-- Avoid caching dashboards, auth callbacks, request-specific error states, flash-message flows, or any page whose HTML changes per user.
+- Avoid caching personalized section shells such as authenticated dashboards, auth callbacks, request-specific error states, flash-message flows, or any page whose HTML changes per user.
+- If a dashboard, account area, admin area, or grouped subtree uses a parent `layout.html`, evaluate each child route separately. Public child pages may still be cacheable, but personalized section layouts generally are not.
 - Invalidate cached pages after writes, publishes, deletes, or admin actions that change what those routes should render.
 - Treat page caching as HTML reuse, not as a replacement for database caching or RPC response caching.
 
@@ -237,7 +241,7 @@ Good candidates for page caching are:
 
 Poor candidates are:
 
-- authenticated dashboards
+- authenticated dashboards and other personalized section layouts
 - per-user feeds or notification views
 - forms whose server-rendered HTML includes request-specific or sensitive state
 - pages that need sub-second freshness unless you have reliable invalidation hooks
@@ -249,6 +253,7 @@ If an AI agent is deciding whether or how to cache a Caspian route, apply these 
 - Use `Cache` from `casp.cache_handler` for route-level page caching.
 - Prefer `cache_settings = Cache(...)` at module scope over a bare call when writing maintained project code.
 - Use `enabled=False` for pages whose HTML is personalized, auth-sensitive, or too volatile to reuse safely.
+- When a user asks about caching a dashboard, admin area, account area, or grouped subtree, check whether the shared `layout.html` is personalized before caching any child route. Shared authenticated shells are usually poor cache candidates even when some public child pages are cacheable.
 - Use `CacheHandler.invalidate_by_uri(...)` after writes that change cached public content.
 - Use `CacheHandler.reset_cache()` only for targeted maintenance, debugging, or full cache clears.
 - Use leading-slash URIs consistently when interacting with `CacheHandler`.

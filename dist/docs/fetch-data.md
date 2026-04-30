@@ -8,6 +8,7 @@ related:
     - /docs/auth
     - /docs/mcp
     - /docs/state
+    - /docs/core-runtime-map
     - /docs/database
     - /docs/file-uploads
     - /docs/cache
@@ -37,6 +38,8 @@ In practice, most pages use both:
 3. Call `pp.rpc()` for refreshes, form submits, toggles, infinite scroll, or streamed updates.
 
 If a route only needs UI and does not need first-render data, metadata, or other backend behavior, skip `index.py` and keep the page in `index.html` alone.
+
+When a page belongs to a grouped subtree such as a dashboard, account area, admin section, or docs section, apply the section layout pattern from [routing.md](./routing.md): keep the shared shell in the parent folder's `layout.html` and let each child route own only its route-specific `index.html` and optional `index.py`.
 
 ## Default Data Rule
 
@@ -75,6 +78,7 @@ Notes:
 
 - Prefer `async def page()` when your database or API client is async-capable.
 - Put shared section-level props in `layout.py` when multiple child routes need the same synchronous payload. The current layout engine does not await `layout()`.
+- Use a normal parent folder such as `dashboard/` when the section name should appear in the URL. Use a route-group folder such as `(reports)/` only when the shared wrapper should organize child routes without adding a URL segment.
 - Keep reusable database or API clients under `src/lib/`; keep route-specific orchestration in `src/app/`.
 
 If the data source is Prisma, confirm `caspian.config.json` has `prisma: true`, then see `database.md` for the project's schema, migration, and generation workflow. If the project includes an app-owned Python database layer under `src/lib/prisma/`, reuse it instead of creating another helper.
@@ -86,7 +90,8 @@ Use RPC when the browser needs to call Python after the initial page load.
 Framework internals note:
 
 - The `@rpc()` decorator and Caspian RPC bridge internals live in `.venv/Lib/site-packages/casp/rpc.py`.
-- Treat that file as framework code. Read it when you need to understand or debug Caspian's RPC behavior, not when you are adding normal app-level actions.
+- Streamed response helpers such as `SSE` and `ServerSentEvent` live in `.venv/Lib/site-packages/casp/streaming.py`.
+- Treat those files as framework code. Read them when you need to understand or debug Caspian's RPC or streaming behavior, not when you are adding normal app-level actions.
 
 Define a server action with `@rpc()`:
 
@@ -176,6 +181,8 @@ Client example:
 ```
 
 Use streaming when the user should see partial progress instead of waiting for a single final payload.
+
+In the current runtime, generator and async-generator RPC results are wrapped with `SSE(...)` inside `casp.rpc.py`, and route-level generator results are also wrapped by `main.py` before the response is returned.
 
 ## File Uploads
 
@@ -288,6 +295,23 @@ A common pattern is:
 - Render that data into the HTML template
 - Use RPC for subsequent filters, mutations, refreshes, streaming, or uploads
 
+For section-based apps, that pattern usually lives inside a parent layout:
+
+```text
+src/
+  app/
+    dashboard/
+      layout.html
+      reports/
+        index.py
+        index.html
+      users/
+        index.py
+        index.html
+```
+
+In that pattern, `dashboard/layout.html` owns the shared frame while each child route handles its own first-render data in `index.py` and its own interactive updates through `@rpc()`.
+
 If the first-render HTML is expensive to produce and safe to share between visitors, add route-level caching with [cache.md](./cache.md) and invalidate affected URIs after successful mutations.
 
 ## AI Retrieval Notes
@@ -297,6 +321,7 @@ If an AI agent is choosing how to load data in Caspian, apply these rules first.
 - Put first-render data loading in `src/app/**/index.py`.
 - Put shared section props in `layout.py` only when multiple child routes need the same synchronous data.
 - Keep async I/O in `page()` or `@rpc()` because the current layout engine does not await `layout()`.
+- For grouped subtrees, follow the section layout pattern in [routing.md](./routing.md) before deciding where `page()` data and `@rpc()` actions belong.
 - Treat RPC as the default read and write layer between PulsePoint code and Python route logic, especially for CRUD and interactive backend reads.
 - Use `@rpc()` for backend functions that should be callable from the browser.
 - Use `pp.rpc()` for client-side calls; do not prefer older `pp.fetchFunction()` wording.

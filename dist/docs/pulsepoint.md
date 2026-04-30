@@ -8,6 +8,7 @@ related:
     - /docs/components
     - /docs/routing
     - /docs/fetch-data
+    - /docs/core-runtime-map
     - /docs/project-structure
     - /docs/index
 ---
@@ -36,9 +37,13 @@ Important current facts:
 
 - `public/js/pp-reactive-v2.js` exposes the global `pp` runtime and auto-mounts on DOM ready.
 - `main.py` renders the final HTML, runs `transform_components(...)`, then runs `transform_scripts(...)` before returning the response.
+- `.venv/Lib/site-packages/casp/components_compiler.py` injects `pp-component` on the final resolved root after component expansion.
+- `.venv/Lib/site-packages/casp/scripts_type.py` rewrites authored body `<script>` tags to `type="text/pp"`.
 - Authored route and component templates compose reusable server components as HTML-first `x-*` tags before the browser runtime mounts.
 
 If docs, generated examples, or older notes disagree with `public/js/pp-reactive-v2.js` plus `main.py`, follow the code that actually runs.
+
+Use [core-runtime-map.md](./core-runtime-map.md) when the controlling runtime file is not obvious yet.
 
 ## Default Frontend Rule
 
@@ -48,9 +53,12 @@ When a Caspian page needs reactive browser behavior, use PulsePoint.
 - Use PulsePoint state, effects, refs, and template directives as the default reactivity model in authored Caspian templates.
 - When the browser needs CRUD operations or follow-up reads from the backend, call `pp.rpc()` from PulsePoint code and back it with route or backend `@rpc()` actions.
 - Keep server-rendered HTML plus PulsePoint enhancement as the baseline architecture.
+- For dashboards, admin areas, account sections, docs sections, and other grouped subtrees, keep shared shell markup and shared PulsePoint behavior in the parent folder's `layout.html`, then keep child-route PulsePoint state local to each `index.html`. Follow the same mental model as the Next.js App Router.
 - Only introduce another frontend runtime when the user explicitly asks for it or the project already depends on one.
 
 ## Authoring Model
+
+Treat this section as the canonical authored-vs-runtime contract for Caspian templates. When another packaged doc needs this rule set, link here instead of restating the full explanation.
 
 PulsePoint authoring is split into two layers:
 
@@ -59,10 +67,13 @@ PulsePoint authoring is split into two layers:
 
 For authored Caspian templates:
 
-- Keep exactly one top-level lowercase HTML root element.
+- Keep exactly one authored top-level parent node.
+- In source, that parent may be a native HTML element or a single imported `x-*` component tag, but after component expansion it must resolve to one final HTML root.
 - Put the component logic inside a plain `<script>` inside that same root.
 - Do not handwrite `pp-component="..."`.
 - Do not handwrite `type="text/pp"`.
+
+Keep visible route, layout, and component markup in the HTML templates. Treat `index.py` and `layout.py` as backend companions for data, metadata, props, RPC actions, auth, caching, redirects, and other server-side preparation, not as template bodies.
 
 Caspian already handles those details for you during render.
 
@@ -111,7 +122,7 @@ Important:
 - At runtime, the owned script is `script[type="text/pp"]`.
 - The script lookup walks the current root and skips nested `pp-component` boundaries, so a parent does not consume a child component's script.
 - If multiple matching runtime scripts exist in the same root, the first matching owned script wins. Generate one script per root.
-- Authored route, layout, and component templates still need one top-level lowercase HTML root so Caspian can inject the component boundary correctly.
+- Authored route, layout, and component templates still need one top-level parent node so Caspian can inject the component boundary correctly after component expansion.
 - A scriptless component root still mounts and can receive props, refs, events, and nested children, but it has no local runtime scope beyond its props.
 - Component scripts are plain JavaScript executed with `new Function(...)`. Do not use `import`, `export`, or top-level `await` inside them.
 - The runtime auto-returns supported top-level bindings from the script. Do not rely on manual `return { ... }` objects.
@@ -421,6 +432,7 @@ Use these rules when generating or editing PulsePoint runtime code:
 - Keep `main.py` in view because it injects the runtime-facing attributes and rewrites authored scripts before the browser sees them.
 - If a development-only source tree exists behind the shipped runtime, treat it as optional implementation detail rather than something generated apps are guaranteed to contain.
 - In authored Caspian templates, do not handwrite `pp-component` or `type="text/pp"`; let the render pipeline inject them.
+- For grouped subtrees, follow the section layout pattern in [routing.md](./routing.md), keep the shared interactive shell in the parent folder's `layout.html`, and keep route-specific PulsePoint code in each child `index.html`.
 - Prefer PulsePoint state and template directives over manual DOM mutation for reactive updates.
 - If you are explicitly editing raw runtime HTML or internals, keep `pp-component` unique per live instance.
 - In authored templates, use a plain `<script>` inside the root. In runtime HTML, the owned script appears as `script[type="text/pp"]`.

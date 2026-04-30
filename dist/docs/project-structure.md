@@ -6,6 +6,7 @@ related:
   description: Start with installation for new apps, then use the component guide for reusable UI, the auth guide for bootstrap and session wiring, the MCP guide for server layout, the routing guide to map URLs correctly, and the cache guide when route HTML should be reused safely.
   links:
     - /docs/installation
+    - /docs/core-runtime-map
     - /docs/components
     - /docs/auth
     - /docs/mcp
@@ -105,11 +106,13 @@ This is the main application area. It contains route files, templates, styles, a
 
 This directory handles file-based routing. Route templates and route-specific backend logic live here.
 
-For any route that renders UI, keep that markup in `src/app/**/index.html`. If the route is UI-only, `index.html` alone is enough. Add `src/app/**/index.py` only as a companion when the same route needs metadata, `page()`, `@rpc()` actions, auth checks, caching, redirects, or other server-side behavior. Use a lone `index.py` only for non-visual routes such as redirect-only or action-only handlers.
+For any route that renders UI, keep that markup in `src/app/**/index.html`. If the route is UI-only, `index.html` alone is enough. Add `src/app/**/index.py` only as a companion when the same route needs metadata, `page()`, `@rpc()` actions, auth checks, caching, redirects, or other server-side behavior. Keep shared wrappers in `layout.html` and use `layout.py` only for shared synchronous props or metadata. Use a lone `index.py` only for non-visual routes such as redirect-only or action-only handlers.
 
-When authoring a route HTML file such as `src/app/**/index.html`, keep the whole template inside exactly one top-level lowercase HTML element. Treat it the same way you would a React component returning one parent element: wrap the route markup and any owned PulsePoint script in the same root.
+When a folder represents a section with child routes, such as `dashboard`, `account`, `settings`, or `docs`, create `layout.html` in that folder and let the child routes live beneath it. See [routing.md](./routing.md) for the canonical section layout pattern.
 
-Do not handwrite `pp-component="..."` or `type="text/pp"` in those source templates. Author a plain `<script>` inside the root when you need PulsePoint logic, and let Caspian add the runtime attributes during render.
+If the shared wrapper should not add a URL segment, use a parenthesized route-group folder such as `(marketing)/layout.html` instead of a normal folder name. Use a normal folder such as `dashboard/` only when that segment should be part of the public URL.
+
+When authoring route or layout HTML, follow the authoring contract documented in [routing.md](./routing.md) and [pulsepoint.md](./pulsepoint.md): keep one authored root, keep `<!-- @import ... -->` directives above that root, use a plain `<script>` inside the root when needed, and do not handwrite `pp-component` or `type="text/pp"`.
 
 See `routing.md` for the full App Router-style rules for dynamic segments, route groups, and nested layouts.
 
@@ -123,9 +126,7 @@ The common Caspian pattern is a Python file such as `Button.py` with `@component
 
 One Python file can also export multiple related `@component` functions. When that happens, import those tags from that exact file path in HTML, for example `<!-- @import { Breadcrumb, BreadcrumbItem, BreadcrumbList } from "../components/Breadcrumb.py" -->`, and render them as `<x-breadcrumb />`, `<x-breadcrumb-item />`, and `<x-breadcrumb-list />` instead of assuming each tag has its own sibling `.py` file.
 
-For component HTML files, follow the same one-parent rule as route HTML files: one top-level lowercase HTML element only, with no sibling roots and no top-level script sitting outside that root.
-
-Do not handwrite `pp-component="..."` or `type="text/pp"` in component source templates either. Write plain `<script>` inside the single root and let the render pipeline inject the runtime shape.
+For component HTML files, follow the component authoring rules in [components.md](./components.md): one top-level parent node, no sibling roots, plain `<script>` inside that root when needed, and no handwritten `pp-component` or `type="text/pp"`.
 
 The directories listed in `componentScanDirs` determine where component tooling scans. When that list includes `src/`, `src/components/` is a conventionally clean location, not a hard-coded runtime requirement.
 
@@ -211,6 +212,12 @@ When runtime uploads write into `public/uploads/`, keep the public-root-relative
 
 `settings/bs-config.ts` matches ignore entries against paths relative to the `public/` root, so nested uploaded files do not trigger reloads.
 
+### `settings/bs-config.json`
+
+When the local BrowserSync stack is running, this generated file is the active URL snapshot.
+
+Use it when AI needs the current local, external, or UI URL instead of the configured defaults, and use it when tracing the development cookie scope logic in `main.py` because `_dev_cookie_scope()` can read the active port from this file.
+
 ### `src/lib/auth/auth_config.py`
 
 The project auth configuration file. Use this path when changing authentication behavior.
@@ -231,6 +238,16 @@ The root layout shared across pages.
 
 If this layout imports reusable components, place each `<!-- @import ... -->` comment above the authored root `<html>` element instead of nesting the comment inside `<html>` or `<body>`.
 
+Nested section layouts follow the same pattern in child folders such as `src/app/dashboard/layout.html` or `src/app/(marketing)/layout.html`. Use those nested layouts for shared dashboard shells, grouped page wrappers, sidebars, headers, or section-level metadata defaults.
+
+Keep visible wrapper markup in `layout.html`, not in `layout.py`.
+
+### `src/app/layout.py`
+
+The backend companion for a layout. Use this file for shared synchronous props, metadata defaults, and other server-side preparation for the sibling `layout.html`.
+
+Do not store layout HTML in `layout.py`. Keep the authored wrapper in `layout.html` and let `layout.py` return props or metadata.
+
 ### `src/app/index.py`
 
 The backend logic companion for the route. Use this file when the same route needs first-render data, metadata, `@rpc()` actions, auth helpers, `casp.validate`, route-level `Cache(...)` declarations, redirects, or other server behavior.
@@ -247,6 +264,8 @@ If a route renders UI and needs no backend behavior, this file alone is sufficie
 
 Treat import comments as top-of-file directives that belong above the route's single authored root element.
 
+That authored root may be a native HTML element or a single imported `x-*` component tag, but after component expansion it must still resolve to one final HTML root.
+
 Use `components.md` when the task involves authoring reusable `<x-my-component />` tags backed by Python files.
 
 ### `src/app/globals.css`
@@ -257,12 +276,21 @@ Global application styles.
 
 The installed Caspian framework package. This is framework internals, not normal application code.
 
+Use [core-runtime-map.md](./core-runtime-map.md) when you need the fastest concern-to-file lookup across this directory.
+
 Notable internal files include:
 
 - `.venv/Lib/site-packages/casp/rpc.py` for the RPC decorator and related server-action internals
 - `.venv/Lib/site-packages/casp/layout.py` for layout rendering, metadata handling, and routing-related internals
 - `.venv/Lib/site-packages/casp/cache_handler.py` for route-level cache declarations, cache manifest handling, disk-backed HTML writes, and invalidation internals
 - `.venv/Lib/site-packages/casp/validate.py` for direct validators, rule-based validation, sanitization, and file-validation internals
+- `.venv/Lib/site-packages/casp/auth.py` for auth settings, route-protection checks, and OAuth internals
+- `.venv/Lib/site-packages/casp/state_manager.py` for request-scoped server state and persistence caveats
+- `.venv/Lib/site-packages/casp/component_decorator.py` for `@component`, `render_html(...)`, and component loading
+- `.venv/Lib/site-packages/casp/components_compiler.py` for `@import` parsing, `x-*` resolution, root validation, and `pp-component` injection
+- `.venv/Lib/site-packages/casp/scripts_type.py` for converting authored `<script>` tags to `type="text/pp"`
+- `.venv/Lib/site-packages/casp/caspian_config.py` for config loading and route inventory parsing
+- `.venv/Lib/site-packages/casp/streaming.py` for `SSE` and streamed response helpers
 
 ### `node_modules/caspian-utils/dist/docs/`
 
@@ -280,13 +308,14 @@ If an AI agent is deciding where to make changes, use these rules first.
 - Inspect `settings/component-map.json` and `settings/files-list.json` when you need the generated component or route inventory, but do not hand-edit them. The workspace regenerates them from `settings/component-map.ts` and `settings/files-list.ts`.
 - Put route templates and route-specific backend logic in `src/app/`.
 - As the app grows, keep route-owned code in `src/app/`, reusable rendered UI in `src/components/`, and reusable non-UI support code in `src/lib/`.
+- When the user asks for a dashboard, admin area, account area, or any grouped set of child routes, create a parent folder in `src/app/` with `layout.html` and place the child routes beneath it. Use `(group)/layout.html` only when that parent should not appear in the URL.
 - Read [file-uploads.md](./file-uploads.md) when the task involves upload widgets, media libraries, or file-manager flows.
 - Check [routing.md](./routing.md) when you need URL segment rules, layout nesting behavior, or dynamic route conventions.
 - Put reusable component files in `src/components/` and check [components.md](./components.md) for `@component`, `render_html(__file__)`, `x-*` component tags, import comments, and single-root template rules.
 - When deciding between `src/components/` and `src/lib/`, use `src/components/` for anything rendered as reusable UI and `src/lib/` for helpers, services, validators, adapters, and shared business logic.
 - Use [mcp.md](./mcp.md) only when `caspian.config.json` enables MCP and the task involves FastMCP tool definitions, nested config discovery, or local MCP commands.
 - Keep `<!-- @import ... -->` comments above the single authored root element in route, layout, and component HTML files.
-- For route and component HTML files, always emit one top-level lowercase HTML element. Good: one wrapper containing the content and a plain `<script>` when needed. Bad: a wrapper element followed by a sibling top-level `<script>`, or handwritten `pp-component="..."` and `type="text/pp"` attributes in source.
+- Follow the single-root authoring contract in [routing.md](./routing.md), [components.md](./components.md), and [pulsepoint.md](./pulsepoint.md): one authored root, any owned `<script>` inside that root, and no handwritten `pp-component` or `type="text/pp"` in source templates.
 - Put shared helpers and reusable libraries in `src/lib/`.
 - Use `settings/bs-config.ts` when uploaded public assets should not trigger BrowserSync reloads during the local stack.
 - Put app-owned FastMCP code in `src/lib/mcp/` only when `caspian.config.json` enables MCP.
@@ -301,6 +330,7 @@ If an AI agent is deciding where to make changes, use these rules first.
 - Put static files in `public/`.
 - Put entry-point changes in `main.py`.
 - Put feature and framework-level project configuration in `caspian.config.json`.
+- Read [core-runtime-map.md](./core-runtime-map.md) when the task touches `main.py` or installed `casp` internals and the controlling file is not obvious yet.
 - Treat `.venv/Lib/site-packages/casp/` as framework internals unless the task is specifically about Caspian core behavior.
 - Use `.venv/Lib/site-packages/casp/rpc.py` when investigating or documenting Caspian RPC internals.
 - Use `.venv/Lib/site-packages/casp/layout.py` when investigating or documenting Caspian routing, layout, or metadata internals.

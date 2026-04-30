@@ -31,7 +31,9 @@ Metadata is typically defined in one of two files:
 - `layout.py` for defaults shared by everything below that folder
 - `index.py` for route-specific metadata
 
-On routes that render UI, keep the page markup in the sibling `index.html`. `index.py` is the metadata and backend companion, not the place to store route HTML. If a route needs no metadata or backend behavior, omit `index.py` and keep the page as `index.html` only.
+For dashboard sections, account areas, docs sections, and route groups, apply the section layout pattern from [routing.md](./routing.md): put shared metadata defaults in the section's `layout.py`, then override them in child `index.py` files only when a leaf page needs different SEO.
+
+On routes that render UI, keep the page markup in the sibling `index.html` and keep shared wrapper markup in `layout.html`. `index.py` and `layout.py` are metadata and backend companions, not the places to store visible route or layout HTML. If a route needs no metadata or backend behavior, omit `index.py` and keep the page as `index.html` only.
 
 The current `Metadata` implementation supports three fields:
 
@@ -118,6 +120,8 @@ Priority order:
 2. Nested `layout.py` files override those defaults for a section.
 3. `index.py` metadata or runtime `Metadata(...)` inside the route has the highest priority.
 
+For example, a dashboard section usually keeps shared defaults in `src/app/dashboard/layout.py`, while a grouping folder that should stay out of the URL can keep its shared defaults in `src/app/(marketing)/layout.py`.
+
 Within a single file, the layout engine applies static metadata first and then applies runtime metadata from `Metadata(...)`, so runtime values win for matching keys.
 
 If a child route overrides only the title, the description and other fields continue to fall through from the nearest parent that defines them.
@@ -128,6 +132,14 @@ Example structure:
 src/
   app/
     layout.py
+        (marketing)/
+            layout.py
+            pricing/
+                index.py
+        dashboard/
+            layout.py
+            settings/
+                index.py
     blog/
       layout.py
       [slug]/
@@ -137,6 +149,7 @@ src/
 Typical result:
 
 - Root layout defines the site-wide title template and default description.
+- Route-group or section layouts such as `(marketing)/layout.py` or `dashboard/layout.py` define shared defaults for that subtree.
 - Blog layout overrides section-level fields for `/blog/*`.
 - Blog page overrides the final post title and any page-specific social tags.
 
@@ -185,6 +198,8 @@ Keep visual layout data and SEO metadata separate.
 
 - Put site-wide defaults in `src/app/layout.py`.
 - Put section defaults in nested `layout.py` files such as `src/app/blog/layout.py`.
+- For dashboard, admin, account, docs, or grouped sections with child routes, put the shared defaults in that section folder's `layout.py` and keep the shared wrapper in the sibling `layout.html`.
+- Use a route-group `layout.py` such as `src/app/(marketing)/layout.py` only when the grouping folder should not appear in the final URL.
 - Put page-specific static metadata in `index.py`.
 - Put dynamic metadata inside `page()` after you have route params or fetched data.
 
@@ -196,6 +211,7 @@ If an AI agent is deciding where to put SEO fields, apply these rules first.
 - Prefer module-level `metadata = Metadata(...)` for static routes.
 - Instantiate `Metadata(...)` inside `page()` when metadata depends on params, fetched records, or generated content.
 - Put shared defaults in `layout.py` and let leaf pages override only what they need.
+- For grouped subtrees, follow the section layout pattern in [routing.md](./routing.md) and keep shared metadata defaults in the parent folder's `layout.py`.
 - If a single route only needs to tweak a wrapping layout, return `(render_page(__file__, ...), {"dashboard_body_class": ...})` from `page()` instead of moving that prop into metadata.
 - Use `extra` for Open Graph and Twitter card tags.
 - Access `extra` values in templates with bracket syntax such as `metadata['og:image']`.

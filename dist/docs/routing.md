@@ -5,6 +5,7 @@ related:
   title: Related docs
   description: Read the structure guide first, then use the components guide for reusable UI, the metadata guide for SEO fields, the cache guide for route-level HTML reuse, and the PulsePoint runtime guide for interactive route templates.
   links:
+    - /docs/core-runtime-map
     - /docs/project-structure
     - /docs/components
     - /docs/cache
@@ -29,8 +30,9 @@ Start with these rules:
 - If a route is UI-only, `index.html` by itself is enough.
 - Add `index.py` only when the same route needs metadata, `page()`, `@rpc()` actions, auth checks, caching, redirects, or other server-side logic.
 - Use a standalone `index.py` only for non-visual routes such as redirects or action-only handlers.
-- Use `layout.html` to wrap child routes.
+- When a folder owns child routes, use `layout.html` to wrap them. This is the default pattern for dashboards, admin sections, account areas, settings trees, and route groups.
 - Use `layout.py` when a layout needs shared synchronous props or metadata before rendering.
+- Keep visible route and layout markup in `index.html` and `layout.html`. Treat `index.py` and `layout.py` as backend companions, not as places to author visible HTML.
 
 Use [cache.md](./cache.md) when an `index.py` route also needs declarative page caching via `Cache(...)`.
 
@@ -38,6 +40,7 @@ Framework internals note:
 
 - Caspian's layout and route-resolution internals live in `.venv/Lib/site-packages/casp/layout.py`.
 - Treat that file as framework code. Read it when the task is about routing internals, layout resolution, or metadata behavior inside Caspian itself.
+- Use [core-runtime-map.md](./core-runtime-map.md) when a routing task crosses `main.py` route registration, parameter injection, and installed layout internals.
 
 See [metadata.md](./metadata.md) when a page or layout needs SEO fields.
 
@@ -60,6 +63,75 @@ This means most App Router habits carry over directly:
 - Model the URL with folders instead of a central route table.
 - Use nested layouts for shared wrappers.
 - Use route groups to organize code without changing the public path.
+
+## Section Layout Pattern
+
+Treat this section as the canonical grouped-subtree structure rule for the packaged docs. Other pages should point here instead of repeating the full folder pattern.
+
+When a user asks for a dashboard, admin area, account section, docs section, or any grouped set of child routes, model it exactly like a Next.js App Router subtree.
+
+- Create a parent folder for the section.
+- Add `layout.html` in that folder for the shared shell.
+- Add `layout.py` only when that shared shell needs synchronous props or metadata.
+- Put each child page in its own route folder with `index.html` and an optional `index.py` companion.
+- Use a normal folder name such as `dashboard/` when the section name should appear in the URL.
+- Use a route-group folder such as `(marketing)/` when the folder should organize code and own a layout without adding a URL segment.
+
+Examples:
+
+```text
+src/
+  app/
+    dashboard/
+      layout.html
+      index.html
+      settings/
+        index.html
+      users/
+        index.html
+```
+
+This produces `/dashboard`, `/dashboard/settings`, and `/dashboard/users`, all wrapped by the `dashboard/layout.html` shell.
+
+```text
+src/
+  app/
+    (marketing)/
+      layout.html
+      pricing/
+        index.html
+      about/
+        index.html
+```
+
+This produces `/pricing` and `/about`, both wrapped by the `(marketing)/layout.html` shell even though `(marketing)` does not appear in the URL.
+
+Canonical end-to-end example:
+
+```text
+src/
+  app/
+    layout.html
+    layout.py
+    (marketing)/
+      layout.html
+      pricing/
+        index.html
+      about/
+        index.html
+    dashboard/
+      layout.html
+      layout.py
+      index.html
+      settings/
+        index.html
+        index.py
+      reports/
+        index.html
+        index.py
+```
+
+Use this pattern when the app has a public grouped section that should stay out of the URL and a private dashboard section that should appear in the URL. The root layout owns app-wide chrome, `(marketing)/layout.html` owns the shared public marketing shell, and `dashboard/layout.html` owns the shared dashboard shell for `/dashboard/*` child routes.
 
 ## Core Concepts
 
@@ -93,13 +165,9 @@ Route templates can import reusable Python components with `<!-- @import ... -->
 
 Place those import comments at the top of the file, above the authored root element. They are file-level directives, not children of the route root.
 
-Do not manually add `pp-component="..."` to the route root. The Python render pipeline injects that attribute onto the route's single top-level lowercase HTML element.
+Route templates follow the same authored-vs-runtime contract documented in [pulsepoint.md](./pulsepoint.md) and the same single-root discipline documented in [components.md](./components.md): keep one authored parent node, keep any `<!-- @import ... -->` directives above that root, use a plain `<script>` inside that root when needed, and do not handwrite `pp-component` or `type="text/pp"`. That root may be a native HTML element or a single imported `x-*` component tag, but after expansion it must resolve to one final HTML root.
 
-Do not manually add `type="text/pp"` to a route-owned script either. In source templates, write a plain `<script>` inside the root and let `main.py` call `transform_scripts(...)` before the browser runtime sees the HTML.
-
-That means route templates follow the same single-root discipline as component templates: one root element, no sibling roots, and PulsePoint scripts kept inside that root when needed.
-
-For AI-generated route templates, treat `src/app/**/index.html` the same way you would a React component body: return one parent element that contains the entire route markup.
+For AI-generated route templates, treat `src/app/**/index.html` the same way you would a React component body: return one parent node that contains the entire route markup.
 
 Good:
 
@@ -134,35 +202,7 @@ Also bad:
 </section>
 ```
 
-Example authored route template:
-
-```html
-<!-- @import StatsCard from "../components" -->
-
-<section class="dashboard-shell">
-  <x-stats-card title="Users" value="42" />
-
-  <script>
-    const [filter, setFilter] = pp.state("all");
-  </script>
-</section>
-```
-
-Rendered shape at runtime:
-
-```html
-<section pp-component="page_a1b2c3d4" class="dashboard-shell">
-  <div pp-component="statscard_e5f6g7h8" title="Users" value="42">
-    ...
-  </div>
-
-  <script type="text/pp">
-    const [filter, setFilter] = pp.state("all");
-  </script>
-</section>
-```
-
-Write the first form. Caspian produces the second form by injecting `pp-component` on the root and `type="text/pp"` on the owned script.
+Use [pulsepoint.md](./pulsepoint.md) when you need the full authored-vs-rendered example instead of this routing-focused reminder.
 
 ### `index.py`
 
@@ -280,13 +320,28 @@ Route groups are useful when you want to:
 - Split routes under different layout boundaries.
 - Improve project organization without changing the public URL structure.
 
+If the group needs a shared wrapper, put `layout.html` inside the `(group)` folder. That layout applies to every child route in the group while the group name stays out of the URL.
+
+Use this decision rule:
+
+- Use `dashboard/`, `account/`, or another normal folder when that segment should be part of the public path.
+- Use `(dashboard)`, `(marketing)`, or another parenthesized folder when you want shared organization or a shared layout without adding a public path segment.
+
 ## Layouts And Nesting
 
 Layouts work like the Next.js App Router layout system. A `layout.html` file wraps the routes beneath its folder, and nested layouts compose automatically.
 
+In practice, this means a dashboard is usually a folder-level layout, not a single oversized page. Put the shared sidebar, header, and frame in `dashboard/layout.html`, then create child routes such as `dashboard/settings/index.html` and `dashboard/reports/index.html` beneath it.
+
 When a layout imports components, keep each `<!-- @import ... -->` comment above the layout's authored wrapper element, such as the root `<section>` in a nested layout or the root `<html>` in the app layout.
 
 Resolved SEO fields are exposed to layouts as `[[ metadata.* ]]`, while values returned from `layout.py` are exposed separately as `[[ layout.* ]]`.
+
+### `layout.html`
+
+Use `layout.html` for the shared wrapper markup of a subtree. Keep the visible shell here, not in `layout.py`.
+
+Follow the same authoring contract used by route templates: one authored parent node, top-of-file `<!-- @import ... -->` directives above that root, plain `<script>` inside the root when needed, and no handwritten `pp-component` or `type="text/pp"`. See [pulsepoint.md](./pulsepoint.md) for the canonical authored-vs-runtime explanation.
 
 For example, a page inside `/dashboard/settings` is wrapped by the root layout first and then by the dashboard layout.
 
@@ -308,7 +363,7 @@ Example root layout:
 
 ### `layout.py`
 
-If a layout needs shared synchronous props or metadata, add a `layout.py` file next to the HTML layout.
+If a layout needs shared synchronous props or metadata, add a `layout.py` file next to the HTML layout. Treat it as the backend companion for the layout, not as the place to author visible wrapper markup.
 
 Example:
 
@@ -376,6 +431,10 @@ src/
     index.html
     about/
       index.html
+    (marketing)/
+      layout.html
+      pricing/
+        index.html
     users/
       [id]/
         index.html
@@ -395,9 +454,13 @@ src/
         index.py
     dashboard/
       layout.html
+      layout.py
+      index.html
       settings/
         index.html
         index.py
+      reports/
+        index.html
 ```
 
 ## AI Retrieval Notes
@@ -408,11 +471,14 @@ If an AI agent is choosing where to add or update route code, apply these rules 
 - Use folder names to model URL segments.
 - If a route renders UI, create or update `index.html` for the markup.
 - Add `index.py` only when the same route needs metadata or server behavior; do not place route HTML in `index.py`.
+- Keep visible page markup in `index.html` and shared subtree shells in `layout.html`; do not place route HTML in `index.py` or layout HTML in `layout.py`.
+- When the user asks for a dashboard, admin area, account section, or any grouped subtree of child routes, create a parent folder with `layout.html` and place the child routes beneath it. Follow the same mental model as the Next.js App Router.
+- Use a normal folder such as `dashboard/` when the segment should appear in the URL. Use `(group)/` only when the folder should organize or wrap child routes without adding a path segment.
 - Use [cache.md](./cache.md) when an `index.py` route should opt into page-level HTML caching.
 - Use `layout.html` for shared wrappers and `layout.py` for layout-level synchronous props or metadata.
 - When one route needs to change a parent layout, return `(render_page(__file__, ...), {"dashboard_body_class": ...})` from `page()` and read that value as `[[ layout.dashboard_body_class ]]` in the wrapping `layout.html`.
 - Use `layout.py` for layout props that should apply across an entire subtree. Use `render_layout(__file__, {...})` only when the layout should consume direct local variables such as `[[ my_class ]]` instead of the standard `[[ layout.* ]]` namespace.
-- Keep `<!-- @import ... -->` directives at the top of `index.html` and `layout.html`, above the single authored root element.
+- Keep `<!-- @import ... -->` directives at the top of `index.html` and `layout.html`, above the single authored parent node.
 - Use [metadata.md](./metadata.md) when a route or layout needs SEO fields.
 - Use `[segment]` for single dynamic parameters.
 - Use `[...segment]` for catch-all route matching.

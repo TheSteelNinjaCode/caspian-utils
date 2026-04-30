@@ -18,6 +18,8 @@ This page documents the recommended file upload and file manager pattern for Cas
 
 Treat uploads as normal route behavior. Keep the owning browser UI in the route template, keep upload and delete `@rpc()` actions in the owning route `index.py`, and move reusable storage or persistence helpers into `src/lib/`.
 
+If the file manager lives inside a grouped subtree such as a dashboard, account area, or admin area, apply the section layout pattern from [routing.md](./routing.md): keep the shared shell in the parent folder's `layout.html` and keep the file-manager route itself in a child folder.
+
 ## Default Pattern
 
 - Keep first-render file manager data in `page()` so the initial HTML already contains the current asset list and storage summary.
@@ -51,6 +53,20 @@ The normal Caspian file-manager flow is:
 5. A shared helper writes the blob, creates or updates the Prisma row, and returns a serialized asset payload.
 6. The RPC action returns refreshed manager data.
 7. PulsePoint replaces the route state and `pp-for` rerenders the list.
+
+Section example:
+
+```text
+src/
+  app/
+    dashboard/
+      layout.html
+      files/
+        index.py
+        index.html
+```
+
+In that pattern, `dashboard/layout.html` owns the shared dashboard shell, while `dashboard/files/index.py` owns the initial file-manager payload and the upload or delete `@rpc()` actions.
 
 ## Example Route-Local RPC
 
@@ -171,4 +187,5 @@ const PUBLIC_IGNORE_DIRS = ["uploads"];
 - Use `database.md` when Prisma models or relations must change for upload metadata.
 - Use `validation.md` for MIME, extension, and other boundary checks, then keep explicit size and auth checks in the owning RPC action.
 - Use `project-structure.md` for placement rules, especially `src/app/` versus `src/lib/` and `public/uploads/`.
+- For grouped file-manager sections, follow the section layout pattern in [routing.md](./routing.md) and keep the upload page in a child route folder beneath the shared shell.
 - Use `commands.md` and `settings/bs-config.ts` when uploads should not trigger BrowserSync reloads during `npm run dev`.
