@@ -10,6 +10,7 @@ related:
     - /docs/auth
     - /docs/fetch-data
     - /docs/pulsepoint
+    - /docs/pulsepoint-runtime-map
     - /docs/index
 ---
 
@@ -39,6 +40,45 @@ Important current `main.py` behaviors AI should keep in mind:
 - Route-level generators returned from `page()` are wrapped in `SSE(...)` before the response is sent.
 - Middleware is added in source order as `RPCMiddleware`, `AuthMiddleware`, `CSRFMiddleware`, `SessionMiddleware`, so the effective request order is reversed at runtime.
 - `public/js/pp-reactive-v2.js` saves scroll positions per history entry, resets window scroll on push navigation, and uses `pp-reset-scroll="true"` to opt specific containers or the whole body into reset behavior.
+
+## Caspian Core Feature Map
+
+Use this table when the task names a framework feature but the owning file is not obvious yet.
+
+| Core feature | App-owned entry points | Runtime owner | Packaged docs |
+| --- | --- | --- | --- |
+| Feature flags and generated surface area | `caspian.config.json` | `casp.caspian_config` | [commands.md](./commands.md), [project-structure.md](./project-structure.md) |
+| File-based routing | `src/app/**/index.html`, `src/app/**/index.py` | `main.py`, `casp.layout`, `casp.caspian_config` | [routing.md](./routing.md) |
+| Nested layouts | `src/app/**/layout.html`, `src/app/**/layout.py` | `casp.layout`, `main.py` | [routing.md](./routing.md), [metadata.md](./metadata.md) |
+| Metadata | route or layout `metadata`, runtime metadata helpers | `casp.layout`, `main.py` | [metadata.md](./metadata.md), [routing.md](./routing.md) |
+| Component imports and `x-*` tags | `src/components/**`, `src/app/**/*.html` | `casp.components_compiler`, `casp.component_decorator` | [components.md](./components.md), [routing.md](./routing.md) |
+| Auth and route protection | `src/lib/auth/auth_config.py`, `main.py`, route decorators | `casp.auth`, `main.py` middleware | [auth.md](./auth.md) |
+| RPC and server actions | route or component Python modules with `@rpc()` | `casp.rpc`, `main.py` middleware | [fetch-data.md](./fetch-data.md), [file-uploads.md](./file-uploads.md) |
+| Streaming | route `page()` generators, RPC generators | `casp.streaming`, `casp.rpc`, `main.py` | [fetch-data.md](./fetch-data.md) |
+| Server state | request handlers and RPC actions | `casp.state_manager`, `main.py` middleware | [state.md](./state.md) |
+| Page caching | route-level `Cache(...)` declarations | `casp.cache_handler`, `main.py` cache check/save | [cache.md](./cache.md) |
+| Validation | route and RPC input boundaries | `casp.validate` | [validation.md](./validation.md) |
+| Tailwind class merge | Python components and PulsePoint templates | `casp.html_attrs`, browser `twMerge(...)` | [components.md](./components.md), [pulsepoint.md](./pulsepoint.md) |
+| Prisma persistence | `prisma/**`, `src/lib/prisma/**`, route/RPC code | generated Prisma and Python clients | [database.md](./database.md), [fetch-data.md](./fetch-data.md) |
+| MCP tools | `src/lib/mcp/**` when enabled | app-owned FastMCP server | [mcp.md](./mcp.md), [commands.md](./commands.md) |
+
+For browser-side PulsePoint details, use [pulsepoint-runtime-map.md](./pulsepoint-runtime-map.md) instead of expanding this Python-runtime map.
+
+## Task-To-File Examples
+
+Protected dashboard route:
+
+1. Check `caspian.config.json` for enabled features such as Prisma and Tailwind.
+2. Read [routing.md](./routing.md) for the section layout shape.
+3. Read [auth.md](./auth.md) for route privacy and decorators.
+4. Update `src/app/dashboard/layout.html` for the shared shell and child `index.html` or `index.py` files for page-specific behavior.
+5. Verify auth bootstrap and middleware ownership in `main.py` only if route protection behaves unexpectedly.
+
+Interactive CRUD page:
+
+1. Read [fetch-data.md](./fetch-data.md) for the `page()` plus `@rpc()` split.
+2. Read [pulsepoint-runtime-map.md](./pulsepoint-runtime-map.md) for browser-side `pp.rpc(...)` behavior.
+3. Keep first-render data in `src/app/**/index.py`, visible markup in `src/app/**/index.html`, reusable helpers in `src/lib/**`, and database schema changes in `prisma/**`.
 
 ## Installed Runtime Map
 

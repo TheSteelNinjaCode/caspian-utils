@@ -20,6 +20,15 @@ Treat uploads as normal route behavior. Keep the owning browser UI in the route 
 
 If the file manager lives inside a grouped subtree such as a dashboard, account area, or admin area, apply the section layout pattern from [routing.md](./routing.md): keep the shared shell in the parent folder's `layout.html` and keep the file-manager route itself in a child folder.
 
+## Source Of Truth
+
+- File picker UI and upload progress state belong in `src/app/**/index.html`.
+- Upload, delete, and list refresh actions belong in the owning `src/app/**/index.py` as `@rpc()` actions.
+- Reusable storage, naming, and persistence helpers belong in `src/lib/**`.
+- Durable metadata belongs in Prisma when `caspian.config.json` enables Prisma.
+- Browser-side progress, state replacement, and `pp-for` list rendering follow [pulsepoint-runtime-map.md](./pulsepoint-runtime-map.md).
+- BrowserSync upload ignore behavior belongs in `settings/bs-config.ts`.
+
 ## Default Pattern
 
 - Keep first-render file manager data in `page()` so the initial HTML already contains the current asset list and storage summary.

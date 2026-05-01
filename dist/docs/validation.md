@@ -28,6 +28,13 @@ from casp.validate import Validate, Rule
 
 The current installed implementation lives in `.venv/Lib/site-packages/casp/validate.py`.
 
+## Source Of Truth
+
+- The implemented validation API lives in `.venv/Lib/site-packages/casp/validate.py`.
+- Route and RPC input boundaries live in `src/app/**/index.py`.
+- Reusable app-owned validation workflows belong in `src/lib/**`.
+- Browser-side validation is UX only; server-side `Validate` and `Rule` checks remain authoritative.
+
 The real API surface is:
 
 - direct single-value validation with `Validate.*(...)`

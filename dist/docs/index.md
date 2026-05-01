@@ -9,6 +9,7 @@ related:
     - /docs/installation
     - /docs/commands
     - /docs/core-runtime-map
+    - /docs/pulsepoint-runtime-map
     - /docs/mcp
     - /docs/file-uploads
     - /docs/project-structure
@@ -33,6 +34,32 @@ When generating or editing a Caspian app, treat these as the default choices unl
 - Use `@rpc()` plus `pp.rpc()` for browser-triggered reads, writes, streaming, and uploads.
 - Use `Validate` and `Rule` from `casp.validate` for server-side input validation and sanitization.
 
+## AI Doc Shape
+
+Each packaged feature doc should help AI answer the same five questions quickly:
+
+- When does this doc apply?
+- Which `caspian.config.json` flag, if any, gates the feature?
+- Which app-owned files usually change?
+- Which `main.py` or installed `casp` runtime files own the behavior?
+- Which behavior should be verified before editing or explaining the feature?
+
+Keep project-specific facts, temporary file inventory, and current app feature flags out of packaged docs. Put those in `AGENTS.md`, `.github/copilot-instructions.md`, or the project code instead.
+
+Use [core-runtime-map.md](./core-runtime-map.md) for Python-side Caspian runtime ownership and [pulsepoint-runtime-map.md](./pulsepoint-runtime-map.md) for browser-side PulsePoint runtime ownership.
+
+## Redundancy Rule
+
+Prefer one canonical explanation plus links from related docs.
+
+- Put the full authored-template and PulsePoint runtime contract in [pulsepoint.md](./pulsepoint.md).
+- Put the full route and layout placement contract in [routing.md](./routing.md).
+- Put the full reusable component contract in [components.md](./components.md).
+- Put the full Python runtime ownership map in [core-runtime-map.md](./core-runtime-map.md).
+- Put the full PulsePoint feature lookup map in [pulsepoint-runtime-map.md](./pulsepoint-runtime-map.md).
+
+Other docs should summarize these rules only when the reminder prevents a common mistake, then link to the canonical page instead of restating the whole rule block.
+
 ## Docs Location
 
 The packaged Caspian docs referenced by this index live here:
@@ -46,6 +73,7 @@ The packaged Caspian docs referenced by this index live here:
 - `installation.md` - First-time setup flow for creating a new Caspian application
 - `commands.md` - Main Caspian CLI workflows for project creation, generation, updates, and config-aware maintenance
 - `core-runtime-map.md` - map of `main.py` plus installed `casp` modules to the packaged docs that explain them and the behaviors AI should trace there
+- `pulsepoint-runtime-map.md` - fast feature-to-runtime lookup for PulsePoint state, effects, refs, context, portals, lists, events, RPC, uploads, streaming, SPA navigation, scroll restoration, and Tailwind merge behavior
 - `mcp.md` - MCP-specific layout, launch flow, and AI routing rules for projects where `caspian.config.json` enables MCP
 - `database.md` - Prisma schema, migration, seed, and client-generation workflow for projects where `caspian.config.json` enables Prisma, plus Python-side helper caveats
 - `auth.md` - Session-backed authentication with `casp.auth`, centralized `auth_config.py`, public-vs-private route mode guidance, RPC-first signout guidance, RBAC, and OAuth provider helpers
@@ -71,11 +99,12 @@ Preferred lookup order:
 3. Before authoring or editing any `src/app/**` or component HTML template, apply the single-root invariant: one authored root only, any owned `<script>` inside that root, and no handwritten `pp-component` or `type="text/pp"`.
 4. Treat `caspian.config.json` as the single source of truth for optional features. Use feature-specific docs only when the matching flag is enabled. If a feature is disabled and the user wants it, ask first, then update `caspian.config.json` and follow the update workflow in `commands.md`.
 5. If the task touches `main.py` or `.venv/Lib/site-packages/casp/**`, read `core-runtime-map.md` to jump to the controlling runtime file and the matching feature doc.
-6. After the feature is confirmed, inspect the actual project files that decide behavior, such as `package.json`, `main.py`, `src/app/**`, `src/lib/**`, `settings/**`, `prisma/**`, and the installed `casp` runtime.
-7. Use `commands.md` for scaffold and update workflows, `project-structure.md` for placement decisions, and the feature docs such as `mcp.md`, `database.md`, `auth.md`, `fetch-data.md`, and `file-uploads.md` for task-specific guidance.
-8. Prefer packaged Caspian docs before upstream documentation when generating code, commands, or migration guidance.
-9. Use `ai-validation-checklist.md` when you want to verify that the docs lead AI to the correct files and behavior checkpoints.
-10. Keep `index.md` and cross-links aligned so AI can quickly discover the right doc.
+6. If the task names a PulsePoint feature or directive, read `pulsepoint-runtime-map.md` for the fastest feature-to-runtime lookup, then read `pulsepoint.md` for authoring rules.
+7. After the feature is confirmed, inspect the actual project files that decide behavior, such as `package.json`, `main.py`, `src/app/**`, `src/lib/**`, `settings/**`, `prisma/**`, and the installed `casp` runtime.
+8. Use `commands.md` for scaffold and update workflows, `project-structure.md` for placement decisions, and the feature docs such as `mcp.md`, `database.md`, `auth.md`, `fetch-data.md`, and `file-uploads.md` for task-specific guidance.
+9. Prefer packaged Caspian docs before upstream documentation when generating code, commands, or migration guidance.
+10. Use `ai-validation-checklist.md` when you want to verify that the docs lead AI to the correct files and behavior checkpoints.
+11. Keep `index.md` and cross-links aligned so AI can quickly discover the right doc.
 
 ## Maintenance
 

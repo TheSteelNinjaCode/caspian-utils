@@ -30,6 +30,13 @@ The current installed implementation lives in `.venv/Lib/site-packages/casp/cach
 
 Use [core-runtime-map.md](./core-runtime-map.md) when a cache task crosses `main.py` request flow, cache lookup timing, and the installed cache-handler internals.
 
+## Source Of Truth
+
+- Route cache intent belongs in `src/app/**/index.py` through module-level `cache_settings = Cache(...)`.
+- Cache lookup and save timing are controlled by `main.py`.
+- Disk-backed cache behavior lives in `.venv/Lib/site-packages/casp/cache_handler.py`.
+- Cache invalidation after writes usually belongs in the owning route `@rpc()` action or a shared helper under `src/lib/**`.
+
 The real API surface is:
 
 - declarative route config with `Cache(ttl=..., enabled=...)`

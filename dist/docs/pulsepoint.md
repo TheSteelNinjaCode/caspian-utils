@@ -8,6 +8,7 @@ related:
     - /docs/components
     - /docs/routing
     - /docs/fetch-data
+    - /docs/pulsepoint-runtime-map
     - /docs/core-runtime-map
     - /docs/project-structure
     - /docs/index
@@ -44,6 +45,8 @@ Important current facts:
 If docs, generated examples, or older notes disagree with `public/js/pp-reactive-v2.js` plus `main.py`, follow the code that actually runs.
 
 Use [core-runtime-map.md](./core-runtime-map.md) when the controlling runtime file is not obvious yet.
+
+Use [pulsepoint-runtime-map.md](./pulsepoint-runtime-map.md) when the task names a specific PulsePoint feature or directive and you need a quick feature-to-runtime lookup before reading the full guide.
 
 ## Default Frontend Rule
 

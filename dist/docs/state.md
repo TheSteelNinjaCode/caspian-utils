@@ -31,6 +31,13 @@ The current installed implementation lives in `.venv/Lib/site-packages/casp/stat
 
 Use [core-runtime-map.md](./core-runtime-map.md) when a state task crosses `main.py` middleware setup, wire-request behavior, and the installed state-manager internals.
 
+## Source Of Truth
+
+- Request initialization and middleware timing are controlled by `main.py`.
+- The server state implementation lives in `.venv/Lib/site-packages/casp/state_manager.py`.
+- Route and RPC code should use `StateManager` only for transient server request state.
+- Browser interaction state belongs in PulsePoint; read [pulsepoint.md](./pulsepoint.md) before moving UI state into `StateManager`.
+
 The real API surface is:
 
 - request initialization with `StateManager.init(request)`

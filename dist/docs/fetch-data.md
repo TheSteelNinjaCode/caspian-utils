@@ -14,6 +14,7 @@ related:
     - /docs/cache
     - /docs/routing
     - /docs/pulsepoint
+    - /docs/pulsepoint-runtime-map
     - /docs/project-structure
     - /docs/index
 ---
@@ -143,6 +144,7 @@ Important:
 
 - `pp.rpc()` posts to the current route RPC bridge.
 - Older docs may refer to `pp.fetchFunction()`. In this repo's current runtime, the supported helper is `pp.rpc()`.
+- Use [pulsepoint-runtime-map.md](./pulsepoint-runtime-map.md) when debugging browser-side RPC options such as streaming, upload progress, abort behavior, redirects, or SPA interaction.
 
 ## Streaming Responses
 

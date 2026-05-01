@@ -9,6 +9,7 @@ related:
     - /docs/core-runtime-map
     - /docs/routing
     - /docs/pulsepoint
+    - /docs/pulsepoint-runtime-map
     - /docs/fetch-data
     - /docs/index
 ---
@@ -39,7 +40,7 @@ When the task is about component internals rather than normal app-owned componen
 - `.venv/Lib/site-packages/casp/html_attrs.py` owns `get_attributes(...)` and the Python-side `merge_classes(...)` contract.
 - `.venv/Lib/site-packages/casp/syntax_compiler.py` owns Caspian template syntax transpilation before Jinja render.
 
-Use [core-runtime-map.md](./core-runtime-map.md) when you need the broader runtime-module map.
+Use [core-runtime-map.md](./core-runtime-map.md) when you need the broader Python runtime-module map. Use [pulsepoint-runtime-map.md](./pulsepoint-runtime-map.md) when a component task is specifically about browser-side PulsePoint state, refs, context, portals, events, RPC, or SPA behavior.
 
 ## Basic Component
 

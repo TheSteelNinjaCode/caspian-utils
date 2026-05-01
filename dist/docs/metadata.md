@@ -14,6 +14,14 @@ This page explains how Caspian handles document metadata, SEO fields, and social
 
 At render time, Caspian resolves metadata through the layout engine and exposes the merged result to templates as `[[ metadata.* ]]`.
 
+## Source Of Truth
+
+- Metadata objects and layout merge behavior are implemented in `.venv/Lib/site-packages/casp/layout.py`.
+- Route registration and runtime metadata collection are controlled by `main.py`.
+- Shared metadata defaults belong in `src/app/**/layout.py`.
+- Page-specific static or dynamic metadata belongs in `src/app/**/index.py`.
+- Rendered metadata is consumed from layout templates through `[[ metadata.* ]]`.
+
 ## Overview
 
 Caspian uses a cascading metadata model similar to the Next.js App Router. Define defaults high in the tree, then override them closer to the final route.
