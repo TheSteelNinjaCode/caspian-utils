@@ -31,6 +31,7 @@ Start with these rules:
 - Add `index.py` only when the same route needs metadata, `page()`, `@rpc()` actions, auth checks, caching, redirects, or other server-side logic.
 - Use a standalone `index.py` only for non-visual routes such as redirects or action-only handlers.
 - When a folder owns child routes, use `layout.html` to wrap them. This is the default pattern for dashboards, admin sections, account areas, settings trees, and route groups.
+- In grouped shells with separate shell and content scrolling, put `pp-reset-scroll="true"` on the content pane in `layout.html` when that pane should reset on child-route navigation while the shell sidebar or rail keeps its own scroll.
 - Use `layout.py` when a layout needs shared synchronous props or metadata before rendering.
 - Keep visible route and layout markup in `index.html` and `layout.html`. Treat `index.py` and `layout.py` as backend companions, not as places to author visible HTML.
 - Treat every authored route and layout template like a React component body: it must have exactly one top-level parent HTML element or one imported `x-*` root, and any owned plain `<script>` must live inside that same root.
@@ -144,6 +145,8 @@ src/
 ```
 
 Use this pattern when the app has a public grouped section that should stay out of the URL and a private dashboard section that should appear in the URL. The root layout owns app-wide chrome, `(marketing)/layout.html` owns the shared public marketing shell, and `dashboard/layout.html` owns the shared dashboard shell for `/dashboard/*` child routes.
+
+When a shared shell has its own scrollable sidebar or rail plus a separate page-content scroller, keep the persistent shell scrollers unmarked and put `pp-reset-scroll="true"` on the page-content scroller in `layout.html`. That gives grouped sections the common app-router behavior where the main pane resets on child-route navigation while the sidebar keeps its scroll position. Use `body[pp-reset-scroll="true"]` only when the target route should reset every scrollable surface.
 
 ## Core Concepts
 
@@ -498,6 +501,7 @@ If an AI agent is choosing where to add or update route code, apply these rules 
 - Use a normal folder such as `dashboard/` when the segment should appear in the URL. Use `(group)/` only when the folder should organize or wrap child routes without adding a path segment.
 - Use [cache.md](./cache.md) when an `index.py` route should opt into page-level HTML caching.
 - Use `layout.html` for shared wrappers and `layout.py` for layout-level synchronous props or metadata.
+- For grouped shells with separate shell and content scrolling, put `pp-reset-scroll="true"` on the content pane instead of the whole shell when only the page content should reset between child routes.
 - When one route needs to change a parent layout, return `(render_page(__file__, ...), {"dashboard_body_class": ...})` from `page()` and read that value as `[[ layout.dashboard_body_class ]]` in the wrapping `layout.html`.
 - Use `layout.py` for layout props that should apply across an entire subtree. Use `render_layout(__file__, {...})` only when the layout should consume direct local variables such as `[[ my_class ]]` instead of the standard `[[ layout.* ]]` namespace.
 - Keep `<!-- @import ... -->` directives at the top of `index.html` and `layout.html`, above the single authored parent node.

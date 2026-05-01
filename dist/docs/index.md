@@ -50,14 +50,14 @@ The packaged Caspian docs referenced by this index live here:
 - `database.md` - Prisma schema, migration, seed, and client-generation workflow for projects where `caspian.config.json` enables Prisma, plus Python-side helper caveats
 - `auth.md` - Session-backed authentication with `casp.auth`, centralized `auth_config.py`, public-vs-private route mode guidance, RPC-first signout guidance, RBAC, and OAuth provider helpers
 - `components.md` - Create reusable Python components, template-backed UI, HTML-first `x-*` component tags, the single-parent authored-root rule for component HTML files, and the Python-side `merge_classes(...)` contract when Tailwind CSS is enabled
-- `pulsepoint.md` - Default reactive frontend runtime contract for component scripts, state, effects, directives, client-side behaviors, and direct browser `twMerge(...)` usage when Tailwind CSS is enabled
+- `pulsepoint.md` - Default reactive frontend runtime contract for component scripts, state, effects, directives, SPA navigation scroll restoration, `pp-reset-scroll`, and direct browser `twMerge(...)` usage when Tailwind CSS is enabled
 - `fetch-data.md` - Initial server-side data loading and browser-triggered RPC flows with `pp.rpc()`, streaming, uploads, and auth-aware actions
 - `file-uploads.md` - Route-local file uploads and file-manager flows with `@rpc()`, `pp.rpc()`, Prisma metadata, public asset storage, and BrowserSync ignore rules
 - `state.md` - Request-scoped server state with `StateManager`, session-backed JSON persistence, and listener callbacks for transient flows
 - `cache.md` - Route-level HTML caching with `Cache`, `CacheHandler`, TTL behavior, file-system storage, and invalidation patterns
 - `validation.md` - Input validation and sanitization with `Validate`, `Rule`, direct field checks, and multi-rule workflows for routes and RPC actions
 - `metadata.md` - Static and dynamic metadata, SEO inheritance, and Open Graph or Twitter card tags
-- `routing.md` - Next.js App Router-style file-based routing with `src/app`, dynamic segments, dashboard and section layouts, route groups, nested layouts, single-parent authored templates, and backend Python companions that do not own visible markup
+- `routing.md` - Next.js App Router-style file-based routing with `src/app`, dynamic segments, dashboard and section layouts, route groups, nested layouts, shared-shell scroll-reset ownership, single-parent authored templates, and backend Python companions that do not own visible markup
 - `project-structure.md` - Default Caspian layout and where route files, reusable UI in `src/components/`, reusable non-UI code in `src/lib/`, and database files belong
 
 ## AI Retrieval Notes

@@ -53,6 +53,7 @@ Use prompts like these to check whether AI lands on the correct docs and files.
 | Prompt | First docs AI should read | Controlling files AI should reach | Verification focus |
 | --- | --- | --- | --- |
 | Create a protected dashboard section with child routes and a shared shell. | [index.md](./index.md), [routing.md](./routing.md), [auth.md](./auth.md), [project-structure.md](./project-structure.md) | `src/app/**`, `src/lib/auth/auth_config.py`, `main.py`, `.venv/Lib/site-packages/casp/layout.py` | section layout ownership, route privacy mode, and child-route wrapping |
+| Make a grouped shell keep sidebar scroll while resetting page content on child-route navigation. | [index.md](./index.md), [routing.md](./routing.md), [pulsepoint.md](./pulsepoint.md), [core-runtime-map.md](./core-runtime-map.md) | `src/app/**/layout.html`, `public/js/pp-reactive-v2.js`, `main.py` | `pp-reset-scroll` placement, push-vs-history scroll behavior, and shared-shell ownership |
 | Create a new contact page with interactive form behavior. | [index.md](./index.md), [routing.md](./routing.md), [pulsepoint.md](./pulsepoint.md), [components.md](./components.md) | `src/app/**/index.html`, `main.py`, `.venv/Lib/site-packages/casp/components_compiler.py`, `.venv/Lib/site-packages/casp/scripts_type.py` | single-root template shape, script-inside-root authoring, and authored-vs-runtime boundaries |
 | Add a file manager page with upload progress and persisted metadata. | [index.md](./index.md), [file-uploads.md](./file-uploads.md), [fetch-data.md](./fetch-data.md), [database.md](./database.md) | `src/app/**/index.html`, `src/app/**/index.py`, `src/lib/**`, `prisma/schema.prisma` when Prisma applies | route-owned upload actions, persisted metadata flow, and Prisma-backed storage boundaries |
 | Explain why authored Caspian templates use a plain `<script>` instead of `type="text/pp"`. | [index.md](./index.md), [pulsepoint.md](./pulsepoint.md), [components.md](./components.md), [routing.md](./routing.md) | `main.py`, `.venv/Lib/site-packages/casp/scripts_type.py`, `.venv/Lib/site-packages/casp/components_compiler.py` | script rewriting, `pp-component` injection, and authored-vs-runtime boundaries |
@@ -70,6 +71,7 @@ Treat the table as a prompt pack for spot checks, not as a full validation matri
 - AI edits framework internals when the task only requires app-owned route or helper changes.
 - AI treats runtime HTML examples as authored template examples.
 - AI generates a route or component template with a valid-looking root element but leaves a sibling top-level `<script>` or second top-level element after it.
+- AI puts `pp-reset-scroll="true"` on the whole shell or `body` when only the page-content pane should reset, causing persistent sidebars or rails to lose their scroll position.
 - AI decides behavior from memory without checking the owning implementation details.
 
 ## Decision Rule

@@ -29,6 +29,7 @@ Use it when you already know a behavior is controlled by `main.py` or `.venv/Lib
 | Concern | Core file | Read first | Why it matters |
 | --- | --- | --- | --- |
 | App bootstrap and request flow | [main.py](../../../../main.py) | [project-structure.md](./project-structure.md), [routing.md](./routing.md), [auth.md](./auth.md) | FastAPI app creation, static asset routes, middleware order, route registration, cache check and save, exception handlers, and final HTML transforms all live here. |
+| Browser runtime, SPA navigation, and scroll restoration | [public/js/pp-reactive-v2.js](../../../../public/js/pp-reactive-v2.js) | [pulsepoint.md](./pulsepoint.md), [fetch-data.md](./fetch-data.md) | The shipped `pp` runtime, same-origin SPA interception, per-history-entry scroll state, `pp-reset-scroll` behavior, and browser RPC helpers live here. |
 
 Important current `main.py` behaviors AI should keep in mind:
 
@@ -37,6 +38,7 @@ Important current `main.py` behaviors AI should keep in mind:
 - The render pipeline is `transform_components(...)`, then `render_with_nested_layouts(...)`, then `transform_scripts(...)`.
 - Route-level generators returned from `page()` are wrapped in `SSE(...)` before the response is sent.
 - Middleware is added in source order as `RPCMiddleware`, `AuthMiddleware`, `CSRFMiddleware`, `SessionMiddleware`, so the effective request order is reversed at runtime.
+- `public/js/pp-reactive-v2.js` saves scroll positions per history entry, resets window scroll on push navigation, and uses `pp-reset-scroll="true"` to opt specific containers or the whole body into reset behavior.
 
 ## Installed Runtime Map
 
@@ -65,6 +67,7 @@ Use these behavior checkpoints when AI needs the fastest verification path for a
 | Runtime area | Verify these behaviors |
 | --- | --- |
 | `main.py` routing and request flow | route registration, path and query injection, static asset handling, and exception rendering |
+| `public/js/pp-reactive-v2.js` browser runtime | SPA interception, history-vs-push scroll behavior, `pp-reset-scroll` semantics, and browser-side `pp.rpc()` behavior |
 | `casp.auth` | auth settings, signin and signout flow, provider wiring, and page protection behavior |
 | `casp.rpc` and streamed RPC responses | middleware interception, CSRF and session expectations, registry behavior, and helper-level RPC contracts |
 | `casp.layout` | layout discovery, metadata merge, root handling, and layout rendering rules |

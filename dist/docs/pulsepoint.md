@@ -1,6 +1,6 @@
 ---
 title: PulsePoint Runtime Guide
-description: Use this page when the task mentions PulsePoint, `pp.state`, `pp.effect`, `pp-ref`, `pp-style`, `pp-for`, portals, SPA navigation, or `public/js/pp-reactive-v2.js`.
+description: Use this page when the task mentions PulsePoint, `pp.state`, `pp.effect`, `pp-ref`, `pp-style`, `pp-for`, portals, `pp-reset-scroll`, SPA navigation, or `public/js/pp-reactive-v2.js`.
 related:
   title: Related docs
   description: Read the components, routing, data-fetching, and project-structure docs alongside the PulsePoint runtime contract.
@@ -17,7 +17,7 @@ related:
 
 This file documents the PulsePoint contract for the shipped Caspian browser runtime. Treat it as the AI-facing source of truth when generating or reviewing interactive Caspian UI.
 
-If a task involves `pp.state`, `pp.effect`, `pp.layoutEffect`, `pp-ref`, `pp-style`, `pp-spread`, `pp-for`, context, portals, SPA navigation, or component boundary behavior, read this page first and keep generated code aligned with the current Caspian runtime.
+If a task involves `pp.state`, `pp.effect`, `pp.layoutEffect`, `pp-ref`, `pp-style`, `pp-spread`, `pp-for`, context, portals, `pp-reset-scroll`, SPA navigation, or component boundary behavior, read this page first and keep generated code aligned with the current Caspian runtime.
 
 Use `components.md` for authoring Python `@component` files, same-name HTML templates, and HTML-first `x-*` component tags. Use this page for the browser-side PulsePoint contract, the authoring rules that feed it, and the React-style mental model used by the shipped runtime.
 
@@ -401,7 +401,12 @@ Example:
 - `pp-loading-content="true"` marks the page region that gets swapped or faded during navigation.
 - Route-specific loading states are looked up with `pp-loading-url`.
 - `pp-loading-transition` accepts JSON with `fadeIn` and `fadeOut` timing values.
-- `pp-reset-scroll="true"` resets scroll positions during navigation.
+- The runtime saves scroll positions per history entry while SPA navigation is enabled.
+- Push navigation resets window scroll to the top.
+- Saved history-entry scroll state is used during history traversal instead of relying only on the live DOM scroll at the time the user clicks Back or Forward.
+- Unmarked scrollable containers may keep their outgoing scroll on push navigation so shared shells such as sidebars, rails, and docs nav panes stay stable across child-route changes.
+- `pp-reset-scroll="true"` on a scroll container opts that container into reset-on-navigation behavior. Use it on the main content pane of a grouped shell when page content should start at the top on each child-route navigation.
+- `body[pp-reset-scroll="true"]` is the global override for routes that should reset window scroll and every scrollable element.
 - Navigation dispatches `pp:navigation:start`, `pp:navigation:complete`, and `pp:navigation:error` events on `document`.
 
 RPC notes:
@@ -447,6 +452,7 @@ Use these rules when generating or editing PulsePoint runtime code:
 - If a development-only source tree exists behind the shipped runtime, treat it as optional implementation detail rather than something generated apps are guaranteed to contain.
 - In authored Caspian templates, do not handwrite `pp-component` or `type="text/pp"`; let the render pipeline inject them.
 - For grouped subtrees, follow the section layout pattern in [routing.md](./routing.md), keep the shared interactive shell in the parent folder's `layout.html`, and keep route-specific PulsePoint code in each child `index.html`.
+- For grouped shells with independent shell and content scrolling, put `pp-reset-scroll="true"` on the content pane rather than the whole shell when only the page content should reset between child-route navigations.
 - Prefer PulsePoint state and template directives over manual DOM mutation for reactive updates.
 - If you are explicitly editing raw runtime HTML or internals, keep `pp-component` unique per live instance.
 - In authored templates, use a plain `<script>` inside the root. In runtime HTML, the owned script appears as `script[type="text/pp"]`.
