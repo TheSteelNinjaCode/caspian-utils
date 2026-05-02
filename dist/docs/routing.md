@@ -236,6 +236,8 @@ Use `index.py` as the backend companion when a route needs metadata or async ser
 
 Use `index.py` by itself only for non-visual routes such as redirects or action-only handlers. Because Caspian runs on FastAPI, the page entry should be async when it performs async work.
 
+When `page()` calls `render_page(__file__, ...)`, root-validation errors are attributed to the sibling `index.html` because that file is the authored template. If `page()` returns a raw HTML string directly, Caspian treats that value as a runtime fragment instead of an authored template and wraps it in a runtime host root when needed.
+
 Example:
 
 ```python
@@ -390,6 +392,8 @@ Example root layout:
 ### `layout.py`
 
 If a layout needs shared synchronous props or metadata, add a `layout.py` file next to the HTML layout. Treat it as the backend companion for the layout, not as the place to author visible wrapper markup.
+
+When `layout()` calls `render_layout(__file__, ...)`, root-validation errors are attributed to the sibling `layout.html` because that file is the authored template. If `layout()` returns a raw HTML string directly, Caspian treats that value as a runtime fragment instead of an authored template and wraps it in a runtime host root when needed.
 
 Example:
 
