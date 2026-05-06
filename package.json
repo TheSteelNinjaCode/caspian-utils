@@ -1,6 +1,6 @@
 {
   "name": "caspian-utils",
-  "version": "0.0.27",
+  "version": "0.0.28",
   "description": "Caspian tooling",
   "main": "index.js",
   "scripts": {

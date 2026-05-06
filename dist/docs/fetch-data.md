@@ -276,6 +276,8 @@ Use [auth.md](./auth.md) when the action should also participate in centralized 
 
 According to the upstream Caspian RPC docs, actions are private by default until decorated with `@rpc()`, and the framework includes CSRF protection plus origin validation for exposed actions.
 
+For reverse-proxy deployments, RPC origin validation can also resolve the public app origin from `APP_BASE_URL`, `PUBLIC_BASE_URL`, or `SITE_URL`, and otherwise falls back to forwarded host and protocol headers when they are present.
+
 ## Serialization Rules
 
 For RPC responses, Caspian can automatically serialize common Python return types such as:
