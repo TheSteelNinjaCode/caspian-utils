@@ -34,7 +34,7 @@ The scaffolded Caspian baseline is:
 Install the supported runtimes before creating a project.
 
 - Node.js with `npm` and `npx` available
-- Python `v3.11.0` or newer
+- Python `v3.14.0` or newer
 
 You can verify your environment with:
 
