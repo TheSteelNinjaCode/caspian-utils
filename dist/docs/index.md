@@ -12,6 +12,7 @@ related:
     - /docs/pulsepoint-runtime-map
     - /docs/mcp
     - /docs/file-uploads
+    - /docs/file-conventions
     - /docs/project-structure
     - /docs/components
 ---
@@ -77,6 +78,7 @@ The packaged Caspian docs referenced by this index live here:
 - `mcp.md` - MCP-specific layout, launch flow, and AI routing rules for projects where `caspian.config.json` enables MCP
 - `database.md` - Prisma schema, migration, seed, and client-generation workflow for projects where `caspian.config.json` enables Prisma, plus Python-side helper caveats
 - `auth.md` - Session-backed authentication with `casp.auth`, centralized `auth_config.py`, public-vs-private route mode guidance, RPC-first signout guidance, RBAC, and OAuth provider helpers
+- `file-conventions.md` - quick decision guide for `index.html`, `index.py`, `layout.html`, `layout.py`, `loading.html`, `not-found.html`, and `error.html`, plus the owning runtime files to verify
 - `components.md` - Create reusable Python components, template-backed UI, HTML-first `x-*` component tags, the single-parent authored-root rule for component HTML files, and the Python-side `merge_classes(...)` contract when Tailwind CSS is enabled
 - `pulsepoint.md` - Default reactive frontend runtime contract for component scripts, state, effects, directives, SPA navigation scroll restoration, `pp-reset-scroll`, and direct browser `twMerge(...)` usage when Tailwind CSS is enabled
 - `fetch-data.md` - Initial server-side data loading and browser-triggered RPC flows with `pp.rpc()`, streaming, uploads, and auth-aware actions
@@ -101,7 +103,7 @@ Preferred lookup order:
 5. If the task touches `main.py` or `.venv/Lib/site-packages/casp/**`, read `core-runtime-map.md` to jump to the controlling runtime file and the matching feature doc.
 6. If the task names a PulsePoint feature or directive, read `pulsepoint-runtime-map.md` for the fastest feature-to-runtime lookup, then read `pulsepoint.md` for authoring rules.
 7. After the feature is confirmed, inspect the actual project files that decide behavior, such as `package.json`, `main.py`, `src/app/**`, `src/lib/**`, `settings/**`, `prisma/**`, and the installed `casp` runtime.
-8. Use `commands.md` for scaffold and update workflows, `project-structure.md` for placement decisions, and the feature docs such as `mcp.md`, `database.md`, `auth.md`, `fetch-data.md`, and `file-uploads.md` for task-specific guidance.
+8. Use `file-conventions.md` for quick decisions about `index.html`, `index.py`, `layout.html`, `layout.py`, `loading.html`, `not-found.html`, and `error.html`; use `commands.md` for scaffold and update workflows, `project-structure.md` for placement decisions, and the feature docs such as `mcp.md`, `database.md`, `auth.md`, `fetch-data.md`, and `file-uploads.md` for task-specific guidance.
 9. Prefer packaged Caspian docs before upstream documentation when generating code, commands, or migration guidance.
 10. Use `ai-validation-checklist.md` when you want to verify that the docs lead AI to the correct files and behavior checkpoints.
 11. Keep `index.md` and cross-links aligned so AI can quickly discover the right doc.

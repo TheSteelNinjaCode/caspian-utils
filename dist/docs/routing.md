@@ -33,7 +33,7 @@ Start with these rules:
 - Use a standalone `index.py` only for non-visual routes such as redirects or action-only handlers.
 - When a folder owns child routes, use `layout.html` to wrap them. This is the default pattern for dashboards, admin sections, account areas, settings trees, and route groups.
 - In grouped shells with separate shell and content scrolling, put `pp-reset-scroll="true"` on the content pane in `layout.html` when that pane should reset on child-route navigation while the shell sidebar or rail keeps its own scroll.
-- Use `layout.py` when a layout needs shared synchronous props or metadata before rendering.
+- Use `layout.py` when a layout needs shared props or metadata before rendering. The `layout()` function may be synchronous or async.
 - Keep visible route and layout markup in `index.html` and `layout.html`. Treat `index.py` and `layout.py` as backend companions, not as places to author visible HTML.
 - Treat every authored route and layout template like a React component body: it must have exactly one top-level parent HTML element or one imported `x-*` root, and any owned plain `<script>` must live inside that same root.
 
@@ -86,7 +86,7 @@ When a user asks for a dashboard, admin area, account section, docs section, or 
 
 - Create a parent folder for the section.
 - Add `layout.html` in that folder for the shared shell.
-- Add `layout.py` only when that shared shell needs synchronous props or metadata.
+- Add `layout.py` only when that shared shell needs shared props or metadata.
 - Put each child page in its own route folder with `index.html` and an optional `index.py` companion.
 - Use a normal folder name such as `dashboard/` when the section name should appear in the URL.
 - Use a route-group folder such as `(marketing)/` when the folder should organize code and own a layout without adding a URL segment.
