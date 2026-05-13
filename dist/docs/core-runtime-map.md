@@ -29,7 +29,7 @@ Use it when you already know a behavior is controlled by `main.py` or `.venv/Lib
 
 | Concern | Core file | Read first | Why it matters |
 | --- | --- | --- | --- |
-| App bootstrap and request flow | [main.py](../../../../main.py) | [project-structure.md](./project-structure.md), [routing.md](./routing.md), [auth.md](./auth.md) | FastAPI app creation, static asset routes, middleware order, route registration, cache check and save, exception handlers, and final HTML transforms all live here. |
+| App bootstrap and request flow | [main.py](../../../../main.py) plus any imported app-owned runtime helpers | [project-structure.md](./project-structure.md), [routing.md](./routing.md), [auth.md](./auth.md) | FastAPI app creation, middleware wiring, route registration, cache check and save, exception handlers, and final HTML transforms live here. App-owned helper modules imported by `main.py` may own safe static-file serving, browser security headers, CSP defaults, or production session-secret enforcement. |
 | Browser runtime, SPA navigation, and scroll restoration | [public/js/pp-reactive-v2.js](../../../../public/js/pp-reactive-v2.js) | [pulsepoint.md](./pulsepoint.md), [fetch-data.md](./fetch-data.md) | The shipped `pp` runtime, same-origin SPA interception, per-history-entry scroll state, `pp-reset-scroll` behavior, and browser RPC helpers live here. |
 
 Important current `main.py` behaviors AI should keep in mind:
@@ -38,7 +38,10 @@ Important current `main.py` behaviors AI should keep in mind:
 - `register_single_route(...)` passes path params to `page()` as one positional dict, injects matching query params by name, and injects `request` by keyword when declared.
 - The render pipeline is `transform_components(...)`, then `render_with_nested_layouts(...)`, then `transform_scripts(...)`.
 - Route-level generators returned from `page()` are wrapped in `SSE(...)` before the response is sent.
-- Middleware is added in source order as `RPCMiddleware`, `AuthMiddleware`, `CSRFMiddleware`, `SessionMiddleware`, so the effective request order is reversed at runtime.
+- Safe public-file helpers may be factored into an app-owned runtime module and should reject `..` traversal before serving from `public/**`.
+- Session middleware secrets may be resolved through an app-owned helper so production can fail fast when `AUTH_SECRET` is missing or still on a default placeholder.
+- Browser security headers and CSP defaults may be built in an app-owned helper and attached through `SecurityHeadersMiddleware`.
+- Middleware is added in source order as `RPCMiddleware`, `AuthMiddleware`, `CSRFMiddleware`, `SessionMiddleware`, `SecurityHeadersMiddleware`, so the effective request order is reversed at runtime.
 - `public/js/pp-reactive-v2.js` saves scroll positions per history entry, resets window scroll on push navigation, and uses `pp-reset-scroll="true"` to opt specific containers or the whole body into reset behavior.
 
 ## Caspian Core Feature Map
@@ -53,6 +56,7 @@ Use this table when the task names a framework feature but the owning file is no
 | Metadata | route or layout `metadata`, runtime metadata helpers | `casp.layout`, `main.py` | [metadata.md](./metadata.md), [routing.md](./routing.md) |
 | Component imports and `x-*` tags | `src/components/**`, `src/app/**/*.html` | `casp.components_compiler`, `casp.component_decorator` | [components.md](./components.md), [routing.md](./routing.md) |
 | Auth and route protection | `src/lib/auth/auth_config.py`, `main.py`, route decorators | `casp.auth`, `main.py` middleware | [auth.md](./auth.md) |
+| Browser security headers, CSP defaults, and safe public-file serving | app-owned helpers imported by `main.py` | app-owned runtime modules | [auth.md](./auth.md), [project-structure.md](./project-structure.md) |
 | RPC and server actions | route or component Python modules with `@rpc()` | `casp.rpc`, `main.py` middleware | [fetch-data.md](./fetch-data.md), [file-uploads.md](./file-uploads.md) |
 | Streaming | route `page()` generators, RPC generators | `casp.streaming`, `casp.rpc`, `main.py` | [fetch-data.md](./fetch-data.md) |
 | Server state | request handlers and RPC actions | `casp.state_manager`, `main.py` middleware | [state.md](./state.md) |
@@ -106,7 +110,7 @@ Use these behavior checkpoints when AI needs the fastest verification path for a
 
 | Runtime area | Verify these behaviors |
 | --- | --- |
-| `main.py` routing and request flow | route registration, path and query injection, static asset handling, and exception rendering |
+| `main.py` routing and request flow | route registration, path and query injection, static asset handling, session-middleware wiring, browser security headers, and exception rendering |
 | `public/js/pp-reactive-v2.js` browser runtime | SPA interception, history-vs-push scroll behavior, `pp-reset-scroll` semantics, and browser-side `pp.rpc()` behavior |
 | `casp.auth` | auth settings, signin and signout flow, provider wiring, and page protection behavior |
 | `casp.rpc` and streamed RPC responses | middleware interception, CSRF and session expectations, registry behavior, and helper-level RPC contracts |

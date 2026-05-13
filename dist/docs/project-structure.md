@@ -192,9 +192,20 @@ In the current Caspian app shape, this file is where startup wiring happens:
 - register OAuth providers with `Auth.set_providers(...)`
 - create the FastAPI app
 - register routes and RPC handlers
-- add `SessionMiddleware`, CSRF middleware, auth middleware, and RPC middleware
+- add security headers middleware, `SessionMiddleware`, CSRF middleware, auth middleware, and RPC middleware
 
 Use `main.py` for auth bootstrap and middleware-order changes. Use `src/lib/auth/auth_config.py` for auth policy values such as public routes, redirects, and RBAC maps.
+
+### `src/lib/security/runtime_security.py`
+
+When the app factors request hardening into an app-owned helper module, keep browser security headers, CSP defaults, safe public-file helpers, and production session-secret enforcement there instead of bloating `main.py`.
+
+Use this module when the task is about:
+
+- safe serving of files from `public/**`
+- browser security headers or content-security-policy defaults
+- production session-secret enforcement
+- user-facing vs production-safe exception messaging helpers
 
 ### `caspian.config.json`
 
