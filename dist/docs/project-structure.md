@@ -142,6 +142,8 @@ When a project includes an app-owned Python database layer under `src/lib/prisma
 
 When MCP is enabled for the project, this folder also contains the app-owned FastMCP server under `src/lib/mcp/`.
 
+Do not add `src/lib/security/runtime_security.py` for normal app work. Runtime security helpers for safe public-file serving, production session-secret enforcement, production-safe error messages, and baseline non-CSP response headers are package-owned by `casp.runtime_security`.
+
 ### Shared Database Helpers
 
 If your Python routes or RPC actions need reusable database access code, keep that helper layer under `src/lib/` and extend the existing `src/lib/prisma/` package.
@@ -192,20 +194,24 @@ In the current Caspian app shape, this file is where startup wiring happens:
 - register OAuth providers with `Auth.set_providers(...)`
 - create the FastAPI app
 - register routes and RPC handlers
-- add security headers middleware, `SessionMiddleware`, CSRF middleware, auth middleware, and RPC middleware
+- add response headers middleware, `SessionMiddleware`, CSRF middleware, auth middleware, and RPC middleware
 
 Use `main.py` for auth bootstrap and middleware-order changes. Use `src/lib/auth/auth_config.py` for auth policy values such as public routes, redirects, and RBAC maps.
 
-### `src/lib/security/runtime_security.py`
+### `.venv/Lib/site-packages/casp/runtime_security.py`
 
-When the app factors request hardening into an app-owned helper module, keep browser security headers, CSP defaults, safe public-file helpers, and production session-secret enforcement there instead of bloating `main.py`.
+The installed Caspian package owns runtime security helpers that `main.py` can import as `casp.runtime_security`. Keep this file in the package instead of copying it into `src/lib/`, because normal app users should not need to edit it.
 
-Use this module when the task is about:
+This helper is not a registry for third-party browser resources. Do not add Google, YouTube, CDN, image-host, API, or iframe origins here just because the browser or server uses them. If an app later chooses to enforce a Content Security Policy, document and implement that as an explicit project policy rather than assuming `runtime_security.py` owns a domain allowlist.
+
+Use this package module when the task is about:
 
 - safe serving of files from `public/**`
-- browser security headers or content-security-policy defaults
 - production session-secret enforcement
 - user-facing vs production-safe exception messaging helpers
+- baseline response headers such as permissions, referrer, MIME sniffing, framing, or HSTS behavior
+
+Because this file is framework-owned, edit it only for Caspian runtime work or when documentation must match the installed package. App-specific auth policy still belongs in `src/lib/auth/auth_config.py`, and app-specific upload or storage behavior should live in route-owned code or other `src/lib/**` helpers.
 
 ### `caspian.config.json`
 

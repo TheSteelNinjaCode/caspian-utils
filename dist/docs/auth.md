@@ -229,7 +229,7 @@ The current `main.py` also wires the session middleware directly, and some apps 
 
 ```python
 from starlette.middleware.sessions import SessionMiddleware
-from src.lib.security.runtime_security import get_session_secret
+from casp.runtime_security import get_session_secret
 
 
 SESSION_LIFETIME_HOURS = int(os.getenv("SESSION_LIFETIME_HOURS", 7))
@@ -247,7 +247,7 @@ app.add_middleware(
 )
 ```
 
-Keep this wiring in `main.py`. Keep only the policy values in `src/lib/auth/auth_config.py`. If the app uses an app-owned security helper for session-secret enforcement, safe public-file serving, or browser security headers, keep that helper in `src/lib/**` and keep the middleware attachment itself in `main.py`.
+Keep this wiring in `main.py`. Keep only the policy values in `src/lib/auth/auth_config.py`. Runtime security helpers for session-secret enforcement, safe public-file serving, production-safe error messages, and baseline response headers are package-owned by `casp.runtime_security`; keep the middleware attachment itself in `main.py`.
 
 ## Session Lifetime Rules
 
@@ -287,7 +287,7 @@ Because Starlette runs the last-added middleware first, the effective request or
 
 Current behavior by layer:
 
-- `SecurityHeadersMiddleware` can attach browser security headers such as CSP, `X-Content-Type-Options`, framing policy, and HSTS while preserving any headers already set by the response.
+- `SecurityHeadersMiddleware` can attach baseline response headers from `casp.runtime_security`, such as `X-Content-Type-Options`, framing policy, referrer policy, permissions policy, and production HSTS, while preserving any headers already set by the response. Do not assume this layer emits CSP or owns third-party browser resource allowlists; verify the installed package helper first.
 - `SessionMiddleware` provides `request.session` for the rest of the stack.
 - `CSRFMiddleware` ensures `request.session["csrf_token"]` exists and emits a scoped CSRF cookie based on `pp_csrf`, for example `pp_csrf_5091` in development or plain `pp_csrf` when no dev scope is active.
 - `AuthMiddleware` sets request context with `Auth.set_request(request)`, initializes `StateManager`, runs provider callbacks, skips configured static asset paths, and enforces public, auth, private, and role-based route redirects.
@@ -816,6 +816,6 @@ If an AI agent is deciding how to handle auth in Caspian, apply these rules firs
 - Keep auth secrets and OAuth provider credentials in `.env`.
 - Set `AUTH_COOKIE_NAME` explicitly so the session middleware cookie name and auth settings stay aligned.
 - Use `.venv/Lib/site-packages/casp/auth.py` only when the task is about framework auth internals or debugging installed behavior.
-- Use `main.py` plus any app-owned runtime security helper when the task is about auth bootstrap, session middleware, browser security headers, or middleware execution order.
+- Use `main.py` plus `casp.runtime_security` when the task is about auth bootstrap, session middleware, safe public-file serving, response headers, or middleware execution order.
 - Pair auth work with `fetch-data.md` for RPC forms and `validation.md` for credential validation.
 - Check `routing.md` and `project-structure.md` before creating new auth routes or shared auth helpers.
