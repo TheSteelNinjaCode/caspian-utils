@@ -56,6 +56,7 @@ from casp.auth import (
 - Use `@rpc(require_auth=True, allowed_roles=[...])` for browser-triggered actions that need protection.
 - Use `StateManager` only for transient auth-adjacent request state; keep the authenticated session itself owned by `casp.auth`.
 - Keep secrets and provider credentials in `.env`; keep route visibility, redirects, and RBAC policy in `src/lib/auth/auth_config.py`.
+- Do not implement custom `next` parsing or post-login redirect selection inside sign-in UI flows when using the built-in Caspian auth stack. The runtime and centralized auth config already own guest redirects, auth-route redirects, and the default post-login target.
 - Validate login, signup, reset-password, and profile-mutation inputs before hitting the database or external providers.
 
 ## Framework Internals Note
@@ -121,6 +122,23 @@ Important behavior from the current implementation:
 - `role_based_routes` currently expects `PATH -> [ROLES]`, not role names keyed to paths the other way around.
 - `role_identifier` defaults to `role`, and the current `auth.sign_in(...)` flow also normalizes `userRole` into `role` when possible.
 - `api_auth_prefix` defaults to `/api/auth` and should stay centralized here rather than being hard-coded across routes.
+
+## Redirect Ownership
+
+Treat redirect behavior as framework-owned plus config-owned, not sign-in-page-owned.
+
+- Keep the redirect policy in `src/lib/auth/auth_config.py`, especially `default_signin_redirect` and `default_signout_redirect`.
+- In the current runtime, unauthenticated requests to protected routes are redirected by middleware and decorators to `/signin?next=...`.
+- In the current runtime, authenticated users who hit an auth route such as `/signin` are redirected by the auth layer to `default_signin_redirect`, which defaults to `/dashboard`.
+- `guest_only()` also prefers a safe `next` query value for already-authenticated users and otherwise falls back to `default_signin_redirect`.
+- Because this behavior already exists in `main.py`, `.venv/Lib/site-packages/casp/auth.py`, and `src/lib/auth/auth_config.py`, sign-in implementations should not add their own redirect-decision layer, duplicate `next` handling, or hard-code a dashboard redirect inside the sign-in action.
+- When building sign-in flows, focus on credential validation, calling `auth.sign_in(...)` or the relevant provider flow, and rendering errors. Let Caspian decide where the user goes next.
+
+Use this rule of thumb for AI-generated sign-in work:
+
+- If the task is only to build or style the sign-in page, do not add redirect support.
+- If the task is to change where authenticated users land after sign-in, update `default_signin_redirect` in `src/lib/auth/auth_config.py` instead of editing the sign-in route logic.
+- If the task is to change how protected routes send guests to sign-in, inspect the installed auth runtime and middleware instead of adding local redirect code to the sign-in page.
 
 ## Choosing Public vs Private Route Mode
 
