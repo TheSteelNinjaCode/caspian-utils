@@ -36,6 +36,7 @@ Start with these rules:
 - Use `layout.py` when a layout needs shared props or metadata before rendering. The `layout()` function may be synchronous or async.
 - Keep visible route and layout markup in `index.html` and `layout.html`. Treat `index.py` and `layout.py` as backend companions, not as places to author visible HTML.
 - Treat every authored route and layout template like a React component body: it must have exactly one top-level parent HTML element or one imported `x-*` root, and any owned plain `<script>` must live inside that same root.
+- For route and layout interactivity, use PulsePoint in the authored HTML first: native `on*` event attributes, `pp.state(...)`, refs, effects, directives, and `pp.rpc()`. Do not create standard JavaScript event systems with ids, `data-*` state, `querySelector`, `addEventListener`, or manual `innerHTML` for normal first-party UI.
 
 ## Hard Template Invariant
 
@@ -182,6 +183,8 @@ Route templates can import reusable Python components with `<!-- @import ... -->
 Place those import comments at the top of the file, above the authored root element. They are file-level directives, not children of the route root.
 
 Route templates follow the same authored-vs-runtime contract documented in [pulsepoint.md](./pulsepoint.md) and the same single-root discipline documented in [components.md](./components.md): keep one authored parent node, keep any `<!-- @import ... -->` directives above that root, use a plain `<script>` inside that root when needed, and do not handwrite `pp-component` or `type="text/pp"`. That root may be a native HTML element or a single imported `x-*` component tag, but after expansion it must resolve to one final HTML root.
+
+When a route needs button clicks, form submits, input changes, filters, tabs, menus, uploads, polling, or reactive list updates, author those interactions as PulsePoint behavior in `index.html`. Use `onclick`, `oninput`, `onchange`, `onsubmit`, `pp.state(...)`, `pp-for`, refs, effects, and `pp.rpc(...)` instead of starting with `id` attributes plus `document.querySelector(...)` or `addEventListener(...)`.
 
 For AI-generated route templates, treat `src/app/**/index.html` the same way you would a React component body: return one parent node that contains the entire route markup. This includes any owned script.
 
@@ -502,6 +505,7 @@ If an AI agent is choosing where to add or update route code, apply these rules 
 - If a route renders UI, create or update `index.html` for the markup.
 - Add `index.py` only when the same route needs metadata or server behavior; do not place route HTML in `index.py`.
 - Keep visible page markup in `index.html` and shared subtree shells in `layout.html`; do not place route HTML in `index.py` or layout HTML in `layout.py`.
+- Use PulsePoint as the first-party interaction model for route and layout HTML. Avoid custom DOM wiring for normal events and reactivity.
 - When the user asks for a dashboard, admin area, account section, or any grouped subtree of child routes, create a parent folder with `layout.html` and place the child routes beneath it. Follow the same mental model as the Next.js App Router.
 - Use a normal folder such as `dashboard/` when the segment should appear in the URL. Use `(group)/` only when the folder should organize or wrap child routes without adding a path segment.
 - Use [cache.md](./cache.md) when an `index.py` route should opt into page-level HTML caching.

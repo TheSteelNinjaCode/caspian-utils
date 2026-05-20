@@ -29,6 +29,7 @@ As the app grows, treat `src/components/` as the default home for reusable appli
 - Use a Python component when you want a reusable server-rendered UI building block.
 - Return an HTML string directly for small presentational components.
 - Use `render_html(...)` with a same-name `.html` file when the component has more markup, PulsePoint behavior, or clearer separation between Python logic and UI.
+- When a component needs first-party interactivity, bind events in the component template with PulsePoint-handled `on*` attributes and keep state in `pp.state(...)`; do not build id-driven `querySelector(...)` or `addEventListener(...)` wiring for normal component behavior.
 - Keep page-level workflows in `src/app/`, move reusable UI into `src/components/`, and keep helpers, services, validators, and adapters in `src/lib/`.
 
 ## Framework Internals Note
@@ -355,6 +356,7 @@ Keep synchronous components as the default. Switch to `async def` only when the 
 - Put reusable components in `src/components/` and keep route files in `src/app/`.
 - For dashboards, admin areas, account sections, and route groups with child routes, put the shared shell in the parent folder's `layout.html` and compose it from reusable components there instead of repeating the same shell in every child `index.html`.
 - If the component includes PulsePoint behavior, prefer a thin Python wrapper plus a same-name `.html` template.
+- For component clicks, inputs, menus, toggles, filters, and list updates, use PulsePoint events and directives inside that `.html` template. Avoid manual DOM selection, manual listener setup, and manual `innerHTML` rendering unless integrating a third-party imperative widget.
 - Keep the component file name, exported function name, and authored tag aligned, such as `Button.py`, `def Button(...)`, and `<x-button />`.
 - Accept `children` or `**props` when the component should support nested content.
 - Keep page-level data loading in `page()` when the data is not intrinsic to the component itself.

@@ -30,6 +30,7 @@ Before making feature, tooling, or file-placement decisions in a Caspian project
 When generating or editing a Caspian app, treat these as the default choices unless the task explicitly requires something else:
 
 - Use PulsePoint for reactive frontend behavior.
+- For first-party HTML events and reactivity, use PulsePoint `on*` attributes, state, refs, effects, directives, and `pp.rpc()` instead of ordinary DOM wiring with ids, `data-*` state, `querySelector`, `addEventListener`, or manual `innerHTML`.
 - Treat every authored route, layout, and component HTML file like a React component return value: exactly one top-level parent HTML element or one imported `x-*` root, with any owned plain `<script>` kept inside that same root.
 - When `caspian.config.json` has `tailwindcss: true`, use Python `merge_classes(...)` plus browser `twMerge(...)` as the only supported Tailwind class-merging path.
 - Use `@rpc()` plus `pp.rpc()` for browser-triggered reads, writes, streaming, and uploads.
@@ -80,7 +81,7 @@ The packaged Caspian docs referenced by this index live here:
 - `auth.md` - Session-backed authentication with `casp.auth`, centralized `auth_config.py`, public-vs-private route mode guidance, RPC-first signout guidance, RBAC, and OAuth provider helpers
 - `file-conventions.md` - quick decision guide for `index.html`, `index.py`, `layout.html`, `layout.py`, `loading.html`, `not-found.html`, and `error.html`, plus the owning runtime files to verify
 - `components.md` - Create reusable Python components, template-backed UI, HTML-first `x-*` component tags, the single-parent authored-root rule for component HTML files, and the Python-side `merge_classes(...)` contract when Tailwind CSS is enabled
-- `pulsepoint.md` - Default reactive frontend runtime contract for component scripts, state, effects, directives, SPA navigation scroll restoration, `pp-reset-scroll`, and direct browser `twMerge(...)` usage when Tailwind CSS is enabled
+- `pulsepoint.md` - Default reactive frontend runtime contract for component scripts, first-party `on*` events, state, effects, directives, SPA navigation scroll restoration, `pp-reset-scroll`, and direct browser `twMerge(...)` usage when Tailwind CSS is enabled
 - `fetch-data.md` - Initial server-side data loading and browser-triggered RPC flows with `pp.rpc()`, streaming, uploads, and auth-aware actions
 - `file-uploads.md` - Route-local file uploads and file-manager flows with `@rpc()`, `pp.rpc()`, Prisma metadata, public asset storage, and BrowserSync ignore rules
 - `state.md` - Request-scoped server state with `StateManager`, session-backed JSON persistence, and listener callbacks for transient flows
@@ -99,14 +100,15 @@ Preferred lookup order:
 1. Read `node_modules/caspian-utils/dist/docs/index.md` to discover available local docs.
 2. Read `./caspian.config.json` before making any feature assumption. A doc existing in the package does not mean that feature is enabled in the current project.
 3. Before authoring or editing any `src/app/**` or component HTML template, apply the single-root invariant: one authored root only, any owned `<script>` inside that root, and no handwritten `pp-component` or `type="text/pp"`.
-4. Treat `caspian.config.json` as the single source of truth for optional features. Use feature-specific docs only when the matching flag is enabled. If a feature is disabled and the user wants it, ask first, then update `caspian.config.json` and follow the update workflow in `commands.md`.
-5. If the task touches `main.py` or `.venv/Lib/site-packages/casp/**`, read `core-runtime-map.md` to jump to the controlling runtime file and the matching feature doc.
-6. If the task names a PulsePoint feature or directive, read `pulsepoint-runtime-map.md` for the fastest feature-to-runtime lookup, then read `pulsepoint.md` for authoring rules.
-7. After the feature is confirmed, inspect the actual project files that decide behavior, such as `package.json`, `main.py`, `src/app/**`, `src/lib/**`, `settings/**`, `prisma/**`, and the installed `casp` runtime.
-8. Use `file-conventions.md` for quick decisions about `index.html`, `index.py`, `layout.html`, `layout.py`, `loading.html`, `not-found.html`, and `error.html`; use `commands.md` for scaffold and update workflows, `project-structure.md` for placement decisions, and the feature docs such as `mcp.md`, `database.md`, `auth.md`, `fetch-data.md`, and `file-uploads.md` for task-specific guidance.
-9. Prefer packaged Caspian docs before upstream documentation when generating code, commands, or migration guidance.
-10. Use `ai-validation-checklist.md` when you want to verify that the docs lead AI to the correct files and behavior checkpoints.
-11. Keep `index.md` and cross-links aligned so AI can quickly discover the right doc.
+4. Before inventing browser JavaScript, check whether the interaction is first-party UI behavior. If it is, use PulsePoint `on*` attributes, `pp.state`, refs, effects, directives, and `pp.rpc()` rather than id-driven DOM scripting.
+5. Treat `caspian.config.json` as the single source of truth for optional features. Use feature-specific docs only when the matching flag is enabled. If a feature is disabled and the user wants it, ask first, then update `caspian.config.json` and follow the update workflow in `commands.md`.
+6. If the task touches `main.py` or `.venv/Lib/site-packages/casp/**`, read `core-runtime-map.md` to jump to the controlling runtime file and the matching feature doc.
+7. If the task names a PulsePoint feature or directive, read `pulsepoint-runtime-map.md` for the fastest feature-to-runtime lookup, then read `pulsepoint.md` for authoring rules.
+8. After the feature is confirmed, inspect the actual project files that decide behavior, such as `package.json`, `main.py`, `src/app/**`, `src/lib/**`, `settings/**`, `prisma/**`, and the installed `casp` runtime.
+9. Use `file-conventions.md` for quick decisions about `index.html`, `index.py`, `layout.html`, `layout.py`, `loading.html`, `not-found.html`, and `error.html`; use `commands.md` for scaffold and update workflows, `project-structure.md` for placement decisions, and the feature docs such as `mcp.md`, `database.md`, `auth.md`, `fetch-data.md`, and `file-uploads.md` for task-specific guidance.
+10. Prefer packaged Caspian docs before upstream documentation when generating code, commands, or migration guidance.
+11. Use `ai-validation-checklist.md` when you want to verify that the docs lead AI to the correct files and behavior checkpoints.
+12. Keep `index.md` and cross-links aligned so AI can quickly discover the right doc.
 
 ## Maintenance
 

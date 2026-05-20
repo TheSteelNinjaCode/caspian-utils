@@ -23,6 +23,8 @@ This page explains how data fetching works in Caspian. Use route functions for i
 
 Treat RPC as the default way for browser code to talk to Python in Caspian. For CRUD operations and any browser-initiated backend reads after first render, default to `@rpc()` on the server and `pp.rpc()` in PulsePoint code. Do not reach for ad hoc fetch calls to custom JSON endpoints, alternate transport layers, or older helper names unless the task explicitly requires that shape.
 
+Browser-triggered data work should still be PulsePoint-first at the event layer. Bind the initiating click, submit, input, upload, refresh, filter, or pagination control in authored HTML with `onclick`, `onsubmit`, `oninput`, `onchange`, or another native `on*` attribute handled by PulsePoint. Do not set up first-party data actions by assigning ids and then wiring `querySelector(...)`, `addEventListener(...)`, manual `fetch(...)`, or manual DOM repainting.
+
 MCP is a separate integration surface. Do not place app-owned FastMCP tools in route `index.py` files or treat `@rpc()` actions as a replacement for MCP tools. Use `mcp.md` and `src/lib/mcp/` only when `caspian.config.json` has `mcp: true`. If `mcp` is false, do not assume those files exist.
 
 ## Overview
@@ -47,6 +49,7 @@ When a page belongs to a grouped subtree such as a dashboard, account area, admi
 - Use `page()` for async or route-level data required before HTML renders, and use `layout()` only for synchronous shared props or metadata.
 - When a route renders UI and also needs backend work, keep the HTML in the sibling `index.html`; `index.py` should prepare data and call `render_page(__file__, ...)`, not inline the route markup.
 - Use `@rpc()` on the server and `pp.rpc()` in PulsePoint code for all browser-triggered data work after first render, including CRUD operations and follow-up reads.
+- Trigger those browser actions through PulsePoint event attributes in the HTML, not through a separate DOM listener layer.
 - Keep custom REST or other endpoint patterns as explicit exceptions, not the baseline Caspian approach.
 
 ## Initial Data In `index.py`

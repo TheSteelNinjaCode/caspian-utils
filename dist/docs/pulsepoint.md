@@ -54,10 +54,86 @@ When a Caspian page needs reactive browser behavior, use PulsePoint.
 
 - Use PulsePoint component roots, scripts, directives, and runtime helpers for interactive UI.
 - Use PulsePoint state, effects, refs, and template directives as the default reactivity model in authored Caspian templates.
+- Bind first-party events in the HTML with PulsePoint-handled native `on*` attributes such as `onclick`, `oninput`, `onchange`, and `onsubmit`.
 - When the browser needs CRUD operations or follow-up reads from the backend, call `pp.rpc()` from PulsePoint code and back it with route or backend `@rpc()` actions.
 - Keep server-rendered HTML plus PulsePoint enhancement as the baseline architecture.
 - For dashboards, admin areas, account sections, docs sections, and other grouped subtrees, keep shared shell markup and shared PulsePoint behavior in the parent folder's `layout.html`, then keep child-route PulsePoint state local to each `index.html`. Follow the same mental model as the Next.js App Router.
 - Only introduce another frontend runtime when the user explicitly asks for it or the project already depends on one.
+
+## PulsePoint-First Events And Reactivity
+
+For first-party Caspian HTML, PulsePoint is not a later enhancement after ordinary JavaScript. It is the event, state, and reactivity model AI should use from the start.
+
+Default to this workflow:
+
+- Put the button, form, input, toggle, menu, filter, upload control, or list markup directly in the route, layout, or component HTML template.
+- Bind events with native `on*` attributes handled by PulsePoint, for example `onclick="save()"`, `oninput="setQuery(event.target.value)"`, or `onsubmit="{submitForm(event)}"`.
+- This is the PulsePoint `onClick`/native event-attribute model. Authored examples use lowercase HTML spellings such as `onclick` because browser HTML normalizes attribute names, but the important rule is to bind the event in the template instead of wiring it later with DOM selectors.
+- Keep reactive values in `pp.state(...)`.
+- Render conditional text, classes, attributes, lists, and styles with template expressions, `pp-for`, `pp-style`, `pp-spread`, and other PulsePoint-supported template features.
+- Use `pp.ref(...)` and `pp-ref` when a real element reference is needed.
+- Use `pp.effect(...)` or `pp.layoutEffect(...)` for lifecycle work that must happen after render.
+- Use `pp.rpc(...)` for browser-triggered backend reads and writes.
+
+Avoid building a parallel JavaScript layer for normal UI behavior:
+
+- Do not add ids only so a script can find elements with `document.querySelector(...)` or `document.getElementById(...)`.
+- Do not use `data-*` attributes as a private client state system when PulsePoint state or props should own the data.
+- Do not bind normal first-party clicks, input changes, submits, filters, menus, or toggles with `addEventListener(...)`.
+- Do not repaint first-party lists or panels with manual `innerHTML` writes when `pp.state(...)` plus `pp-for` can express the same UI.
+- Do not create a custom client-side store, event bus, or hydration routine for behavior that belongs in a PulsePoint component script.
+
+Use direct DOM APIs only as a narrow escape hatch: third-party widgets, browser APIs that require imperative access, measurements, focus, media, canvas, or behavior the current PulsePoint runtime cannot express declaratively. Even then, keep the imperative code inside the owning PulsePoint component script, usually through `pp.ref(...)` plus `pp.effect(...)`, so PulsePoint still owns the component's state, cleanup, and event flow.
+
+Preferred authored pattern:
+
+```html
+<section>
+  <input value="{query}" oninput="setQuery(event.target.value)" />
+  <button onclick="clearSearch()" disabled="{query.length === 0}">Clear</button>
+
+  <ul>
+    <template pp-for="item in filteredItems">
+      <li key="{item.id}">{item.label}</li>
+    </template>
+  </ul>
+
+  <script>
+    const [query, setQuery] = pp.state("");
+    const items = pp.props.items ?? [];
+    const filteredItems = items.filter((item) =>
+      item.label.toLowerCase().includes(query.toLowerCase())
+    );
+
+    function clearSearch() {
+      setQuery("");
+    }
+  </script>
+</section>
+```
+
+Avoid this first-party pattern:
+
+```html
+<section>
+  <input id="search" />
+  <button id="clear-search">Clear</button>
+  <ul id="results"></ul>
+
+  <script>
+    const input = document.querySelector("#search");
+    const button = document.querySelector("#clear-search");
+    const results = document.querySelector("#results");
+
+    button.addEventListener("click", () => {
+      input.value = "";
+      results.innerHTML = "";
+    });
+  </script>
+</section>
+```
+
+That second shape recreates a separate event and rendering system inside a Caspian component. It is harder to maintain because it bypasses PulsePoint's rerender, event rebinding, refs, cleanup, and backend RPC conventions.
 
 ## Authoring Model
 
@@ -389,12 +465,14 @@ Example:
 
 ## Events
 
-- Use native `on*` attributes such as `onclick`, `oninput`, and `onsubmit`.
+- Use native `on*` attributes such as `onclick`, `oninput`, `onchange`, and `onsubmit` for first-party events.
+- Treat this as the HTML form of `onClick`-style PulsePoint event binding. Prefer lowercase examples in authored HTML because the browser normalizes attribute names.
 - Event values may be raw code or wrapped in `{...}`.
 - The runtime injects `event`, `e`, `$event`, `target`, `currentTarget`, and `el`.
 - Do not use hyphenated event attrs like `on-click`.
 - Event attributes are removed from the live DOM after binding and rebound after DOM morphing.
 - Owned template/event-owner internals are runtime-managed. Do not author them directly.
+- Do not replace normal PulsePoint event attributes with id-driven `querySelector(...)` plus `addEventListener(...)` wiring. If an imperative listener is unavoidable for an integration, attach and clean it up from `pp.effect(...)`.
 
 ## SPA, loading, and navigation helpers
 
@@ -449,6 +527,7 @@ These are runtime details.
 Use these rules when generating or editing PulsePoint runtime code:
 
 - Treat PulsePoint as the default reactive frontend for Caspian app code.
+- For first-party HTML interactions, use PulsePoint `on*` event attributes, state, refs, effects, directives, and `pp.rpc()` before reaching for DOM APIs.
 - Treat `pp.rpc()` as the default browser-to-server path for CRUD operations and interactive backend reads.
 - Use `public/js/pp-reactive-v2.js` as the shipped runtime contract AI should follow.
 - Keep `main.py` in view because it injects the runtime-facing attributes and rewrites authored scripts before the browser sees them.
@@ -457,6 +536,7 @@ Use these rules when generating or editing PulsePoint runtime code:
 - For grouped subtrees, follow the section layout pattern in [routing.md](./routing.md), keep the shared interactive shell in the parent folder's `layout.html`, and keep route-specific PulsePoint code in each child `index.html`.
 - For grouped shells with independent shell and content scrolling, put `pp-reset-scroll="true"` on the content pane rather than the whole shell when only the page content should reset between child-route navigations.
 - Prefer PulsePoint state and template directives over manual DOM mutation for reactive updates.
+- Avoid generating ids, `data-*` state, `querySelector`, `getElementById`, `addEventListener`, manual `innerHTML`, or custom event buses for normal Caspian UI behavior.
 - If you are explicitly editing raw runtime HTML or internals, keep `pp-component` unique per live instance.
 - In authored templates, use a plain `<script>` inside the root. In runtime HTML, the owned script appears as `script[type="text/pp"]`.
 - Keep template-facing variables at top level.
@@ -476,6 +556,7 @@ Use these rules when generating or editing PulsePoint runtime code:
 Do not generate these unless the current source explicitly adds support:
 
 - React, Vue, Svelte, Alpine, HTMX, or JSX-first patterns as the default Caspian frontend approach
+- standard DOM scripting as the default first-party interaction model, including id/data-attribute driven `querySelector(...)`, `addEventListener(...)`, or manual `innerHTML` rendering for normal buttons, forms, filters, toggles, uploads, and reactive lists
 - `pp-context`
 - `pp-key`
 - `data-pp-ref`

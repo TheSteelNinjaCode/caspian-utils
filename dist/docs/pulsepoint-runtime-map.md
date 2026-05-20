@@ -40,7 +40,7 @@ If an inspected browser DOM disagrees with authored template source, remember th
 | Context | `pp.createContext(...)`, `<Context.Provider>`, `pp.context(token)` | `pp-reactive-v2.js` | ancestry is logical component ancestry; do not invent `pp-context` or `pp.provideContext` |
 | Portals | `pp.portal(ref, target?)` | `pp-reactive-v2.js` | context should preserve logical ancestry through the registry |
 | Lists | `<template pp-for="item in items">` | `pp-reactive-v2.js` | `pp-for` belongs on `<template>`, use plain `key`, not `pp-key` |
-| Events | native `onclick`, `oninput`, `onsubmit` | `pp-reactive-v2.js` | event scope exposes `event`, `e`, `$event`, `target`, `currentTarget`, and `el` |
+| Events | native `onclick`, `oninput`, `onchange`, `onsubmit` | `pp-reactive-v2.js` | first-party events belong in `on*` attributes; event scope exposes `event`, `e`, `$event`, `target`, `currentTarget`, and `el`; avoid id-driven `querySelector`/`addEventListener` for normal UI |
 | RPC | `pp.rpc(...)` in scripts, `@rpc()` in Python | `pp-reactive-v2.js`, `casp/rpc.py` | use `pp.rpc`, not legacy `pp.fetchFunction`; protected actions use `@rpc(require_auth=True)` |
 | Upload progress | `pp.rpc(..., { onUploadProgress })` | `pp-reactive-v2.js`, `casp/rpc.py` | XHR path is used for progress callbacks; replace state from returned payload |
 | Streaming | `pp.rpc(..., { onStream })` | `pp-reactive-v2.js`, `casp/rpc.py`, `casp/streaming.py` | server generators become SSE responses |
@@ -56,6 +56,7 @@ If an inspected browser DOM disagrees with authored template source, remember th
 - Read [fetch-data.md](./fetch-data.md) before adding browser-triggered backend work.
 - Use this map when the task names a PulsePoint feature and you need the owning runtime file quickly.
 - Verify implemented behavior in `public/js/pp-reactive-v2.js` before adding new PulsePoint API claims.
+- If an interaction is normal first-party HTML behavior, route it through PulsePoint before considering standard DOM scripting.
 
 ## Copy-Safe Authoring Rules
 
@@ -63,9 +64,11 @@ If an inspected browser DOM disagrees with authored template source, remember th
 - Keep any owned plain `<script>` inside that same root.
 - Do not handwrite `pp-component`, `type="text/pp"`, `data-pp-ref`, `pp-owner`, `pp-event-owner`, or other runtime-managed attributes.
 - Use `pp.rpc(...)` for current browser-to-server calls.
+- Use native `on*` attributes for button clicks, form submits, input changes, filters, toggles, and menus instead of adding ids and manual listeners.
 - Use `Context.Provider` and `pp.context(...)` for context.
 - Use `pp-for` only on `<template>` and plain `key` for keyed lists.
 - Prefer PulsePoint state and directives over manual `innerHTML` repainting.
+- Keep direct DOM APIs inside `pp.ref(...)` plus `pp.effect(...)` only when a third-party or browser API integration actually requires them.
 
 ## Compact Examples
 
