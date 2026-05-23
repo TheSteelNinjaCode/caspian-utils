@@ -33,7 +33,7 @@ Treat `caspian.config.json` and the actual project tree as the source of truth f
 | `index.html` | Authored visible page template for a route | The route renders UI | `src/app/**`, `routing.md`, `pulsepoint.md` |
 | `index.py` | Backend companion for route logic and metadata | The route needs `page()`, metadata, auth checks, redirects, caching, or route-owned `@rpc()` actions | `main.py`, `.venv/Lib/site-packages/casp/layout.py` |
 | `layout.html` | Shared shell for a route subtree | Multiple child routes share wrapper markup | `.venv/Lib/site-packages/casp/layout.py`, `routing.md` |
-| `layout.py` | Shared synchronous props and metadata defaults for a subtree | The shared shell needs Python-provided values or metadata | `.venv/Lib/site-packages/casp/layout.py`, `metadata.md` |
+| `layout.py` | Shared props and metadata defaults for a subtree | The shared shell needs Python-provided values or metadata | `.venv/Lib/site-packages/casp/layout.py`, `metadata.md` |
 | `loading.html` | Route-scope loading UI used during SPA navigation | A section or page needs an immediate loading state before the next route finishes rendering | `.venv/Lib/site-packages/casp/loading.py`, `public/js/pp-reactive-v2.js` |
 | `not-found.html` | Global 404 page | The app needs a branded fallback for unmatched URLs | `main.py` |
 | `error.html` | Global 500 page | The app needs a safe fallback for unhandled exceptions | `main.py` |
@@ -129,9 +129,9 @@ When one page needs to influence a wrapping layout, `page()` can return `(page_h
 Use it for:
 
 - shared shell markup such as sidebars, headers, docs rails, or dashboard frames
-- the `[[children|safe]]` insertion point for child routes
-- shared layout props consumed as `[[ layout.* ]]`
-- shared metadata fields consumed as `[[ metadata.* ]]`
+- the `<slot />` insertion point for child routes
+- shared layout props consumed as `{{ layout.* }}`
+- shared metadata fields consumed as `{{ metadata.* }}`
 
 Example:
 
@@ -140,12 +140,14 @@ Example:
   <aside class="docs-nav">Docs navigation</aside>
 
   <main class="docs-content" pp-reset-scroll="true">
-    [[children|safe]]
+    <slot />
   </main>
 </div>
 ```
 
 Use nested `layout.html` files for sections like `dashboard/`, `docs/`, `account/`, or route groups such as `(marketing)/`.
+
+The child outlet must be a real authored `<slot />` element in `layout.html`. The runtime parses layout HTML and replaces real slot elements during nested rendering; it does not invent an implicit slot from `layout.py` or replace escaped documentation text such as `&lt;slot /&gt;`.
 
 In grouped shells with separate shell and content scrolling, put `pp-reset-scroll="true"` on the content pane that should reset on child-route navigation. Leave persistent shell scrollers such as sidebars unmarked when they should keep their own scroll position.
 
@@ -155,7 +157,7 @@ In grouped shells with separate shell and content scrolling, put `pp-reset-scrol
 
 Use it for:
 
-- shared synchronous props
+- shared props
 - metadata defaults for everything below that folder
 - small shared layout decisions that belong to the subtree rather than one page
 
@@ -179,7 +181,7 @@ def layout():
     }
 ```
 
-Important runtime detail: `layout()` is synchronous in the installed runtime. Put async I/O in route `page()` functions or route-owned `@rpc()` actions instead of awaiting inside `layout.py`.
+Important runtime detail: `layout()` may be synchronous or async in the installed runtime. Keep async layout work focused on shared subtree props or metadata; put route-specific first-render data in `page()` and browser-triggered work in route-owned `@rpc()` actions.
 
 ## `loading.html`
 
@@ -199,7 +201,7 @@ Example layout shell:
 
 ```html
 <main class="docs-content" pp-loading-content="true" pp-reset-scroll="true">
-  [[children|safe]]
+  <slot />
 </main>
 ```
 

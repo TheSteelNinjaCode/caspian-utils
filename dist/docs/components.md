@@ -39,8 +39,6 @@ When the task is about component internals rather than normal app-owned componen
 - `.venv/Lib/site-packages/casp/component_decorator.py` owns `@component`, `Component`, `render_html(...)`, and component loading.
 - `.venv/Lib/site-packages/casp/components_compiler.py` owns `@import` parsing, `x-*` tag resolution, root validation, and `pp-component` injection.
 - `.venv/Lib/site-packages/casp/html_attrs.py` owns `get_attributes(...)` and the Python-side `merge_classes(...)` contract.
-- `.venv/Lib/site-packages/casp/syntax_compiler.py` owns Caspian template syntax transpilation before Jinja render.
-
 Use [core-runtime-map.md](./core-runtime-map.md) when you need the broader Python runtime-module map. Use [pulsepoint-runtime-map.md](./pulsepoint-runtime-map.md) when a component task is specifically about browser-side PulsePoint state, refs, context, portals, events, RPC, or SPA behavior.
 
 ## Basic Component
@@ -203,7 +201,7 @@ def Counter(label: str = "Clicks") -> str:
 
 ```html
 <div>
-  <h3>[[ label ]]</h3>
+  <h3>{{ label }}</h3>
   <button onclick="setCount(count + 1)">
     {count}
   </button>

@@ -12,7 +12,7 @@ related:
 
 This page explains how Caspian handles document metadata, SEO fields, and social sharing tags.
 
-At render time, Caspian resolves metadata through the layout engine and exposes the merged result to templates as `[[ metadata.* ]]`.
+At render time, Caspian resolves metadata through the layout engine and exposes the merged result to templates as `{{ metadata.* }}`.
 
 ## Source Of Truth
 
@@ -20,7 +20,7 @@ At render time, Caspian resolves metadata through the layout engine and exposes 
 - Route registration and runtime metadata collection are controlled by `main.py`.
 - Shared metadata defaults belong in `src/app/**/layout.py`.
 - Page-specific static or dynamic metadata belongs in `src/app/**/index.py`.
-- Rendered metadata is consumed from layout templates through `[[ metadata.* ]]`.
+- Rendered metadata is consumed from layout templates through `{{ metadata.* }}`.
 
 ## Overview
 
@@ -168,10 +168,10 @@ Resolved metadata is passed into layout rendering as a `metadata` object.
 Example:
 
 ```html
-<title>[[ metadata.title ]]</title>
-<meta name="description" content="[[ metadata.description ]]" />
-<meta property="og:image" content="[[ metadata['og:image'] ]]" />
-<meta name="twitter:card" content="[[ metadata['twitter:card'] ]]" />
+<title>{{ metadata.title }}</title>
+<meta name="description" content="{{ metadata.description }}" />
+<meta property="og:image" content="{{ metadata['og:image'] }}" />
+<meta name="twitter:card" content="{{ metadata['twitter:card'] }}" />
 ```
 
 Use bracket access for `extra` keys that contain characters such as `:`.
@@ -196,9 +196,9 @@ Use stable, publicly reachable image paths for social cards so crawlers can fetc
 
 Keep visual layout data and SEO metadata separate.
 
-- Values returned from `layout()` are exposed as `[[ layout.* ]]`.
-- The second dict returned from `page()` as `(page_html, layout_props_dict)` is also exposed to wrapping layouts as `[[ layout.* ]]`.
-- SEO values are exposed as `[[ metadata.* ]]`.
+- Values returned from `layout()` are exposed as `{{ layout.* }}`.
+- The second dict returned from `page()` as `(page_html, layout_props_dict)` is also exposed to wrapping layouts as `{{ layout.* }}`.
+- SEO values are exposed as `{{ metadata.* }}`.
 - Do not return `title` or `description` from `layout()` expecting SEO changes.
 - The layout engine explicitly strips `title` and `description` from layout props to avoid mixing visual props with metadata.
 
@@ -223,5 +223,5 @@ If an AI agent is deciding where to put SEO fields, apply these rules first.
 - If a single route only needs to tweak a wrapping layout, return `(render_page(__file__, ...), {"dashboard_body_class": ...})` from `page()` instead of moving that prop into metadata.
 - Use `extra` for Open Graph and Twitter card tags.
 - Access `extra` values in templates with bracket syntax such as `metadata['og:image']`.
-- Keep `layout()` return data in `[[ layout.* ]]` and keep SEO fields in `Metadata(...)`.
+- Keep `layout()` return data in `{{ layout.* }}` and keep SEO fields in `Metadata(...)`.
 - Check [routing.md](./routing.md) when deciding whether metadata belongs in a layout or a specific route folder.

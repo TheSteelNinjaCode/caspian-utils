@@ -22,12 +22,12 @@ Treat `casp.auth` as the default authentication layer in Caspian app code. Do no
 
 Caspian authentication has two main layers:
 
-- app-level policy in `src/lib/auth/auth_config.py`
-- framework runtime behavior in `.venv/Lib/site-packages/casp/auth.py`
+- app-level policy, controlled by `src/lib/auth/auth_config.py`
+- framework runtime behavior, implemented by `.venv/Lib/site-packages/casp/auth.py`
 
 The main public API includes:
 
-- `AuthSettings` for centralized auth configuration
+- `AuthSettings` for centralized app auth policy
 - `configure_auth(...)` and `get_auth_settings()` for app startup and reads
 - the global `auth` object for session lifecycle work
 - `require_auth`, `require_role`, and `guest_only` for page-level protection
@@ -49,7 +49,7 @@ from casp.auth import (
 
 ## Default Auth Rule
 
-- Define app-wide auth behavior in `build_auth_settings()` and apply it once at startup with `configure_auth(...)`.
+- Define app-wide auth behavior in `src/lib/auth/auth_config.py` through `build_auth_settings()` and apply it once at startup with `configure_auth(...)`.
 - Use `auth.sign_in(...)` and `auth.sign_out(...)` instead of setting or clearing session keys directly.
 - Prefer `pp.rpc(...)` plus `@rpc(require_auth=True)` for signout buttons or menus rendered in pages or components. Use a dedicated signout route only when you need a plain HTML form POST or a no-JavaScript fallback.
 - Use `@require_auth`, `@require_role`, and `@guest_only` for page access rules.
@@ -61,15 +61,15 @@ from casp.auth import (
 
 ## Framework Internals Note
 
-- The centralized app auth config belongs in `src/lib/auth/auth_config.py`.
+- The centralized app auth policy controller is `src/lib/auth/auth_config.py`.
 - The installed framework implementation lives in `.venv/Lib/site-packages/casp/auth.py`.
-- Treat `auth_config.py` as project code and `casp/auth.py` as framework code.
+- Treat `auth_config.py` as project code and `casp/auth.py` as framework runtime code. Do not edit `casp/auth.py` to control app route privacy, redirects, or RBAC.
 - If upstream docs and the installed implementation disagree, prefer the installed implementation for local project guidance.
 - Use [core-runtime-map.md](./core-runtime-map.md) when an auth task crosses `main.py` bootstrap behavior such as development cookie scoping or middleware ownership.
 
 ## Centralized Auth Settings
 
-Keep application auth policy in `src/lib/auth/auth_config.py`.
+Keep application auth policy in `src/lib/auth/auth_config.py`. This file is the controller for route privacy, redirects, and RBAC.
 
 Example:
 
@@ -80,10 +80,12 @@ from casp.auth import AuthSettings
 
 def build_auth_settings() -> AuthSettings:
     """
-    Centralized auth configuration.
+    Centralized app auth policy controller.
 
     Keep secrets (AUTH_SECRET, AUTH_COOKIE_NAME) in .env.
     Keep app-level session settings in .env (SESSION_LIFETIME_HOURS, etc).
+    Decide route privacy, redirects, and RBAC here at app setup time instead of
+    changing Caspian core runtime files.
     """
 
     return AuthSettings(
@@ -101,7 +103,7 @@ def build_auth_settings() -> AuthSettings:
         is_role_based=False,
         role_identifier="role",
 
-        # IMPORTANT: current casp.auth expects PATH -> [ROLES]
+        # RBAC policy is app-owned here; the runtime expects ROUTE/PATTERN -> [ROLES].
         role_based_routes={},
 
         # Redirects / prefixes
@@ -150,7 +152,7 @@ Make this decision at app setup time in `src/lib/auth/auth_config.py`.
 - In the current runtime, `auth_routes=["/signin", "/signup"]` stays public by default, and most apps do not need to change it unless the user explicitly asks for different auth routes.
 - In all-private mode, the default `public_routes=["/"]` keeps the home page public unless you change that list.
 - `token_auto_refresh=True` does not make routes private. It only enables sliding-session refresh when the request lifecycle calls `auth.refresh_session()`.
-- You do not need to modify Caspian core files for this decision. Keep the policy in `src/lib/auth/auth_config.py`.
+- Do not modify Caspian core files for this decision. Keep the policy in `src/lib/auth/auth_config.py`.
 - If you customize `src/lib/auth/auth_config.py`, add it to `excludeFiles` in `caspian.config.json` so update commands do not overwrite your local auth policy.
 
 Example all-private setup with a few public exceptions:
@@ -764,17 +766,6 @@ Behavior:
 - If no request or session is available, it returns an empty string.
 
 Use this helper when custom form or fetch flows need access to the session CSRF token.
-
-## Backwards Compatibility Alias
-
-The installed auth file still includes `AuthConfig` as a compatibility alias.
-
-It exposes:
-
-- property proxies for `PUBLIC_ROUTES`, `PRIVATE_ROUTES`, `AUTH_ROUTES`, `IS_ALL_ROUTES_PRIVATE`, `DEFAULT_SIGNIN_REDIRECT`, and `DEFAULT_SIGNOUT_REDIRECT`
-- `AuthConfig.check_auth_role(...)` as a proxy to `auth.check_role(...)`
-
-Prefer `AuthSettings`, `configure_auth(...)`, and `auth.settings` in new code.
 
 ## Current Implementation Notes
 

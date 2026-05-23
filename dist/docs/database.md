@@ -178,7 +178,7 @@ Prisma calls fit naturally in:
 - `async def page()` for first-render data
 - `@rpc()` actions for browser-triggered reads and writes
 
-Keep Prisma I/O out of `layout.py` in the current runtime because `casp.layout` calls `layout()` synchronously.
+Keep route-specific Prisma I/O in `page()` or `@rpc()` actions. The installed layout engine supports synchronous and async `layout()` results, but layout work should stay focused on shared subtree props or metadata.
 
 See `fetch-data.md` for the recommended route-render versus RPC split.
 
@@ -352,5 +352,5 @@ If an AI agent is working on a Caspian app with Prisma enabled, apply these rule
 - Reuse the existing `src/lib/prisma/` package when the Python app needs database access.
 - For file managers and uploads, persist metadata in Prisma and keep blob storage separate. See [file-uploads.md](./file-uploads.md).
 - Put reusable database helpers in `src/lib/`; keep route and RPC orchestration in `src/app/`.
-- Use `async def page()` for first-render reads. Keep `layout()` synchronous in the current runtime, and use `@rpc()` plus `pp.rpc()` for browser-triggered reads and writes.
+- Use `async def page()` for route-specific first-render reads. Use `layout()` only for shared subtree props or metadata, and use `@rpc()` plus `pp.rpc()` for browser-triggered reads and writes.
 - Check `fetch-data.md` for route versus RPC guidance and `validation.md` before writing public mutations.

@@ -260,15 +260,15 @@ Use this pattern when the route needs to fetch data, compute metadata, or do oth
 `page()` may also return a 2-item tuple: `(page_html, layout_props_dict)`.
 
 - The first item is the rendered page HTML, usually `render_page(__file__, page_context)`.
-- The second item must be a dict. Its keys are merged into the wrapping layout context and become available to parent layouts as `[[ layout.* ]]`.
+- The second item must be a dict. Its keys are merged into the wrapping layout context and become available to parent layouts as `{{ layout.* }}`.
 
 Use that tuple form when one route needs to influence a wrapper without turning that value into a section-wide default. A common example is a dashboard page that needs to lock the root body with `overflow-hidden` while the rest of the app keeps normal scrolling.
 
 Example root layout:
 
 ```html
-<body class="[[ layout.dashboard_body_class | default('') ]]">
-  [[ children | safe ]]
+<body class="{{ layout.dashboard_body_class | default('') }}">
+  <slot />
 </body>
 ```
 
@@ -284,7 +284,7 @@ async def page():
   )
 ```
 
-The key name is arbitrary, but it must match exactly between the dict returned from `page()` and the `[[ layout.some_key ]]` lookup in `layout.html`.
+The key name is arbitrary, but it must match exactly between the dict returned from `page()` and the `{{ layout.some_key }}` lookup in `layout.html`.
 
 Use distinct names for those layout props. In the current router, the second dict is merged into the full layout context after path params and `request`, so a key such as `slug` or `request` can shadow an existing value.
 
@@ -366,13 +366,15 @@ In practice, this means a dashboard is usually a folder-level layout, not a sing
 
 When a layout imports components, keep each `<!-- @import ... -->` comment above the layout's authored wrapper element, such as the root `<section>` in a nested layout or the root `<html>` in the app layout.
 
-Resolved SEO fields are exposed to layouts as `[[ metadata.* ]]`, while values returned from `layout.py` are exposed separately as `[[ layout.* ]]`.
+Resolved SEO fields are exposed to layouts as `{{ metadata.* }}`, while values returned from `layout.py` are exposed separately as `{{ layout.* }}`.
 
 ### `layout.html`
 
 Use `layout.html` for the shared wrapper markup of a subtree. Keep the visible shell here, not in `layout.py`.
 
 Follow the same authoring contract used by route templates: one authored parent node, top-of-file `<!-- @import ... -->` directives above that root, plain `<script>` inside the root when needed, and no handwritten `pp-component` or `type="text/pp"`. See [pulsepoint.md](./pulsepoint.md) for the canonical authored-vs-runtime explanation.
+
+Place child routes with a plain HTML `<slot />` tag. Caspian replaces that layout slot with the current child route or nested layout while rendering.
 
 For example, a page inside `/dashboard/settings` is wrapped by the root layout first and then by the dashboard layout.
 
@@ -382,19 +384,19 @@ Example root layout:
 <!DOCTYPE html>
 <html>
   <head>
-    <title>[[ metadata.title ]]</title>
-    <meta name="description" content="[[ metadata.description ]]" />
+    <title>{{ metadata.title }}</title>
+    <meta name="description" content="{{ metadata.description }}" />
   </head>
   <body>
     <NavBar />
-    [[ children | safe ]]
+    <slot />
   </body>
 </html>
 ```
 
 ### `layout.py`
 
-If a layout needs shared synchronous props or metadata, add a `layout.py` file next to the HTML layout. Treat it as the backend companion for the layout, not as the place to author visible wrapper markup.
+If a layout needs shared props or metadata, add a `layout.py` file next to the HTML layout. Treat it as the backend companion for the layout, not as the place to author visible wrapper markup.
 
 When `layout()` calls `render_layout(__file__, ...)`, root-validation errors are attributed to the sibling `layout.html` because that file is the authored template. If `layout()` returns a raw HTML string directly, Caspian treats that value as a runtime fragment instead of an authored template and wraps it in a runtime host root when needed.
 
@@ -415,16 +417,16 @@ def layout(context_data):
 
 `context_data` includes URL parameters such as dynamic route values.
 
-In the common case, return a dict and let the sibling `layout.html` read those values through `[[ layout.* ]]`.
+In the common case, return a dict and let the sibling `layout.html` read those values through `{{ layout.* }}`.
 
 `layout()` currently supports these result shapes:
 
-- `dict`: load the sibling `layout.html` and expose the dict as `[[ layout.* ]]`
+- `dict`: load the sibling `layout.html` and expose the dict as `{{ layout.* }}`
 - `str`: use that string as the layout content
-- `(layout_html, props_dict)`: use the first item as the layout content and expose the second dict as `[[ layout.* ]]`
+- `(layout_html, props_dict)`: use the first item as the layout content and expose the second dict as `{{ layout.* }}`
 - `None`: fall back to the sibling `layout.html` with no extra layout props
 
-If you intentionally want to render `layout.html` immediately with direct local variables instead of the `layout.*` namespace, call `render_layout(__file__, {...})` and reference those keys directly in the template.
+If you intentionally want to render `layout.html` immediately with direct local variables instead of the `layout.*` namespace, call `render_layout(__file__, {...})` and reference those keys directly in the template. `render_layout(...)` does not create a hidden child outlet; the layout template must still author the real `<slot />` element where child routes should render.
 
 Example:
 
@@ -435,9 +437,9 @@ def layout():
   return render_layout(__file__, {"my_class": "size-8"})
 ```
 
-In that pattern, the matching `layout.html` reads `[[ my_class ]]`, not `[[ layout.my_class ]]`, because the template string was already rendered before the nested layout pipeline continues.
+In that pattern, the matching `layout.html` reads `{{ my_class }}`, not `{{ layout.my_class }}`, because the template string was already rendered before the nested layout pipeline continues.
 
-If you need both a custom layout string and standard `[[ layout.* ]]` props, return a tuple:
+If you need both a custom layout string and standard `{{ layout.* }}` props, return a tuple:
 
 ```python
 from casp.layout import render_layout
@@ -449,7 +451,7 @@ def layout():
   )
 ```
 
-`layout()` currently runs synchronously in `casp.layout`. If you need async I/O, load it in `page()` instead of `layout.py`.
+`layout()` may be synchronous or async in the installed runtime. Keep async layout work focused on shared subtree props or metadata; use `page()` or `@rpc()` when the work belongs to one route or a browser-triggered user action.
 
 Use [metadata.md](./metadata.md) when a layout also needs SEO defaults. Return dictionaries from `layout()` for visual or template props, and use `Metadata(...)` for title, description, and social tags.
 
@@ -509,10 +511,10 @@ If an AI agent is choosing where to add or update route code, apply these rules 
 - When the user asks for a dashboard, admin area, account section, or any grouped subtree of child routes, create a parent folder with `layout.html` and place the child routes beneath it. Follow the same mental model as the Next.js App Router.
 - Use a normal folder such as `dashboard/` when the segment should appear in the URL. Use `(group)/` only when the folder should organize or wrap child routes without adding a path segment.
 - Use [cache.md](./cache.md) when an `index.py` route should opt into page-level HTML caching.
-- Use `layout.html` for shared wrappers and `layout.py` for layout-level synchronous props or metadata.
+- Use `layout.html` for shared wrappers and `layout.py` for layout-level props or metadata.
 - For grouped shells with separate shell and content scrolling, put `pp-reset-scroll="true"` on the content pane instead of the whole shell when only the page content should reset between child routes.
-- When one route needs to change a parent layout, return `(render_page(__file__, ...), {"dashboard_body_class": ...})` from `page()` and read that value as `[[ layout.dashboard_body_class ]]` in the wrapping `layout.html`.
-- Use `layout.py` for layout props that should apply across an entire subtree. Use `render_layout(__file__, {...})` only when the layout should consume direct local variables such as `[[ my_class ]]` instead of the standard `[[ layout.* ]]` namespace.
+- When one route needs to change a parent layout, return `(render_page(__file__, ...), {"dashboard_body_class": ...})` from `page()` and read that value as `{{ layout.dashboard_body_class }}` in the wrapping `layout.html`.
+- Use `layout.py` for layout props that should apply across an entire subtree. Use `render_layout(__file__, {...})` only when the layout should consume direct local variables such as `{{ my_class }}` instead of the standard `{{ layout.* }}` namespace.
 - Keep `<!-- @import ... -->` directives at the top of `index.html` and `layout.html`, above the single authored parent node.
 - Use [metadata.md](./metadata.md) when a route or layout needs SEO fields.
 - Use `[segment]` for single dynamic parameters.

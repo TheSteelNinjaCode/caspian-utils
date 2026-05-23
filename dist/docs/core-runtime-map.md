@@ -88,7 +88,7 @@ Interactive CRUD page:
 
 | Runtime file | Primary responsibility | Read these docs |
 | --- | --- | --- |
-| [.venv/Lib/site-packages/casp/layout.py](../../../../.venv/Lib/site-packages/casp/layout.py) | `render_page(...)`, `render_layout(...)`, nested layout discovery, metadata merge, and the synchronous `layout()` contract | [routing.md](./routing.md), [metadata.md](./metadata.md) |
+| [.venv/Lib/site-packages/casp/layout.py](../../../../.venv/Lib/site-packages/casp/layout.py) | `render_page(...)`, `render_layout(...)`, nested layout discovery, metadata merge, sync or async `layout()` results, and parser-based `<slot />` replacement | [routing.md](./routing.md), [metadata.md](./metadata.md) |
 | [.venv/Lib/site-packages/casp/auth.py](../../../../.venv/Lib/site-packages/casp/auth.py) | `AuthSettings`, route privacy checks, session payloads, OAuth providers, CSRF helper behavior, and redirect logic | [auth.md](./auth.md) |
 | [.venv/Lib/site-packages/casp/runtime_security.py](../../../../.venv/Lib/site-packages/casp/runtime_security.py) | safe public-file serving, baseline non-CSP response headers, production-safe error messages, and production session-secret enforcement used by `main.py` | [project-structure.md](./project-structure.md), [auth.md](./auth.md) |
 | [.venv/Lib/site-packages/casp/rpc.py](../../../../.venv/Lib/site-packages/casp/rpc.py) | `@rpc()` registration, rate limits, request handling, auth-aware action checks, and streamed RPC responses | [fetch-data.md](./fetch-data.md) |
@@ -101,9 +101,8 @@ Interactive CRUD page:
 | [.venv/Lib/site-packages/casp/scripts_type.py](../../../../.venv/Lib/site-packages/casp/scripts_type.py) | rewriting authored body `<script>` tags to `type="text/pp"` in rendered HTML | [pulsepoint.md](./pulsepoint.md), [routing.md](./routing.md), [components.md](./components.md) |
 | [.venv/Lib/site-packages/casp/html_attrs.py](../../../../.venv/Lib/site-packages/casp/html_attrs.py) | `get_attributes(...)`, alias normalization, and the Python-side `merge_classes(...)` contract | [components.md](./components.md) |
 | [.venv/Lib/site-packages/casp/caspian_config.py](../../../../.venv/Lib/site-packages/casp/caspian_config.py) | typed config loading, feature-flag reads, `settings/files-list.json` parsing, and route rule derivation | [project-structure.md](./project-structure.md), [commands.md](./commands.md), [routing.md](./routing.md) |
-| [.venv/Lib/site-packages/casp/syntax_compiler.py](../../../../.venv/Lib/site-packages/casp/syntax_compiler.py) | transpiling Caspian `<[[ ... ]]>` and `<template casp-*>` syntax before template render | [components.md](./components.md), [routing.md](./routing.md) |
 
-Secondary helpers such as `html_native.py`, `loading.py`, and `string_helpers.py` support the modules above. Read them only when a higher-level runtime file is still insufficient to explain the behavior you are tracing.
+Secondary helpers such as `html_native.py`, `loading.py`, and `string_helpers.py` support the modules above. `html_native.py` owns BeautifulSoup-backed fragment parsing used by component/root transforms and layout slot replacement. Read these helpers only when a higher-level runtime file is still insufficient to explain the behavior you are tracing.
 
 ## Verification Focus
 
@@ -116,7 +115,7 @@ Use these behavior checkpoints when AI needs the fastest verification path for a
 | `casp.auth` | auth settings, signin and signout flow, provider wiring, and page protection behavior |
 | `casp.rpc` and streamed RPC responses | middleware interception, CSRF and session expectations, registry behavior, and helper-level RPC contracts |
 | `casp.layout` | layout discovery, metadata merge, root handling, and layout rendering rules |
-| `casp.components_compiler`, `casp.component_decorator`, `casp.scripts_type`, and template-root injection | `@import` parsing, `x-*` expansion, syntax transpilation, deterministic root keys, `pp-component` injection, and authored-script rewriting to `type="text/pp"` |
+| `casp.components_compiler`, `casp.component_decorator`, `casp.scripts_type`, and template-root injection | `@import` parsing, `x-*` expansion, deterministic root keys, `pp-component` injection, and authored-script rewriting to `type="text/pp"` |
 | `casp.state_manager` | wire vs non-wire reset behavior, request-state persistence assumptions, and AttributeDict access |
 | `casp.cache_handler` | filename generation, manifest writes, TTL handling, and invalidation behavior |
 | `casp.caspian_config` | config parsing, files index building, and Next.js-style route inventory behavior |

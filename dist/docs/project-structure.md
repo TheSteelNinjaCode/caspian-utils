@@ -106,7 +106,7 @@ This is the main application area. It contains route files, templates, styles, a
 
 This directory handles file-based routing. Route templates and route-specific backend logic live here.
 
-For any route that renders UI, keep that markup in `src/app/**/index.html`. If the route is UI-only, `index.html` alone is enough. Add `src/app/**/index.py` only as a companion when the same route needs metadata, `page()`, `@rpc()` actions, auth checks, caching, redirects, or other server-side behavior. Keep shared wrappers in `layout.html` and use `layout.py` only for shared synchronous props or metadata. Use a lone `index.py` only for non-visual routes such as redirect-only or action-only handlers.
+For any route that renders UI, keep that markup in `src/app/**/index.html`. If the route is UI-only, `index.html` alone is enough. Add `src/app/**/index.py` only as a companion when the same route needs metadata, `page()`, `@rpc()` actions, auth checks, caching, redirects, or other server-side behavior. Keep shared wrappers in `layout.html` and use `layout.py` only for shared props or metadata. Use a lone `index.py` only for non-visual routes such as redirect-only or action-only handlers.
 
 When a folder represents a section with child routes, such as `dashboard`, `account`, `settings`, or `docs`, create `layout.html` in that folder and let the child routes live beneath it. See [routing.md](./routing.md) for the canonical section layout pattern.
 
@@ -261,7 +261,7 @@ Keep visible wrapper markup in `layout.html`, not in `layout.py`.
 
 ### `src/app/layout.py`
 
-The backend companion for a layout. Use this file for shared synchronous props, metadata defaults, and other server-side preparation for the sibling `layout.html`.
+The backend companion for a layout. Use this file for shared props, metadata defaults, and other server-side preparation for the sibling `layout.html`.
 
 Do not store layout HTML in `layout.py`. Keep the authored wrapper in `layout.html` and let `layout.py` return props or metadata.
 

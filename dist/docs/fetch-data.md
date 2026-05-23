@@ -31,7 +31,7 @@ MCP is a separate integration surface. Do not place app-owned FastMCP tools in r
 
 Caspian has two main data-loading paths:
 
-- `page()` for initial-render data, plus `layout()` for synchronous shared props or metadata during the render
+- `page()` for initial-render data, plus `layout()` for shared props or metadata during the render
 - `@rpc()` plus `pp.rpc()` for interactive fetches after the page is already loaded
 
 In practice, most pages use both:
@@ -46,7 +46,7 @@ When a page belongs to a grouped subtree such as a dashboard, account area, admi
 
 ## Default Data Rule
 
-- Use `page()` for async or route-level data required before HTML renders, and use `layout()` only for synchronous shared props or metadata.
+- Use `page()` for route-level data required before HTML renders, and use `layout()` only for shared subtree props or metadata.
 - When a route renders UI and also needs backend work, keep the HTML in the sibling `index.html`; `index.py` should prepare data and call `render_page(__file__, ...)`, not inline the route markup.
 - Use `@rpc()` on the server and `pp.rpc()` in PulsePoint code for all browser-triggered data work after first render, including CRUD operations and follow-up reads.
 - Trigger those browser actions through PulsePoint event attributes in the HTML, not through a separate DOM listener layer.
@@ -81,7 +81,7 @@ If a route's first-render HTML is public and stable enough to reuse across reque
 Notes:
 
 - Prefer `async def page()` when your database or API client is async-capable.
-- Put shared section-level props in `layout.py` when multiple child routes need the same synchronous payload. The current layout engine does not await `layout()`.
+- Put shared section-level props in `layout.py` when multiple child routes need the same payload. The current layout engine supports synchronous and async `layout()` results, but route-specific data should stay in `page()`.
 - Use a normal parent folder such as `dashboard/` when the section name should appear in the URL. Use a route-group folder such as `(reports)/` only when the shared wrapper should organize child routes without adding a URL segment.
 - Keep reusable database or API clients under `src/lib/`; keep route-specific orchestration in `src/app/`.
 
@@ -294,7 +294,7 @@ For initial route rendering with `render_page(...)`, prefer passing plain templa
 
 ## Recommended Decision Rule
 
-Use `page()` when async or route-specific data is part of the page render. Use `layout()` for synchronous shared props or metadata. Use `@rpc()` plus `pp.rpc()` when the browser needs to ask the server for more data after the page is already visible.
+Use `page()` when route-specific data is part of the page render. Use `layout()` for shared subtree props or metadata. Use `@rpc()` plus `pp.rpc()` when the browser needs to ask the server for more data after the page is already visible.
 
 A common pattern is:
 
@@ -326,8 +326,8 @@ If the first-render HTML is expensive to produce and safe to share between visit
 If an AI agent is choosing how to load data in Caspian, apply these rules first.
 
 - Put first-render data loading in `src/app/**/index.py`.
-- Put shared section props in `layout.py` only when multiple child routes need the same synchronous data.
-- Keep async I/O in `page()` or `@rpc()` because the current layout engine does not await `layout()`.
+- Put shared section props in `layout.py` only when multiple child routes need the same shared data.
+- Keep route-specific async I/O in `page()` or `@rpc()` so `layout.py` stays focused on shared subtree props or metadata.
 - For grouped subtrees, follow the section layout pattern in [routing.md](./routing.md) before deciding where `page()` data and `@rpc()` actions belong.
 - Treat RPC as the default read and write layer between PulsePoint code and Python route logic, especially for CRUD and interactive backend reads.
 - Use `@rpc()` for backend functions that should be callable from the browser.

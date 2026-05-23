@@ -116,7 +116,7 @@ Grouped shell scroll reset:
 <section class="dashboard-shell">
   <aside class="dashboard-sidebar">...</aside>
   <main class="dashboard-content" pp-reset-scroll="true">
-    [[ children | safe ]]
+    <slot />
   </main>
 </section>
 ```
