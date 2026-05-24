@@ -55,6 +55,7 @@ When a Caspian page needs reactive browser behavior, use PulsePoint.
 - Use PulsePoint component roots, scripts, directives, and runtime helpers for interactive UI.
 - Use PulsePoint state, effects, refs, and template directives as the default reactivity model in authored Caspian templates.
 - Bind first-party events in the HTML with PulsePoint-handled native `on*` attributes such as `onclick`, `oninput`, `onchange`, and `onsubmit`.
+- For ordinary forms, bind the submit event in the `<form>` and collect named fields with `Object.fromEntries(new FormData(event.currentTarget).entries())`. Let input `name` attributes define the payload keys, then validate and normalize those values in Python. Do not use `pp.ref(...)` on every input or an effect-managed listener just to read submitted values.
 - When the browser needs CRUD operations or follow-up reads from the backend, call `pp.rpc()` from PulsePoint code and back it with route or backend `@rpc()` actions.
 - Keep server-rendered HTML plus PulsePoint enhancement as the baseline architecture.
 - For dashboards, admin areas, account sections, docs sections, and other grouped subtrees, keep shared shell markup and shared PulsePoint behavior in the parent folder's `layout.html`, then keep child-route PulsePoint state local to each `index.html`. Follow the same mental model as the Next.js App Router.
@@ -69,9 +70,10 @@ Default to this workflow:
 - Put the button, form, input, toggle, menu, filter, upload control, or list markup directly in the route, layout, or component HTML template.
 - Bind events with native `on*` attributes handled by PulsePoint, for example `onclick="save()"`, `oninput="setQuery(event.target.value)"`, or `onsubmit="{submitForm(event)}"`.
 - This is the PulsePoint `onClick`/native event-attribute model. Authored examples use lowercase HTML spellings such as `onclick` because browser HTML normalizes attribute names, but the important rule is to bind the event in the template instead of wiring it later with DOM selectors.
+- For simple form submissions, let HTML own the form shape and let the submit event carry the values: use `const data = Object.fromEntries(new FormData(event.currentTarget).entries())` inside the handler, then pass that object directly to `pp.rpc(...)`. In a form-level submit handler, `event.target` is usually the form too, but `event.currentTarget` is the copy-safe default because it always means the element that owns the handler.
 - Keep reactive values in `pp.state(...)`.
 - Render conditional text, classes, attributes, lists, and styles with template expressions, `pp-for`, `pp-style`, `pp-spread`, and other PulsePoint-supported template features.
-- Use `pp.ref(...)` and `pp-ref` when a real element reference is needed.
+- Use `pp.ref(...)` and `pp-ref` when a real imperative element reference is needed, such as focus, measurement, media, canvas, third-party widgets, or resetting a specific file/password input after a successful action.
 - Use `pp.effect(...)` or `pp.layoutEffect(...)` for lifecycle work that must happen after render.
 - Use `pp.rpc(...)` for browser-triggered backend reads and writes.
 
@@ -80,6 +82,7 @@ Avoid building a parallel JavaScript layer for normal UI behavior:
 - Do not add ids only so a script can find elements with `document.querySelector(...)` or `document.getElementById(...)`.
 - Do not use `data-*` attributes as a private client state system when PulsePoint state or props should own the data.
 - Do not bind normal first-party clicks, input changes, submits, filters, menus, or toggles with `addEventListener(...)`.
+- Do not use form refs plus input refs plus `pp.effect(...)` solely to construct an RPC payload from normal submitted fields.
 - Do not repaint first-party lists or panels with manual `innerHTML` writes when `pp.state(...)` plus `pp-for` can express the same UI.
 - Do not create a custom client-side store, event bus, or hydration routine for behavior that belongs in a PulsePoint component script.
 
@@ -134,6 +137,75 @@ Avoid this first-party pattern:
 ```
 
 That second shape recreates a separate event and rendering system inside a Caspian component. It is harder to maintain because it bypasses PulsePoint's rerender, event rebinding, refs, cleanup, and backend RPC conventions.
+
+Preferred form submit pattern:
+
+```html
+<section>
+  <form onsubmit="{saveProfile(event)}" class="grid gap-4" novalidate>
+    <input name="name" value="{{ user_name }}" autocomplete="name" required />
+    <input name="email" type="email" value="{{ user_email }}" autocomplete="email" required />
+    <input name="password" type="password" autocomplete="new-password" />
+
+    <button type="submit" disabled="{isSubmitting}">
+      {isSubmitting ? "Saving..." : "Save changes"}
+    </button>
+  </form>
+
+  <script>
+    const [isSubmitting, setIsSubmitting] = pp.state(false);
+
+    async function saveProfile(event) {
+      event.preventDefault();
+      if (isSubmitting) return;
+
+      const data = Object.fromEntries(new FormData(event.currentTarget).entries());
+
+      setIsSubmitting(true);
+      try {
+        await pp.rpc("save_profile", data, { abortPrevious: true });
+      } finally {
+        setIsSubmitting(false);
+      }
+    }
+  </script>
+</section>
+```
+
+Avoid this for a normal form:
+
+```html
+<section>
+  <form pp-ref="{formRef}">
+    <input pp-ref="{nameRef}" name="name" />
+    <input pp-ref="{emailRef}" name="email" />
+  </form>
+
+  <script>
+    const formRef = pp.ref(null);
+    const nameRef = pp.ref(null);
+    const emailRef = pp.ref(null);
+
+    pp.effect(() => {
+      const form = formRef.current;
+      if (!form) return;
+
+      const submit = (event) => {
+        event.preventDefault();
+        return pp.rpc("save_profile", {
+          name: nameRef.current?.value ?? "",
+          email: emailRef.current?.value ?? "",
+        });
+      };
+
+      form.addEventListener("submit", submit);
+      return () => form.removeEventListener("submit", submit);
+    }, []);
+  </script>
+</section>
+```
+
+Refs are still useful when the feature actually requires imperative access. They are not the first choice for reading standard form fields that the browser already exposes through the submit event. Keep client code minimal and put reviewable data normalization in the route's Python `@rpc()` action unless the client must transform values for UX before submitting.
 
 ## Authoring Model
 
@@ -296,12 +368,12 @@ Notes:
 
 ## Context
 
-Context is implemented in the current runtime, but the current API follows a React-style `Context.Provider` pattern rather than a legacy `pp.provideContext(...)` helper.
+Context is implemented in the current runtime with a React-style provider pattern rather than a legacy `pp.provideContext(...)` helper. Because Caspian templates are HTML-first, authored provider tags should be written in lowercase HTML form, for example `<themecontext.provider>`, even when the JavaScript token is named `ThemeContext`.
 
 How it works:
 
 - Create a token with `pp.createContext(defaultValue)`.
-- Provide a value with `Context.Provider`.
+- Provide a value with a lowercase provider tag such as `<themecontext.provider value="{theme}">`.
 - Read it in a descendant component with `pp.context(token)`.
 - Resolution walks the logical component parent chain stored in the registry, not the live DOM.
 - Portaled descendants still resolve providers through component ancestry.
@@ -315,7 +387,8 @@ Important:
 - Context is component-level, not directive-based. There is no `pp-context` attribute.
 - `pp.context(token)` resolves from ancestors. A component does not consume the value it provides in the same render.
 - If provider and consumer live in different component script scopes, pass the token through props or store it in shared outer or global state.
-- The preferred authoring style is a provider tag in the template. The runtime also supports imperative `ThemeContext.Provider({ value })` calls during render, but the tag form is clearer for AI-generated authored templates.
+- The preferred authoring style is a lowercase provider tag in the template. The TypeScript runtime's `TemplateCompiler.transformContextProviderTags(...)` recognizes `*.provider` tags case-insensitively and rewrites them to runtime-owned `<pp-context-provider>` boundaries. The runtime context lookup is also case-insensitive, so `<themecontext.provider>` can resolve a script binding named `ThemeContext`.
+- The runtime also supports imperative `ThemeContext.Provider({ value })` calls during render, but that form provides from the component boundary rather than documenting the HTML subtree shape. Use it only when component-wide provision is intended.
 - Do not invent or document `pp.provideContext`. The current runtime explicitly does not expose it.
 
 Provider example:
@@ -327,9 +400,9 @@ Provider example:
     const [theme] = pp.state("dark");
   </script>
 
-  <ThemeContext.Provider value="{theme}">
+  <themecontext.provider value="{theme}">
     <p>This subtree receives the provided theme.</p>
-  </ThemeContext.Provider>
+  </themecontext.provider>
 </section>
 ```
 
@@ -403,6 +476,7 @@ Example:
 
 ## Refs
 
+- Refs are for imperative element access. Do not use `pp-ref` as the default way to read normal form input values on submit; prefer the form's `onsubmit` event plus `Object.fromEntries(new FormData(event.currentTarget).entries())`.
 - Use `pp-ref="nameInput"` when the ref object or callback is already available in scope.
 - Use `pp-ref="{registerRef(id)}"` when you want the compiler to capture a dynamic ref expression.
 - `pp.ref(null)` is the normal way to create a ref object.
@@ -469,6 +543,8 @@ Example:
 - Treat this as the HTML form of `onClick`-style PulsePoint event binding. Prefer lowercase examples in authored HTML because the browser normalizes attribute names.
 - Event values may be raw code or wrapped in `{...}`.
 - The runtime injects `event`, `e`, `$event`, `target`, `currentTarget`, and `el`.
+- For form submit handlers, prefer `onsubmit="{submitForm(event)}"` and `Object.fromEntries(new FormData(event.currentTarget).entries())` when collecting named fields for `pp.rpc(...)`.
+- `event.target` can also work for form-level submit handlers, but examples use `event.currentTarget` so nested event origins do not change which element becomes the `FormData` source.
 - Do not use hyphenated event attrs like `on-click`.
 - Event attributes are removed from the live DOM after binding and rebound after DOM morphing.
 - Owned template/event-owner internals are runtime-managed. Do not author them directly.
@@ -528,6 +604,7 @@ Use these rules when generating or editing PulsePoint runtime code:
 
 - Treat PulsePoint as the default reactive frontend for Caspian app code.
 - For first-party HTML interactions, use PulsePoint `on*` event attributes, state, refs, effects, directives, and `pp.rpc()` before reaching for DOM APIs.
+- For simple forms, bind `onsubmit` in the authored HTML and read named fields with `Object.fromEntries(new FormData(event.currentTarget).entries())`; do not generate per-input refs or effect-managed submit listeners just to gather values.
 - Treat `pp.rpc()` as the default browser-to-server path for CRUD operations and interactive backend reads.
 - Use `public/js/pp-reactive-v2.js` as the shipped runtime contract AI should follow.
 - Keep `main.py` in view because it injects the runtime-facing attributes and rewrites authored scripts before the browser sees them.
@@ -540,7 +617,7 @@ Use these rules when generating or editing PulsePoint runtime code:
 - If you are explicitly editing raw runtime HTML or internals, keep `pp-component` unique per live instance.
 - In authored templates, use a plain `<script>` inside the root. In runtime HTML, the owned script appears as `script[type="text/pp"]`.
 - Keep template-facing variables at top level.
-- Follow the React-style context pattern: `pp.createContext(...)`, `<Context.Provider value="{...}">`, and `pp.context(token)`.
+- Follow the HTML-first context pattern: `pp.createContext(...)`, a lowercase provider tag such as `<themecontext.provider value="{...}">`, and `pp.context(token)`.
 - Do not invent `pp.provideContext`, `pp-context`, or other legacy context helpers.
 - Keep `pp-for` on `<template>` and use plain `key`.
 - Use native `on*` attributes, not framework-specific event syntax.
@@ -581,7 +658,7 @@ These are current runtime caveats that matter for authors and AI tools:
 - The global `pp` singleton auto-mounts on DOM ready, and `pp.mount()` is idempotent.
 - `pp.effect` and `pp.layoutEffect` are cleanup-style hooks. Their callbacks are not promise-aware.
 - `pp.context()` resolves through ancestor components, not the current component's own pending providers.
-- `pp.provideContext` is not part of the current runtime API. Use `Context.Provider`.
+- `pp.provideContext` is not part of the current runtime API. Use an HTML-first lowercase provider tag such as `<themecontext.provider>`.
 - `pp.portal()` preserves logical ancestry through the registry, so context and prop refresh behavior continue to work through portaled descendants.
 
 ## Final reminder

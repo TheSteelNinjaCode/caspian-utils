@@ -37,10 +37,10 @@ If an inspected browser DOM disagrees with authored template source, remember th
 | State | `pp.state(initial)` | `pp-reactive-v2.js` | setters accept values or updater functions, state belongs to the component instance |
 | Effects | `pp.effect(...)`, `pp.layoutEffect(...)` | `pp-reactive-v2.js` | callbacks may return cleanup functions, promises are not awaited |
 | Refs | `pp.ref(...)`, `pp-ref` | `pp-reactive-v2.js` | generated ref internals are runtime-managed; do not author `data-pp-ref` |
-| Context | `pp.createContext(...)`, `<Context.Provider>`, `pp.context(token)` | `pp-reactive-v2.js` | ancestry is logical component ancestry; do not invent `pp-context` or `pp.provideContext` |
+| Context | `pp.createContext(...)`, lowercase `<themecontext.provider>`, `pp.context(token)` | `TemplateCompiler.ts`, `NestedBoundaryManager.ts`, `pp-reactive-v2.js` | authored provider tags are HTML-first and lowercase; `TemplateCompiler.transformContextProviderTags(...)` rewrites `*.provider` to runtime-owned `pp-context-provider`; ancestry is logical component ancestry; do not invent `pp-context` or `pp.provideContext` |
 | Portals | `pp.portal(ref, target?)` | `pp-reactive-v2.js` | context should preserve logical ancestry through the registry |
 | Lists | `<template pp-for="item in items">` | `pp-reactive-v2.js` | `pp-for` belongs on `<template>`, use plain `key`, not `pp-key` |
-| Events | native `onclick`, `oninput`, `onchange`, `onsubmit` | `pp-reactive-v2.js` | first-party events belong in `on*` attributes; event scope exposes `event`, `e`, `$event`, `target`, `currentTarget`, and `el`; avoid id-driven `querySelector`/`addEventListener` for normal UI |
+| Events | native `onclick`, `oninput`, `onchange`, `onsubmit` | `pp-reactive-v2.js` | first-party events belong in `on*` attributes; event scope exposes `event`, `e`, `$event`, `target`, `currentTarget`, and `el`; normal form submits should use `Object.fromEntries(new FormData(event.currentTarget).entries())` instead of per-input refs; avoid id-driven `querySelector`/`addEventListener` for normal UI |
 | RPC | `pp.rpc(...)` in scripts, `@rpc()` in Python | `pp-reactive-v2.js`, `casp/rpc.py` | use `pp.rpc`, not legacy `pp.fetchFunction`; protected actions use `@rpc(require_auth=True)` |
 | Upload progress | `pp.rpc(..., { onUploadProgress })` | `pp-reactive-v2.js`, `casp/rpc.py` | XHR path is used for progress callbacks; replace state from returned payload |
 | Streaming | `pp.rpc(..., { onStream })` | `pp-reactive-v2.js`, `casp/rpc.py`, `casp/streaming.py` | server generators become SSE responses |
@@ -65,7 +65,8 @@ If an inspected browser DOM disagrees with authored template source, remember th
 - Do not handwrite `pp-component`, `type="text/pp"`, `data-pp-ref`, `pp-owner`, `pp-event-owner`, or other runtime-managed attributes.
 - Use `pp.rpc(...)` for current browser-to-server calls.
 - Use native `on*` attributes for button clicks, form submits, input changes, filters, toggles, and menus instead of adding ids and manual listeners.
-- Use `Context.Provider` and `pp.context(...)` for context.
+- For ordinary form submits, bind `onsubmit` on the form and read named fields with `Object.fromEntries(new FormData(event.currentTarget).entries())`; reserve `pp-ref` for imperative access rather than routine payload collection.
+- Use lowercase provider tags such as `<themecontext.provider>` and `pp.context(...)` for context.
 - Use `pp-for` only on `<template>` and plain `key` for keyed lists.
 - Prefer PulsePoint state and directives over manual `innerHTML` repainting.
 - Keep direct DOM APIs inside `pp.ref(...)` plus `pp.effect(...)` only when a third-party or browser API integration actually requires them.
@@ -81,11 +82,11 @@ Context provider:
     const [theme, setTheme] = pp.state("dark");
   </script>
 
-  <ThemeContext.Provider value="{theme}">
+  <themecontext.provider value="{theme}">
     <button onclick="setTheme(theme === 'dark' ? 'light' : 'dark')">
       Theme: {theme}
     </button>
-  </ThemeContext.Provider>
+  </themecontext.provider>
 </section>
 ```
 

@@ -23,7 +23,7 @@ This page explains how data fetching works in Caspian. Use route functions for i
 
 Treat RPC as the default way for browser code to talk to Python in Caspian. For CRUD operations and any browser-initiated backend reads after first render, default to `@rpc()` on the server and `pp.rpc()` in PulsePoint code. Do not reach for ad hoc fetch calls to custom JSON endpoints, alternate transport layers, or older helper names unless the task explicitly requires that shape.
 
-Browser-triggered data work should still be PulsePoint-first at the event layer. Bind the initiating click, submit, input, upload, refresh, filter, or pagination control in authored HTML with `onclick`, `onsubmit`, `oninput`, `onchange`, or another native `on*` attribute handled by PulsePoint. Do not set up first-party data actions by assigning ids and then wiring `querySelector(...)`, `addEventListener(...)`, manual `fetch(...)`, or manual DOM repainting.
+Browser-triggered data work should still be PulsePoint-first at the event layer. Bind the initiating click, submit, input, upload, refresh, filter, or pagination control in authored HTML with `onclick`, `onsubmit`, `oninput`, `onchange`, or another native `on*` attribute handled by PulsePoint. For normal form submissions, read named controls with `Object.fromEntries(new FormData(event.currentTarget).entries())` in the submit handler and pass that object directly to `pp.rpc(...)`; the route's Python `@rpc()` action should validate, normalize, and decide what to persist. Do not set up first-party data actions by assigning ids and then wiring `querySelector(...)`, `addEventListener(...)`, manual `fetch(...)`, manual DOM repainting, or per-input `pp-ref` payload collection.
 
 MCP is a separate integration surface. Do not place app-owned FastMCP tools in route `index.py` files or treat `@rpc()` actions as a replacement for MCP tools. Use `mcp.md` and `src/lib/mcp/` only when `caspian.config.json` has `mcp: true`. If `mcp` is false, do not assume those files exist.
 
@@ -50,6 +50,7 @@ When a page belongs to a grouped subtree such as a dashboard, account area, admi
 - When a route renders UI and also needs backend work, keep the HTML in the sibling `index.html`; `index.py` should prepare data and call `render_page(__file__, ...)`, not inline the route markup.
 - Use `@rpc()` on the server and `pp.rpc()` in PulsePoint code for all browser-triggered data work after first render, including CRUD operations and follow-up reads.
 - Trigger those browser actions through PulsePoint event attributes in the HTML, not through a separate DOM listener layer.
+- For simple form submits, prefer `onsubmit="{submitForm(event)}"` plus `Object.fromEntries(new FormData(event.currentTarget).entries())` over `pp-ref` fields and effect-managed submit listeners.
 - Keep custom REST or other endpoint patterns as explicit exceptions, not the baseline Caspian approach.
 
 ## Initial Data In `index.py`
@@ -109,6 +110,10 @@ async def list_todos():
 
 @rpc(require_auth=True, limits="20/minute")
 async def create_todo(title: str):
+    title = title.strip()
+    if not title:
+        raise ValueError("Title is required.")
+
     return await prisma.todo.create(
         data={"title": title, "completed": False}
     )
@@ -128,6 +133,33 @@ Call it from the client with `pp.rpc()`:
     console.log(todo);
   }
 </script>
+```
+
+For form submissions, let the form event provide the submitted values. The inputs' `name` attributes define the RPC payload keys, and the Python action owns trimming, validation, coercion, and persistence decisions.
+
+```html
+<form onsubmit="{createTodoFromForm(event)}" novalidate>
+  <input name="title" required />
+  <button type="submit" disabled="{isSaving}">Add</button>
+
+  <script>
+    const [isSaving, setIsSaving] = pp.state(false);
+
+    async function createTodoFromForm(event) {
+      event.preventDefault();
+
+      const data = Object.fromEntries(new FormData(event.currentTarget).entries());
+      if (isSaving) return;
+
+      setIsSaving(true);
+      try {
+        await pp.rpc("create_todo", data, { abortPrevious: true });
+      } finally {
+        setIsSaving(false);
+      }
+    }
+  </script>
+</form>
 ```
 
 Use RPC for:
