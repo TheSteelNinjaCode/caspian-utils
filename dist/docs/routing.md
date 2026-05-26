@@ -30,6 +30,7 @@ Start with these rules:
 - For any route that renders a page, put the markup in `index.html`.
 - If a route is UI-only, `index.html` by itself is enough.
 - Add `index.py` only when the same route needs metadata, `page()`, `@rpc()` actions, auth checks, caching, redirects, or other server-side logic.
+- Keep route-specific server logic in that route's `index.py`. Move logic into `src/lib/**` only when it is shared across routes, components, integrations, or features.
 - Use a standalone `index.py` only for non-visual routes such as redirects or action-only handlers.
 - When a folder owns child routes, use `layout.html` to wrap them. This is the default pattern for dashboards, admin sections, account areas, settings trees, and route groups.
 - In grouped shells with separate shell and content scrolling, put `pp-reset-scroll="true"` on the content pane in `layout.html` when that pane should reset on child-route navigation while the shell sidebar or rail keeps its own scroll.
@@ -237,6 +238,8 @@ Use [pulsepoint.md](./pulsepoint.md) when you need the full authored-vs-rendered
 
 Use `index.py` as the backend companion when a route needs metadata or async server-side logic. For routes that render UI, keep the markup in the sibling `index.html` and let `page()` call `render_page(__file__, ...)`. Do not inline route HTML inside `index.py`.
 
+If the logic belongs only to this route, keep it here. Examples include this page's first-render query, route-owned RPC actions, redirect decisions, route-specific validation, route-specific filters, and route-specific response shaping. Move code into `src/lib/**` when the same logic is reused or intentionally shared; do not extract one-route orchestration into a library just because it is Python code.
+
 Use `index.py` by itself only for non-visual routes such as redirects or action-only handlers. Because Caspian runs on FastAPI, the page entry should be async when it performs async work.
 
 When `page()` calls `render_page(__file__, ...)`, root-validation errors are attributed to the sibling `index.html` because that file is the authored template. If `page()` returns a raw HTML string directly, Caspian treats that value as a runtime fragment instead of an authored template and wraps it in a runtime host root when needed.
@@ -288,7 +291,7 @@ The key name is arbitrary, but it must match exactly between the dict returned f
 
 Use distinct names for those layout props. In the current router, the second dict is merged into the full layout context after path params and `request`, so a key such as `slug` or `request` can shadow an existing value.
 
-When a route owns a file manager or upload UI, keep the owning upload and delete `@rpc()` actions in that same `index.py` and move reusable filesystem or Prisma helpers into `src/lib/`. Do not move ordinary upload behavior into `main.py`. See [file-uploads.md](./file-uploads.md).
+When a route owns a file manager or upload UI, keep the owning upload and delete `@rpc()` actions in that same `index.py` and move reusable filesystem or Prisma helpers into `src/lib/`. Do not move ordinary upload behavior into `main.py`. See [file-uploads.md](./file-uploads.md). When Prisma is enabled, database reads and writes in this route logic or its shared helpers should use the generated Prisma Python ORM.
 
 For static and dynamic metadata rules, inheritance order, and social card fields, see [metadata.md](./metadata.md).
 
@@ -506,6 +509,7 @@ If an AI agent is choosing where to add or update route code, apply these rules 
 - Use folder names to model URL segments.
 - If a route renders UI, create or update `index.html` for the markup.
 - Add `index.py` only when the same route needs metadata or server behavior; do not place route HTML in `index.py`.
+- Keep route-specific backend logic in the route's own `index.py`; extract to `src/lib/**` only for genuinely shared logic.
 - Keep visible page markup in `index.html` and shared subtree shells in `layout.html`; do not place route HTML in `index.py` or layout HTML in `layout.py`.
 - Use PulsePoint as the first-party interaction model for route and layout HTML. Avoid custom DOM wiring for normal events and reactivity.
 - When the user asks for a dashboard, admin area, account section, or any grouped subtree of child routes, create a parent folder with `layout.html` and place the child routes beneath it. Follow the same mental model as the Next.js App Router.

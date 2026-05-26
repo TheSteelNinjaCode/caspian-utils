@@ -96,6 +96,10 @@ Add it when the route needs:
 
 For UI routes, `index.py` does not replace `index.html`. It prepares data and calls `render_page(__file__, ...)` so Caspian renders the sibling template.
 
+Keep logic here when it belongs only to this route. That includes route-specific first-render queries, `@rpc()` actions, auth checks, redirects, filters, validation, upload orchestration, and response shaping. Move logic to `src/lib/**` only when it is shared across routes, components, integrations, or features. Do not extract one-route logic into a library just because it is written in Python.
+
+When `caspian.config.json` has `prisma: true`, route-specific database access in `index.py` should use the generated Prisma Python ORM from `src/lib/prisma/**`. Shared database helpers may live in `src/lib/**`, but they should still call the generated Prisma Python ORM rather than a separate fetch or driver layer.
+
 Example:
 
 ```python
@@ -252,10 +256,11 @@ Use this order when deciding where a concern belongs:
 
 1. Put visible route markup in `index.html`.
 2. Add `index.py` only when the same route needs backend work.
-3. Put shared subtree wrapper markup in `layout.html`.
-4. Add `layout.py` only when that shared shell needs synchronous Python props or metadata.
-5. Add `loading.html` when SPA navigation needs an immediate scoped loading state.
-6. Use root `not-found.html` for unmatched URLs.
-7. Use root `error.html` for unhandled exceptions.
+3. Keep route-specific logic in `index.py`; move logic into `src/lib/**` only when it is actually shared.
+4. Put shared subtree wrapper markup in `layout.html`.
+5. Add `layout.py` only when that shared shell needs synchronous Python props or metadata.
+6. Add `loading.html` when SPA navigation needs an immediate scoped loading state.
+7. Use root `not-found.html` for unmatched URLs.
+8. Use root `error.html` for unhandled exceptions.
 
 Use [routing.md](./routing.md) for the broader file-based routing model, [metadata.md](./metadata.md) for page and layout metadata, [cache.md](./cache.md) for route caching in `index.py`, and [pulsepoint.md](./pulsepoint.md) for the authored template contract and browser runtime behavior.

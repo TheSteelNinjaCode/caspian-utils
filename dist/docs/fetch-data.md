@@ -23,6 +23,8 @@ This page explains how data fetching works in Caspian. Use route functions for i
 
 Treat RPC as the default way for browser code to talk to Python in Caspian. For CRUD operations and any browser-initiated backend reads after first render, default to `@rpc()` on the server and `pp.rpc()` in PulsePoint code. Do not reach for ad hoc fetch calls to custom JSON endpoints, alternate transport layers, or older helper names unless the task explicitly requires that shape.
 
+When `caspian.config.json` has `prisma: true`, the Python side of those route and RPC actions must use the generated Prisma Python ORM from `src/lib/prisma/**` for database reads and writes. The browser asks Python through `pp.rpc(...)`; Python asks the database through Prisma. Do not replace either side with a custom browser fetch, direct database driver, hand-written SQL helper, JSON active store, or second app-owned data-fetch abstraction.
+
 Browser-triggered data work should still be PulsePoint-first at the event layer. Bind the initiating click, submit, input, upload, refresh, filter, or pagination control in authored HTML with `onclick`, `onsubmit`, `oninput`, `onchange`, or another native `on*` attribute handled by PulsePoint. For normal form submissions, read named controls with `Object.fromEntries(new FormData(event.currentTarget).entries())` in the submit handler and pass that object directly to `pp.rpc(...)`; the route's Python `@rpc()` action should validate, normalize, and decide what to persist. Do not set up first-party data actions by assigning ids and then wiring `querySelector(...)`, `addEventListener(...)`, manual `fetch(...)`, manual DOM repainting, or per-input `pp-ref` payload collection.
 
 MCP is a separate integration surface. Do not place app-owned FastMCP tools in route `index.py` files or treat `@rpc()` actions as a replacement for MCP tools. Use `mcp.md` and `src/lib/mcp/` only when `caspian.config.json` has `mcp: true`. If `mcp` is false, do not assume those files exist.
@@ -49,6 +51,7 @@ When a page belongs to a grouped subtree such as a dashboard, account area, admi
 - Use `page()` for route-level data required before HTML renders, and use `layout()` only for shared subtree props or metadata.
 - When a route renders UI and also needs backend work, keep the HTML in the sibling `index.html`; `index.py` should prepare data and call `render_page(__file__, ...)`, not inline the route markup.
 - Use `@rpc()` on the server and `pp.rpc()` in PulsePoint code for all browser-triggered data work after first render, including CRUD operations and follow-up reads.
+- When Prisma is enabled, route all Python database I/O inside `page()`, `layout()` when truly shared, `@rpc()` actions, and reusable helpers through the generated Prisma Python ORM.
 - Trigger those browser actions through PulsePoint event attributes in the HTML, not through a separate DOM listener layer.
 - For simple form submits, prefer `onsubmit="{submitForm(event)}"` plus `Object.fromEntries(new FormData(event.currentTarget).entries())` over `pp-ref` fields and effect-managed submit listeners.
 - Keep custom REST or other endpoint patterns as explicit exceptions, not the baseline Caspian approach.
@@ -86,7 +89,7 @@ Notes:
 - Use a normal parent folder such as `dashboard/` when the section name should appear in the URL. Use a route-group folder such as `(reports)/` only when the shared wrapper should organize child routes without adding a URL segment.
 - Keep reusable database or API clients under `src/lib/`; keep route-specific orchestration in `src/app/`.
 
-If the data source is Prisma, confirm `caspian.config.json` has `prisma: true`, then see `database.md` for the project's schema, migration, and generation workflow. If the project includes an app-owned Python database layer under `src/lib/prisma/`, reuse it instead of creating another helper.
+If the data source is Prisma, confirm `caspian.config.json` has `prisma: true`, then see `database.md` for the project's schema, migration, and generation workflow. If the project includes an app-owned Python database layer under `src/lib/prisma/`, reuse it instead of creating another helper. In Prisma-enabled projects, direct driver access and custom fetch helpers are exceptions to avoid, not alternate defaults.
 
 ## Interactive Data With RPC
 
@@ -134,6 +137,8 @@ Call it from the client with `pp.rpc()`:
   }
 </script>
 ```
+
+Do not call `fetch("/api/todos")` from the browser for normal Caspian CRUD when the route can expose an `@rpc()` action. Do not use `fetch()` or a database driver in Python to work around Prisma when `src/lib/prisma/**` already provides the generated ORM client.
 
 For form submissions, let the form event provide the submitted values. The inputs' `name` attributes define the RPC payload keys, and the Python action owns trimming, validation, coercion, and persistence decisions.
 

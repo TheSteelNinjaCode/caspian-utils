@@ -81,6 +81,7 @@ Avoid building a parallel JavaScript layer for normal UI behavior:
 
 - Do not add ids only so a script can find elements with `document.querySelector(...)` or `document.getElementById(...)`.
 - Do not use `data-*` attributes as a private client state system when PulsePoint state or props should own the data.
+- Do not create click-in buttons by placing intent in `data-*` attributes and then scanning for those attributes. Put the action directly on the element with `onclick`, `oninput`, `onchange`, `onsubmit`, or another native `on*` event attribute.
 - Do not bind normal first-party clicks, input changes, submits, filters, menus, or toggles with `addEventListener(...)`.
 - Do not use form refs plus input refs plus `pp.effect(...)` solely to construct an RPC payload from normal submitted fields.
 - Do not repaint first-party lists or panels with manual `innerHTML` writes when `pp.state(...)` plus `pp-for` can express the same UI.
@@ -206,6 +207,86 @@ Avoid this for a normal form:
 ```
 
 Refs are still useful when the feature actually requires imperative access. They are not the first choice for reading standard form fields that the browser already exposes through the submit event. Keep client code minimal and put reviewable data normalization in the route's Python `@rpc()` action unless the client must transform values for UX before submitting.
+
+Basic two-way state pattern:
+
+```html
+<section>
+  <label>
+    Name
+    <input name="name" value="{name}" oninput="setName(event.target.value)" />
+  </label>
+
+  <p>Hello, {name || "friend"}.</p>
+  <button onclick="setName('')">Clear</button>
+
+  <script>
+    const [name, setName] = pp.state("");
+  </script>
+</section>
+```
+
+Basic RPC-backed form pattern:
+
+```html
+<section>
+  <form onsubmit="{saveContact(event)}" novalidate>
+    <input name="name" value="{name}" oninput="setName(event.target.value)" required />
+    <input name="email" type="email" required />
+
+    <button type="submit" disabled="{isSaving}">
+      {isSaving ? "Saving..." : "Save"}
+    </button>
+  </form>
+
+  <script>
+    const [name, setName] = pp.state("");
+    const [isSaving, setIsSaving] = pp.state(false);
+
+    async function saveContact(event) {
+      event.preventDefault();
+      if (isSaving) return;
+
+      const data = Object.fromEntries(new FormData(event.currentTarget).entries());
+
+      setIsSaving(true);
+      try {
+        await pp.rpc("save_contact", data, { abortPrevious: true });
+      } finally {
+        setIsSaving(false);
+      }
+    }
+  </script>
+</section>
+```
+
+Back that form with a route-owned `@rpc()` action in the sibling `index.py`. If Prisma is enabled, the action should use the generated Prisma Python ORM for persistence.
+
+```python
+from casp.rpc import rpc
+from casp.validate import Validate
+from src.lib.prisma import prisma
+
+
+@rpc()
+async def save_contact(name: str, email: str):
+    name = name.strip()
+    email = email.strip().lower()
+
+    if not name:
+        raise ValueError("Name is required.")
+    if Validate.with_rules(email, "required|email") is not True:
+        raise ValueError("A valid email address is required.")
+
+    contact = await prisma.contact.create(
+        data={
+            "name": name,
+            "email": email,
+        }
+    )
+
+    return contact.to_dict()
+```
 
 ## Authoring Model
 
@@ -549,6 +630,7 @@ Example:
 - Event attributes are removed from the live DOM after binding and rebound after DOM morphing.
 - Owned template/event-owner internals are runtime-managed. Do not author them directly.
 - Do not replace normal PulsePoint event attributes with id-driven `querySelector(...)` plus `addEventListener(...)` wiring. If an imperative listener is unavoidable for an integration, attach and clean it up from `pp.effect(...)`.
+- Do not replace a normal `onclick` with a `data-action`, `data-target`, or similar attribute plus a script that scans the DOM. PulsePoint event attributes are the event contract for first-party Caspian UI.
 
 ## SPA, loading, and navigation helpers
 
@@ -614,6 +696,7 @@ Use these rules when generating or editing PulsePoint runtime code:
 - For grouped shells with independent shell and content scrolling, put `pp-reset-scroll="true"` on the content pane rather than the whole shell when only the page content should reset between child-route navigations.
 - Prefer PulsePoint state and template directives over manual DOM mutation for reactive updates.
 - Avoid generating ids, `data-*` state, `querySelector`, `getElementById`, `addEventListener`, manual `innerHTML`, or custom event buses for normal Caspian UI behavior.
+- Avoid data-attribute click wiring such as `data-action="save"` plus a delegated listener. Use `onclick="save()"` or `onsubmit="{save(event)}"` in authored HTML and keep reactive state in `pp.state(...)`.
 - If you are explicitly editing raw runtime HTML or internals, keep `pp-component` unique per live instance.
 - In authored templates, use a plain `<script>` inside the root. In runtime HTML, the owned script appears as `script[type="text/pp"]`.
 - Keep template-facing variables at top level.

@@ -16,6 +16,8 @@ This page documents the Prisma workflow for Caspian projects where `caspian.conf
 
 When a project enables Prisma, use `prisma/schema.prisma` for schema management, `prisma.config.ts` for Prisma config and seed wiring, and reuse an app-owned `src/lib/prisma/` package when the project includes one.
 
+High-priority rule: when `caspian.config.json` has `prisma: true`, Python-side database access must use the generated Prisma Python ORM. Route `page()` functions, route-owned `@rpc()` actions, auth handlers, upload flows, and shared helpers should import the generated client from `src/lib/prisma/**` instead of inventing direct driver calls, hand-written SQL wrappers, JSON manifests as active stores, app-specific HTTP fetches, or browser-side database fetches. Use raw SQL only through Prisma as a narrow fallback when the generated ORM cannot express a query clearly.
+
 Treat `caspian.config.json` as the single source of truth for whether Prisma is enabled in a workspace. If `prisma` is false and the user wants Prisma, ask first, then update `caspian.config.json` and run `npx casp update project` before assuming Prisma-managed files exist.
 
 ## Overview
@@ -29,7 +31,7 @@ The standard Prisma flow in Caspian is:
 5. Run `npx ppy generate` so the Python ORM classes stay aligned with the updated schema.
 6. Reuse the shared Python database layer in `src/lib/prisma/` when Python route or RPC code needs database access, and never hand-edit generated ORM classes.
 
-Use this workflow instead of writing raw SQL first. Drop to raw SQL only when a query cannot be expressed clearly with the generated client.
+Use this workflow instead of writing raw SQL first. Drop to raw SQL only through Prisma when a query cannot be expressed clearly with the generated client.
 
 ## Environment Setup
 
@@ -157,7 +159,7 @@ If Python route or RPC code needs database access, import from `src.lib.prisma` 
 
 ## Python Route Usage
 
-If the project ships an app-owned Python Prisma-style layer under `src/lib/prisma/`, treat it as async-first and reuse it from route and RPC code.
+If the project ships an app-owned Python Prisma-style layer under `src/lib/prisma/`, treat it as async-first and reuse it from route and RPC code. In a Prisma-enabled project, this is the required data-access path for Python code.
 
 Example:
 
@@ -178,7 +180,7 @@ Prisma calls fit naturally in:
 - `async def page()` for first-render data
 - `@rpc()` actions for browser-triggered reads and writes
 
-Keep route-specific Prisma I/O in `page()` or `@rpc()` actions. The installed layout engine supports synchronous and async `layout()` results, but layout work should stay focused on shared subtree props or metadata.
+Keep route-specific Prisma I/O in that route's `page()` or `@rpc()` actions in `src/app/**/index.py`. The installed layout engine supports synchronous and async `layout()` results, but layout work should stay focused on shared subtree props or metadata. Move Prisma helpers into `src/lib/**` only when the same behavior is reused by multiple routes, features, or integrations.
 
 See `fetch-data.md` for the recommended route-render versus RPC split.
 
@@ -325,12 +327,13 @@ users = await prisma.query_raw(
 )
 ```
 
-Use raw SQL sparingly. Prefer the generated Prisma API when the query can be expressed clearly there.
+Use raw SQL sparingly and only through Prisma. Prefer the generated Prisma API when the query can be expressed clearly there.
 
 ## Recommended Project Rules
 
 - Keep the schema in `prisma/schema.prisma` and follow the required regeneration order after changes: `npx prisma migrate dev`, optional seed flow, then `npx ppy generate`.
 - Reuse `src/lib/prisma/` for Python-side database access instead of creating a second bridge.
+- When Prisma is enabled, do not bypass the Prisma Python ORM with direct database drivers, custom fetch functions, JSON files as active stores, or browser-side database access.
 - Never hand-edit generated Prisma or Python ORM classes.
 - Keep reusable database helpers in `src/lib/`, and keep route-specific orchestration in `src/app/`.
 - Use `await` with Prisma operations.
@@ -350,6 +353,7 @@ If an AI agent is working on a Caspian app with Prisma enabled, apply these rule
 - Never hand-edit generated Prisma or Python ORM classes.
 - Read `prisma.config.ts` and `prisma/seed.ts` when you need the current project's Prisma tooling examples.
 - Reuse the existing `src/lib/prisma/` package when the Python app needs database access.
+- Treat use of the Prisma Python ORM as mandatory for Python-side database reads and writes in Prisma-enabled projects.
 - For file managers and uploads, persist metadata in Prisma and keep blob storage separate. See [file-uploads.md](./file-uploads.md).
 - Put reusable database helpers in `src/lib/`; keep route and RPC orchestration in `src/app/`.
 - Use `async def page()` for route-specific first-render reads. Use `layout()` only for shared subtree props or metadata, and use `@rpc()` plus `pp.rpc()` for browser-triggered reads and writes.

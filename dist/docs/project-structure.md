@@ -108,6 +108,8 @@ This directory handles file-based routing. Route templates and route-specific ba
 
 For any route that renders UI, keep that markup in `src/app/**/index.html`. If the route is UI-only, `index.html` alone is enough. Add `src/app/**/index.py` only as a companion when the same route needs metadata, `page()`, `@rpc()` actions, auth checks, caching, redirects, or other server-side behavior. Keep shared wrappers in `layout.html` and use `layout.py` only for shared props or metadata. Use a lone `index.py` only for non-visual routes such as redirect-only or action-only handlers.
 
+Keep backend logic in the owning route when it is route-specific. Move Python code into `src/lib/**` only when it is shared across routes, components, integrations, or features.
+
 When a folder represents a section with child routes, such as `dashboard`, `account`, `settings`, or `docs`, create `layout.html` in that folder and let the child routes live beneath it. See [routing.md](./routing.md) for the canonical section layout pattern.
 
 If the shared wrapper should not add a URL segment, use a parenthesized route-group folder such as `(marketing)/layout.html` instead of a normal folder name. Use a normal folder such as `dashboard/` only when that segment should be part of the public URL.
@@ -148,7 +150,7 @@ Do not add `src/lib/security/runtime_security.py` for normal app work. Runtime s
 
 If your Python routes or RPC actions need reusable database access code, keep that helper layer under `src/lib/` and extend the existing `src/lib/prisma/` package.
 
-In a Prisma-enabled Caspian project, schema and seed files typically live under `prisma/`, while the Python-side adapter lives in application-owned code under `src/lib/prisma/` when that layer exists.
+In a Prisma-enabled Caspian project, schema and seed files typically live under `prisma/`, while the Python-side adapter lives in application-owned code under `src/lib/prisma/` when that layer exists. When `caspian.config.json` has `prisma: true`, Python-side database reads and writes should use that generated Prisma Python ORM instead of a custom fetch, raw driver, JSON active store, or second app-owned database abstraction.
 
 ### `src/lib/auth/`
 
@@ -324,6 +326,7 @@ If an AI agent is deciding where to make changes, use these rules first.
 - Treat `__pycache__/` directories, `.pyc` files, `public/css/styles.css`, `settings/component-map.json`, and `settings/files-list.json` as generated artifacts when the local stack is intentionally running. They are not authored source files.
 - Inspect `settings/component-map.json` and `settings/files-list.json` when you need the generated component or route inventory, but do not hand-edit them. The workspace regenerates them from `settings/component-map.ts` and `settings/files-list.ts`.
 - Put route templates and route-specific backend logic in `src/app/`.
+- Put only genuinely shared helpers, services, adapters, and validation logic in `src/lib/`.
 - As the app grows, keep route-owned code in `src/app/`, reusable rendered UI in `src/components/`, and reusable non-UI support code in `src/lib/`.
 - When the user asks for a dashboard, admin area, account area, or any grouped set of child routes, create a parent folder in `src/app/` with `layout.html` and place the child routes beneath it. Use `(group)/layout.html` only when that parent should not appear in the URL.
 - Read [file-uploads.md](./file-uploads.md) when the task involves upload widgets, media libraries, or file-manager flows.
