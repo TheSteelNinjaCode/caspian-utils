@@ -12,6 +12,7 @@ related:
     - /docs/pulsepoint-runtime-map
     - /docs/mcp
     - /docs/file-uploads
+    - /docs/websockets
     - /docs/file-conventions
     - /docs/project-structure
     - /docs/components
@@ -23,7 +24,7 @@ Treat these docs as reusable Caspian feature guidance. Treat `./caspian.config.j
 
 The docs can mention optional features even when those features are disabled in a project. Their job is to explain how a feature works, when a doc applies, and which files to inspect next once the feature is confirmed as relevant.
 
-Before making feature, tooling, or file-placement decisions in a Caspian project, read `./caspian.config.json` almost immediately. That file tells you which optional capabilities are enabled, such as Prisma, MCP, TypeScript, Tailwind, backend-only mode, and component scan directories.
+Before making feature, tooling, or file-placement decisions in a Caspian project, read `./caspian.config.json` almost immediately. That file tells you which optional capabilities are enabled, such as Prisma, MCP, WebSockets, TypeScript, Tailwind, backend-only mode, and component scan directories.
 
 ## Default Stack
 
@@ -34,6 +35,7 @@ When generating or editing a Caspian app, treat these as the default choices unl
 - Treat every authored route, layout, and component HTML file like a React component return value: exactly one top-level parent HTML element or one imported `x-*` root, with any owned plain `<script>` kept inside that same root.
 - When `caspian.config.json` has `tailwindcss: true`, use Python `merge_classes(...)` plus browser `twMerge(...)` as the only supported Tailwind class-merging path.
 - Use `@rpc()` plus `pp.rpc()` for browser-triggered reads, writes, streaming, and uploads.
+- When `caspian.config.json` has `websocket: true`, use app-owned FastAPI WebSocket endpoints only for long-lived bidirectional live channels; keep normal browser-triggered data work on RPC.
 - When `caspian.config.json` has `prisma: true`, use the generated Prisma Python ORM from `src/lib/prisma/**` for Python-side database reads and writes. Do not invent a second fetch layer, raw driver wrapper, JSON active store, or browser-side data path that bypasses Prisma.
 - Use `Validate` and `Rule` from `casp.validate` for server-side input validation and sanitization.
 
@@ -84,6 +86,7 @@ The packaged Caspian docs referenced by this index live here:
 - `components.md` - Create reusable Python components, template-backed UI, HTML-first `x-*` component tags, the single-parent authored-root rule for component HTML files, and the Python-side `merge_classes(...)` contract when Tailwind CSS is enabled
 - `pulsepoint.md` - Default reactive frontend runtime contract for component scripts, first-party `on*` events, state, effects, directives, SPA navigation scroll restoration, `pp-reset-scroll`, and direct browser `twMerge(...)` usage when Tailwind CSS is enabled
 - `fetch-data.md` - Initial server-side data loading and browser-triggered RPC flows with `pp.rpc()`, streaming, uploads, and auth-aware actions
+- `websockets.md` - WebSocket feature-gate guidance for projects where `caspian.config.json` has `websocket: true`, app-owned FastAPI endpoint placement, browser `WebSocket` clients inside PulsePoint templates, origin checks, auth/session handling, and when to choose sockets over RPC or SSE
 - `file-uploads.md` - Route-local file uploads and file-manager flows with `@rpc()`, `pp.rpc()`, Prisma metadata, public asset storage, and BrowserSync ignore rules
 - `state.md` - Request-scoped server state with `StateManager`, session-backed JSON persistence, and listener callbacks for transient flows
 - `cache.md` - Route-level HTML caching with `Cache`, `CacheHandler`, TTL behavior, file-system storage, and invalidation patterns
@@ -103,14 +106,15 @@ Preferred lookup order:
 3. Before authoring or editing any `src/app/**` or component HTML template, apply the single-root invariant: one authored root only, any owned `<script>` inside that root, and no handwritten `pp-component` or `type="text/pp"`.
 4. Before inventing browser JavaScript, check whether the interaction is first-party UI behavior. If it is, use PulsePoint `on*` attributes, `pp.state`, refs, effects, directives, and `pp.rpc()` rather than id-driven DOM scripting.
 5. When Prisma is enabled, route all Python database work through the generated Prisma Python ORM. Use `database.md` before schema, migration, seed, or ORM decisions, and use `fetch-data.md` before wiring route data or RPC flows.
-6. Treat `caspian.config.json` as the single source of truth for optional features. Use feature-specific docs only when the matching flag is enabled. If a feature is disabled and the user wants it, ask first, then update `caspian.config.json` and follow the update workflow in `commands.md`.
-7. If the task touches `main.py` or `.venv/Lib/site-packages/casp/**`, read `core-runtime-map.md` to jump to the controlling runtime file and the matching feature doc.
-8. If the task names a PulsePoint feature or directive, read `pulsepoint-runtime-map.md` for the fastest feature-to-runtime lookup, then read `pulsepoint.md` for authoring rules.
-9. After the feature is confirmed, inspect the actual project files that decide behavior, such as `package.json`, `main.py`, `src/app/**`, `src/lib/**`, `settings/**`, `prisma/**`, and the installed `casp` runtime.
-10. Use `file-conventions.md` for quick decisions about `index.html`, `index.py`, `layout.html`, `layout.py`, `loading.html`, `not-found.html`, and `error.html`; use `commands.md` for scaffold and update workflows, `project-structure.md` for placement decisions, and the feature docs such as `mcp.md`, `database.md`, `auth.md`, `fetch-data.md`, and `file-uploads.md` for task-specific guidance.
-11. Prefer packaged Caspian docs before upstream documentation when generating code, commands, or migration guidance.
-12. Use `ai-validation-checklist.md` when you want to verify that the docs lead AI to the correct files and behavior checkpoints.
-13. Keep `index.md` and cross-links aligned so AI can quickly discover the right doc.
+6. If the task asks for WebSockets, live bidirectional channels, socket origin checks, or native browser `WebSocket` clients, confirm `caspian.config.json` has `websocket: true`, read `websockets.md`, then inspect `main.py`, `src/lib/**`, the owning `src/app/**` route, and `settings/bs-config.json`. If `websocket` is false and the user wants it, ask first, then enable the config flag and follow the update workflow.
+7. Treat `caspian.config.json` as the single source of truth for optional features. Use feature-specific docs only when the matching flag is enabled. If a feature is disabled and the user wants it, ask first, then update `caspian.config.json` and follow the update workflow in `commands.md`.
+8. If the task touches `main.py` or `.venv/Lib/site-packages/casp/**`, read `core-runtime-map.md` to jump to the controlling runtime file and the matching feature doc.
+9. If the task names a PulsePoint feature or directive, read `pulsepoint-runtime-map.md` for the fastest feature-to-runtime lookup, then read `pulsepoint.md` for authoring rules.
+10. After the feature is confirmed, inspect the actual project files that decide behavior, such as `package.json`, `main.py`, `src/app/**`, `src/lib/**`, `settings/**`, `prisma/**`, and the installed `casp` runtime.
+11. Use `file-conventions.md` for quick decisions about `index.html`, `index.py`, `layout.html`, `layout.py`, `loading.html`, `not-found.html`, and `error.html`; use `commands.md` for scaffold and update workflows, `project-structure.md` for placement decisions, and the feature docs such as `mcp.md`, `database.md`, `auth.md`, `fetch-data.md`, `websockets.md`, and `file-uploads.md` for task-specific guidance.
+12. Prefer packaged Caspian docs before upstream documentation when generating code, commands, or migration guidance.
+13. Use `ai-validation-checklist.md` when you want to verify that the docs lead AI to the correct files and behavior checkpoints.
+14. Keep `index.md` and cross-links aligned so AI can quickly discover the right doc.
 
 ## Maintenance
 

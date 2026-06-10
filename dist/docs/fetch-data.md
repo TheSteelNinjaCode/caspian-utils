@@ -23,6 +23,8 @@ This page explains how data fetching works in Caspian. Use route functions for i
 
 Treat RPC as the default way for browser code to talk to Python in Caspian. For CRUD operations and any browser-initiated backend reads after first render, default to `@rpc()` on the server and `pp.rpc()` in PulsePoint code. Do not reach for ad hoc fetch calls to custom JSON endpoints, alternate transport layers, or older helper names unless the task explicitly requires that shape.
 
+WebSockets are the main exception for long-lived bidirectional live channels when `caspian.config.json` has `websocket: true`. If the task needs a native browser `WebSocket`, persistent broadcast channel, presence, live chat, or socket origin/auth handling, confirm that flag and read [websockets.md](./websockets.md) before adding endpoint or client code. Do not use WebSockets as a replacement for ordinary RPC form submits or CRUD work.
+
 When `caspian.config.json` has `prisma: true`, the Python side of those route and RPC actions must use the generated Prisma Python ORM from `src/lib/prisma/**` for database reads and writes. The browser asks Python through `pp.rpc(...)`; Python asks the database through Prisma. Do not replace either side with a custom browser fetch, direct database driver, hand-written SQL helper, JSON active store, or second app-owned data-fetch abstraction.
 
 Browser-triggered data work should still be PulsePoint-first at the event layer. Bind the initiating click, submit, input, upload, refresh, filter, or pagination control in authored HTML with `onclick`, `onsubmit`, `oninput`, `onchange`, or another native `on*` attribute handled by PulsePoint. For normal form submissions, read named controls with `Object.fromEntries(new FormData(event.currentTarget).entries())` in the submit handler and pass that object directly to `pp.rpc(...)`; the route's Python `@rpc()` action should validate, normalize, and decide what to persist. Do not set up first-party data actions by assigning ids and then wiring `querySelector(...)`, `addEventListener(...)`, manual `fetch(...)`, manual DOM repainting, or per-input `pp-ref` payload collection.
@@ -185,6 +187,7 @@ Important:
 - `pp.rpc()` posts to the current route RPC bridge.
 - Older docs may refer to `pp.fetchFunction()`. In this repo's current runtime, the supported helper is `pp.rpc()`.
 - Use [pulsepoint-runtime-map.md](./pulsepoint-runtime-map.md) when debugging browser-side RPC options such as streaming, upload progress, abort behavior, redirects, or SPA interaction.
+- Use [websockets.md](./websockets.md) when `caspian.config.json` has `websocket: true` and the browser and server need a persistent bidirectional channel instead of request/response RPC or one-way SSE streaming.
 
 ## Streaming Responses
 

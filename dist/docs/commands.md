@@ -182,6 +182,9 @@ In skip-prompt mode, the default feature values are:
 - `typescript: false`
 - `mcp: false`
 - `prisma: false`
+- `websocket: false`
+
+If a project needs WebSockets after creation, set `websocket: true` in `caspian.config.json`, then run the project update workflow so framework-managed files and any scaffolded socket surfaces stay aligned before assuming `@app.websocket(...)` routes or `src/lib/websocket/**` exist.
 
 ### 4.2 Backend-only combinations
 

@@ -9,6 +9,7 @@ related:
     - /docs/routing
     - /docs/auth
     - /docs/fetch-data
+    - /docs/websockets
     - /docs/pulsepoint
     - /docs/pulsepoint-runtime-map
     - /docs/index
@@ -59,6 +60,7 @@ Use this table when the task names a framework feature but the owning file is no
 | Baseline response headers and safe public-file serving | `main.py` imports from `casp.runtime_security` | `.venv/Lib/site-packages/casp/runtime_security.py` | [auth.md](./auth.md), [project-structure.md](./project-structure.md) |
 | RPC and server actions | route or component Python modules with `@rpc()` | `casp.rpc`, `main.py` middleware | [fetch-data.md](./fetch-data.md), [file-uploads.md](./file-uploads.md) |
 | Streaming | route `page()` generators, RPC generators | `casp.streaming`, `casp.rpc`, `main.py` | [fetch-data.md](./fetch-data.md) |
+| WebSockets | `main.py` `@app.websocket(...)` endpoints when `caspian.config.json` has `websocket: true`, `src/lib/**` socket helpers, route-owned browser clients in `src/app/**` | FastAPI app-owned ASGI endpoints in `main.py` | [websockets.md](./websockets.md), [auth.md](./auth.md), [pulsepoint.md](./pulsepoint.md) |
 | Server state | request handlers and RPC actions | `casp.state_manager`, `main.py` middleware | [state.md](./state.md) |
 | Page caching | route-level `Cache(...)` declarations | `casp.cache_handler`, `main.py` cache check/save | [cache.md](./cache.md) |
 | Validation | route and RPC input boundaries | `casp.validate` | [validation.md](./validation.md) |
@@ -111,6 +113,7 @@ Use these behavior checkpoints when AI needs the fastest verification path for a
 | Runtime area | Verify these behaviors |
 | --- | --- |
 | `main.py` routing and request flow | route registration, path and query injection, static asset handling, session-middleware wiring, response-header middleware, and exception rendering |
+| `main.py` WebSockets | `cfg.websocket` route-registration gate, `@app.websocket(...)` paths, origin checks before `accept()`, auth/session extraction, message-size and idle-timeout handling, close codes, and connection cleanup |
 | `public/js/pp-reactive-v2.js` browser runtime | SPA interception, history-vs-push scroll behavior, `pp-reset-scroll` semantics, and browser-side `pp.rpc()` behavior |
 | `casp.auth` | auth settings, signin and signout flow, provider wiring, and page protection behavior |
 | `casp.rpc` and streamed RPC responses | middleware interception, CSRF and session expectations, registry behavior, and helper-level RPC contracts |

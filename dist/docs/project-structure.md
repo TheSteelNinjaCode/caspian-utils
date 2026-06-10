@@ -31,7 +31,7 @@ In that layout, the default stack is Python components for reusable UI, PulsePoi
 
 For public pages that can safely reuse rendered HTML, Caspian also supports route-level page caching through `casp.cache_handler`.
 
-Before an AI agent decides which Caspian features are available in a workspace, it should read `./caspian.config.json` almost immediately. That file is the feature gate for project capabilities such as `backendOnly`, `tailwindcss`, `mcp`, `prisma`, `typescript`, and `componentScanDirs`.
+Before an AI agent decides which Caspian features are available in a workspace, it should read `./caspian.config.json` almost immediately. That file is the feature gate for project capabilities such as `backendOnly`, `tailwindcss`, `mcp`, `prisma`, `typescript`, `websocket`, and `componentScanDirs`.
 
 Treat `caspian.config.json` as the single source of truth for optional feature enablement. Use feature-specific files and docs only after the matching flag is confirmed as enabled. If a feature is disabled and the user wants it, ask first, then update `caspian.config.json` and follow the update workflow in `commands.md`.
 
@@ -42,6 +42,7 @@ Treat `caspian.config.json` as the single source of truth for optional feature e
 - `src/lib/` contains reusable non-UI code such as helpers, services, validators, adapters, and shared support modules.
 - `src/lib/auth/auth_config.py` contains auth-specific configuration for the app.
 - `src/lib/mcp/` contains the app-owned FastMCP server and nested FastMCP config when MCP is enabled.
+- `src/lib/websocket/` contains reusable socket helpers when WebSockets are enabled and the project includes shared session, auth, connection, or broadcast utilities.
 - `prisma/` contains the Prisma schema and seed scripts.
 - `public/` contains static assets served directly.
 - `settings/` contains BrowserSync, build, restart, and generated-project helper files.
@@ -80,6 +81,8 @@ my-app/
       mcp/
         fastmcp.json
         mcp_server.py
+      websocket/
+        websocket_security.py
       prisma/
         __init__.py
         db.py
@@ -94,7 +97,7 @@ my-app/
         docs/
 ```
 
-Optional directories such as `src/lib/mcp/` appear only when the relevant feature flag is enabled in `caspian.config.json`.
+Optional directories such as `src/lib/mcp/` and `src/lib/websocket/` appear only when the relevant feature flag is enabled in `caspian.config.json` and the project needs that app-owned surface.
 
 ## Directory Breakdown
 
