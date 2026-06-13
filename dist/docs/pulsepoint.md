@@ -26,6 +26,19 @@ PulsePoint is the default reactive frontend layer for Caspian. In the current ru
 
 Do not assume React, Vue, Svelte, JSX, Alpine, HTMX, or older PulsePoint docs unless the task explicitly asks for a different frontend contract.
 
+## Hard Invariants
+
+Apply these before generating any template, even without reading the rest of this page:
+
+1. One authored top-level root per route, layout, or component template; the owned plain `<script>` lives inside that root, never as a sibling.
+2. Never handwrite `pp-component`, `type="text/pp"`, `data-pp-ref`, or other runtime-managed attributes; the render pipeline injects them.
+3. Bind first-party events with native `on*` attributes in the HTML; never wire normal UI with ids, `querySelector`, `addEventListener`, or manual `innerHTML`.
+4. For ordinary form submits, use `onsubmit="{handler(event)}"` plus `Object.fromEntries(new FormData(event.currentTarget).entries())`; refs are for imperative access only.
+5. Keep reactive values in `pp.state(...)`; keep template-facing bindings at the top level of the script.
+6. Call the backend with `pp.rpc(...)` backed by Python `@rpc()` actions; do not invent fetch wrappers or `pp.fetchFunction()`.
+7. `pp-for` goes only on `<template>` with plain `key`; context uses `pp.createContext(...)`, a lowercase `<token.provider>` tag, and `pp.context(token)`.
+8. If an API is not in `public/js/pp-reactive-v2.js`, it does not exist; do not invent hooks, directives, or globals.
+
 ## Source Of Truth
 
 When documenting or generating PulsePoint code, follow this order:
@@ -208,6 +221,32 @@ Avoid this for a normal form:
 
 Refs are still useful when the feature actually requires imperative access. They are not the first choice for reading standard form fields that the browser already exposes through the submit event. Keep client code minimal and put reviewable data normalization in the route's Python `@rpc()` action unless the client must transform values for UX before submitting.
 
+Back the form with a route-owned `@rpc()` action in the sibling `index.py`. If Prisma is enabled, the action should use the generated Prisma Python ORM for persistence.
+
+```python
+from casp.rpc import rpc
+from casp.validate import Validate
+from src.lib.prisma import prisma
+
+
+@rpc()
+async def save_profile(name: str, email: str, password: str = ""):
+    name = name.strip()
+    email = email.strip().lower()
+
+    if not name:
+        raise ValueError("Name is required.")
+    if Validate.with_rules(email, "required|email") is not True:
+        raise ValueError("A valid email address is required.")
+
+    profile = await prisma.user.update(
+        where={"email": email},
+        data={"name": name},
+    )
+
+    return profile.to_dict()
+```
+
 Basic two-way state pattern:
 
 ```html
@@ -224,68 +263,6 @@ Basic two-way state pattern:
     const [name, setName] = pp.state("");
   </script>
 </section>
-```
-
-Basic RPC-backed form pattern:
-
-```html
-<section>
-  <form onsubmit="{saveContact(event)}" novalidate>
-    <input name="name" value="{name}" oninput="setName(event.target.value)" required />
-    <input name="email" type="email" required />
-
-    <button type="submit" disabled="{isSaving}">
-      {isSaving ? "Saving..." : "Save"}
-    </button>
-  </form>
-
-  <script>
-    const [name, setName] = pp.state("");
-    const [isSaving, setIsSaving] = pp.state(false);
-
-    async function saveContact(event) {
-      event.preventDefault();
-      if (isSaving) return;
-
-      const data = Object.fromEntries(new FormData(event.currentTarget).entries());
-
-      setIsSaving(true);
-      try {
-        await pp.rpc("save_contact", data, { abortPrevious: true });
-      } finally {
-        setIsSaving(false);
-      }
-    }
-  </script>
-</section>
-```
-
-Back that form with a route-owned `@rpc()` action in the sibling `index.py`. If Prisma is enabled, the action should use the generated Prisma Python ORM for persistence.
-
-```python
-from casp.rpc import rpc
-from casp.validate import Validate
-from src.lib.prisma import prisma
-
-
-@rpc()
-async def save_contact(name: str, email: str):
-    name = name.strip()
-    email = email.strip().lower()
-
-    if not name:
-        raise ValueError("Name is required.")
-    if Validate.with_rules(email, "required|email") is not True:
-        raise ValueError("A valid email address is required.")
-
-    contact = await prisma.contact.create(
-        data={
-            "name": name,
-            "email": email,
-        }
-    )
-
-    return contact.to_dict()
 ```
 
 ## Authoring Model
@@ -446,6 +423,93 @@ Notes:
 - Older docs may call the RPC helper `pp.fetchFunction()`. In the current bundled runtime the implemented global API is `pp.rpc()`.
 - Keep template-facing bindings at the top level so the AST-based exporter can see them.
 - For predictable code generation, prefer passing an explicit dependency array to `pp.effect`, `pp.layoutEffect`, `pp.memo`, and `pp.callback`.
+
+Effect with cleanup and dependencies:
+
+```html
+<section>
+  <p>Elapsed: {seconds}s</p>
+  <button onclick="setRunning(!running)">{running ? "Pause" : "Resume"}</button>
+
+  <script>
+    const [seconds, setSeconds] = pp.state(0);
+    const [running, setRunning] = pp.state(true);
+
+    pp.effect(() => {
+      if (!running) return;
+      const id = setInterval(() => setSeconds((s) => s + 1), 1000);
+      return () => clearInterval(id);
+    }, [running]);
+  </script>
+</section>
+```
+
+Use the same shape for any subscription: attach in the effect body, detach in the returned cleanup. The cleanup also runs on component disposal, which is why route-owned `WebSocket` clients close their socket from a cleanup effect.
+
+Memoized derived value:
+
+```html
+<section>
+  <input value="{query}" oninput="setQuery(event.target.value)" />
+  <p>{visible.length} of {items.length} items</p>
+
+  <script>
+    const [query, setQuery] = pp.state("");
+    const items = pp.props.items ?? [];
+
+    const visible = pp.memo(
+      () => items.filter((item) => item.label.toLowerCase().includes(query.toLowerCase())),
+      [query]
+    );
+  </script>
+</section>
+```
+
+For cheap derivations, a plain top-level `const` recomputed each render is fine; reach for `pp.memo` when the computation is heavy or the result identity matters for dependencies.
+
+Reducer for multi-field update logic:
+
+```html
+<section>
+  <p>{cart.count} items, total {cart.total}</p>
+  <button onclick="dispatch({ type: 'add', price: 10 })">Add</button>
+  <button onclick="dispatch({ type: 'clear' })">Clear</button>
+
+  <script>
+    const [cart, dispatch] = pp.reducer((state, action) => {
+      if (action.type === "add") {
+        return { count: state.count + 1, total: state.total + action.price };
+      }
+      if (action.type === "clear") {
+        return { count: 0, total: 0 };
+      }
+      return state;
+    }, { count: 0, total: 0 });
+  </script>
+</section>
+```
+
+Portal pattern for overlays that must escape clipping ancestors:
+
+```html
+<div>
+  <button onclick="setOpen(true)">Open dialog</button>
+
+  <div pp-ref="dialogRef" hidden="{!open}" class="modal">
+    <p>Rendered under document.body.</p>
+    <button onclick="setOpen(false)">Close</button>
+  </div>
+
+  <script>
+    const [open, setOpen] = pp.state(false);
+    const dialogRef = pp.ref(null);
+
+    pp.portal(dialogRef);
+  </script>
+</div>
+```
+
+`pp.portal(ref)` moves the ref-managed element to `document.body` by default, or to the element passed as the second argument. Portaled content keeps its logical component ancestry, so context, props, and events keep working.
 
 ## Context
 
@@ -654,8 +718,9 @@ RPC notes:
 - Passing `true` as the third argument means `abortPrevious: true`.
 - The options object supports `abortPrevious`, `onStream`, `onStreamError`, `onStreamComplete`, `onUploadProgress`, and `onUploadComplete`.
 - File uploads switch to the XHR path when upload progress callbacks are needed.
+- The `onUploadProgress` callback receives `{ loaded, total, percent }`. `percent` is a 0-100 number, and both `total` and `percent` are `null` when the browser cannot compute the upload length. Do not document or generate `event.percentage`.
 - For file managers, use upload callbacks for progress UI but replace the asset list from returned RPC state with `pp.state(...)` and `pp-for` instead of manual DOM repainting. See [file-uploads.md](./file-uploads.md).
-- Streamed `text/event-stream` responses are supported when a stream handler is provided.
+- Streamed `text/event-stream` responses are supported when a stream handler is provided. Each `onStream` chunk is JSON-parsed when the event data looks like JSON; otherwise the raw string is passed through. If the response streams but no `onStream` handler was given, the runtime warns and discards the stream.
 - Redirect headers are honored through `pp.redirect()`.
 
 Notes:
@@ -663,6 +728,53 @@ Notes:
 - `pp.redirect()` uses SPA navigation for same-origin URLs when SPA mode is enabled. Otherwise it falls back to normal navigation.
 - Root-layout mismatches during SPA navigation trigger a hard reload.
 - `pp.mount()` bootstraps every `[pp-component]` it finds, so generated code should call it only through the global runtime if you are manually mounting at all.
+
+Upload with progress pattern:
+
+```html
+<section>
+  <input type="file" onchange="{uploadFile(event.target.files?.[0])}" />
+  <progress max="100" value="{percent ?? 0}"></progress>
+
+  <script>
+    const [percent, setPercent] = pp.state(null);
+
+    async function uploadFile(file) {
+      if (!file) return;
+
+      await pp.rpc("upload_asset", { file }, {
+        onUploadProgress: ({ percent }) => setPercent(percent),
+        onUploadComplete: () => setPercent(100),
+      });
+    }
+  </script>
+</section>
+```
+
+Streaming pattern for server generators that return `text/event-stream`:
+
+```html
+<section>
+  <button onclick="ask()" disabled="{isStreaming}">Ask</button>
+  <pre>{answer}</pre>
+
+  <script>
+    const [answer, setAnswer] = pp.state("");
+    const [isStreaming, setIsStreaming] = pp.state(false);
+
+    function ask() {
+      setAnswer("");
+      setIsStreaming(true);
+
+      pp.rpc("ask_question", { topic: "caspian" }, {
+        onStream: (chunk) => setAnswer((current) => current + chunk),
+        onStreamError: () => setIsStreaming(false),
+        onStreamComplete: () => setIsStreaming(false),
+      });
+    }
+  </script>
+</section>
+```
 
 ## Runtime Output And Debugging
 

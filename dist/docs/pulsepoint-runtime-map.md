@@ -42,7 +42,7 @@ If an inspected browser DOM disagrees with authored template source, remember th
 | Lists | `<template pp-for="item in items">` | `pp-reactive-v2.js` | `pp-for` belongs on `<template>`, use plain `key`, not `pp-key` |
 | Events | native `onclick`, `oninput`, `onchange`, `onsubmit` | `pp-reactive-v2.js` | first-party events belong in `on*` attributes; event scope exposes `event`, `e`, `$event`, `target`, `currentTarget`, and `el`; normal form submits should use `Object.fromEntries(new FormData(event.currentTarget).entries())` instead of per-input refs; avoid id-driven `querySelector`/`addEventListener` for normal UI |
 | RPC | `pp.rpc(...)` in scripts, `@rpc()` in Python | `pp-reactive-v2.js`, `casp/rpc.py` | use `pp.rpc`, not legacy `pp.fetchFunction`; protected actions use `@rpc(require_auth=True)` |
-| Upload progress | `pp.rpc(..., { onUploadProgress })` | `pp-reactive-v2.js`, `casp/rpc.py` | XHR path is used for progress callbacks; replace state from returned payload |
+| Upload progress | `pp.rpc(..., { onUploadProgress })` | `pp-reactive-v2.js`, `casp/rpc.py` | XHR path is used for progress callbacks; the callback receives `{ loaded, total, percent }` and `percent` can be `null` when length is not computable; replace state from returned payload |
 | Streaming | `pp.rpc(..., { onStream })` | `pp-reactive-v2.js`, `casp/rpc.py`, `casp/streaming.py` | server generators become SSE responses |
 | SPA navigation | `body[pp-spa="true"]`, links | `pp-reactive-v2.js`, `main.py` | same-origin eligible links intercept; root-layout mismatches hard reload |
 | Scroll restoration | `pp-reset-scroll="true"` | `pp-reactive-v2.js` | push navigation resets window; mark only content panes that should reset |
@@ -104,7 +104,7 @@ Upload progress:
       if (!file) return;
 
       await pp.rpc("upload_asset", { file }, {
-        onUploadProgress: (event) => setProgress(event.percentage ?? 0),
+        onUploadProgress: (event) => setProgress(Math.round(event.percent ?? 0)),
       });
     }
   </script>
