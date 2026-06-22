@@ -28,7 +28,8 @@ As the app grows, treat `src/components/` as the default home for reusable appli
 
 - Use a Python component when you want a reusable server-rendered UI building block.
 - Return an HTML string directly for small presentational components.
-- Use `render_html(...)` with a same-name `.html` file when the component has more markup, PulsePoint behavior, or clearer separation between Python logic and UI.
+- Use `html(...)` to keep markup, server interpolation, and a PulsePoint `<script>` inline in one Python file (single-file component) for small and medium UI. It renders through Caspian's Jinja env, so `{{ ... }}` is server-side and `{ ... }` stays for PulsePoint.
+- Use `render_html(...)` with a same-name `.html` file when the component has large markup, a long script, or you want clearer separation between Python logic and UI.
 - When a component needs first-party interactivity, bind events in the component template with PulsePoint-handled `on*` attributes and keep state in `pp.state(...)`; do not build id-driven `querySelector(...)` or `addEventListener(...)` wiring for normal component behavior.
 - Keep page-level workflows in `src/app/`, move reusable UI into `src/components/`, and keep helpers, services, validators, and adapters in `src/lib/`.
 
@@ -36,8 +37,8 @@ As the app grows, treat `src/components/` as the default home for reusable appli
 
 When the task is about component internals rather than normal app-owned components, these runtime files are the most relevant:
 
-- `.venv/Lib/site-packages/casp/component_decorator.py` owns `@component`, `Component`, `render_html(...)`, and component loading.
-- `.venv/Lib/site-packages/casp/components_compiler.py` owns `@import` parsing, `x-*` tag resolution, root validation, and `pp-component` injection.
+- `.venv/Lib/site-packages/casp/component_decorator.py` owns `@component`, `Component`, `render_html(...)`, the inline `html(...)` helper, and component loading.
+- `.venv/Lib/site-packages/casp/components_compiler.py` owns `@import` parsing, `x-*` tag resolution (including resolving a component's own tags from its Python module imports), parent-scope expansion of slot content, root validation, and `pp-component` injection.
 - `.venv/Lib/site-packages/casp/html_attrs.py` owns `get_attributes(...)` and the Python-side `merge_classes(...)` contract.
 Use [core-runtime-map.md](./core-runtime-map.md) when you need the broader Python runtime-module map. Use [pulsepoint-runtime-map.md](./pulsepoint-runtime-map.md) when a component task is specifically about browser-side PulsePoint state, refs, context, portals, events, RPC, or SPA behavior.
 
@@ -183,7 +184,7 @@ Do not invent folder-level imports for symbols that do not have their own file. 
 
 ## Template-Backed Components
 
-When a component includes richer UI or PulsePoint behavior, keep the Python file focused on props or server-side preparation and move the markup into a same-name HTML file.
+When a component has large markup or a long script, keep the Python file focused on props or server-side preparation and move the markup into a same-name HTML file. For small and medium components, including ones with PulsePoint behavior, prefer the single-file `html(...)` form described in the next section instead.
 
 `Counter.py`
 
@@ -219,6 +220,89 @@ Use this split when:
 - PulsePoint state, effects, refs, or event handlers belong next to the component markup.
 
 This keeps the component easy to read: Python owns the server-side logic and template context, while the HTML file owns the rendered UI and browser behavior.
+
+## Single-File Components With `html(...)`
+
+When a component is small or medium, keep the markup, server-side interpolation, and the PulsePoint `<script>` inline in the Python file instead of a sibling `.html`. Import `html` from `casp.component_decorator` and return `html("""...""", **context)`.
+
+`html(...)` renders the string through the same Jinja environment Caspian uses for template files, so three brace dialects coexist without colliding:
+
+- `{{ value }}` is server render (Python to HTML).
+- `{{ value | json }}` safely serializes a server value into a `<script>`.
+- `{# comment #}` is a Jinja comment, stripped from output.
+- `{ value }` is left untouched for PulsePoint client reactivity.
+
+```python
+from casp.component_decorator import component, html
+from casp.html_attrs import get_attributes, merge_classes
+
+@component
+def UserCard(user, **props):
+    attrs = get_attributes({
+        "class": merge_classes("card", props.pop("class", "")),
+    }, props)
+
+    # html
+    return html("""
+      <div {{ attrs }}>
+        <h3>{{ user.name }}</h3>
+        <button onclick="setLikes(likes + 1)">Likes: {likes}</button>
+        <script>
+          const [likes, setLikes] = pp.state({{ user.likes | json }});
+        </script>
+      </div>
+    """, attrs=attrs, user=user)
+```
+
+The returned value is `Markup`, so the normal pipeline still injects `pp-component` on the single root and `transform_scripts(...)` rewrites the plain `<script>` to `type="text/pp"`. A single-file component renders identically to the two-file `render_html(...)` form; the choice is purely about readability.
+
+Rules for inline `html(...)`:
+
+- The single-root rule still applies: exactly one top-level element with any `<script>` nested inside it.
+- Autoescaping is ON (Jinja default), so `{{ value }}` escapes HTML automatically and user text is safe without `| e`. The flip side: trusted HTML you want rendered as-is must be `Markup(...)` or piped through `| safe`.
+- A `children` value is auto-marked safe (parity with `render_html(...)`), so `{{ children }}` renders nested component markup correctly without `| safe`.
+- Do not use a Python f-string for the markup. PulsePoint single braces `{ ... }` would collide with f-string interpolation. Use a plain triple-quoted string passed to `html(...)`.
+- Prefer `render_html(...)` with a same-name `.html` file when the markup is large or the `<script>` carries real logic. A long client script is a smell regardless of file shape; move heavy work into `@rpc()` actions or smaller composed components.
+
+The leading `# html` comment above the string is an optional editor hint: some editors color the HTML inside a string tagged that way (JetBrains uses `# language=HTML`). It has no runtime effect.
+
+## Component Imports: Python Imports Or `@import`
+
+A component can render other components with `x-*` tags in either the two-file `.html` or the inline `html(...)` form. There are two ways to tell Caspian which component a tag refers to.
+
+1. The `<!-- @import Name from "path" -->` HTML comment, resolved by path string. This works in both `.html` templates and inline strings.
+2. A real Python import at the top of the component module. A component's own `x-*` tags resolve from the components imported into that module, with no `@import` comment needed.
+
+Prefer the Python import inside single-file components. It is the unambiguous source of truth for which component a tag refers to, it gives normal editor navigation, and it prevents same-name collisions across directories. If `variantA/Tag.py` and `variantB/Tag.py` both export `Tag`, the Python import in each consumer file decides which `Tag` its `<x-tag>` resolves to.
+
+```python
+from casp.component_decorator import component, html
+from src.components.variantA.Tag import Tag  # resolves <x-tag> below
+
+@component
+def Panel(children="", **props):
+    # No @import comment. <x-tag> resolves from the Python import above,
+    # so it is unambiguously variantA's Tag.
+    # html
+    return html("""
+      <div class="panel">
+        <x-tag>inside-panel</x-tag>
+        {{ children }}
+      </div>
+    """, children=children)
+```
+
+Resolution precedence for an `x-*` tag inside a component's own output, lowest to highest:
+
+- inherited components from an ancestor template
+- the component's own Python module imports
+- a local `<!-- @import ... -->` in that same template
+
+So a component's Python import wins over an inherited same-name component, and an explicit local `@import` wins over both.
+
+### Slot Content Resolves In The Parent Scope
+
+Component tags written as slot content (children passed between a component's opening and closing tags) resolve in the scope where they were authored, not in the child component's scope. This matches slot semantics in other component systems: a `<x-tag>` written by the parent stays bound to the parent's `Tag` even when it is slotted into a child that has its own `Tag`. The component that authors a tag in markup must import that component, the same way it would for any tag it renders directly.
 
 ## Auto-Injected `pp-component` And PulsePoint Script Type
 
@@ -353,8 +437,8 @@ Keep synchronous components as the default. Switch to `async def` only when the 
 
 - Put reusable components in `src/components/` and keep route files in `src/app/`.
 - For dashboards, admin areas, account sections, and route groups with child routes, put the shared shell in the parent folder's `layout.html` and compose it from reusable components there instead of repeating the same shell in every child `index.html`.
-- If the component includes PulsePoint behavior, prefer a thin Python wrapper plus a same-name `.html` template.
-- For component clicks, inputs, menus, toggles, filters, and list updates, use PulsePoint events and directives inside that `.html` template. Avoid manual DOM selection, manual listener setup, and manual `innerHTML` rendering unless integrating a third-party imperative widget.
+- Default to a single Python file with inline `html(...)` for most components, including ones with PulsePoint behavior. Move to a thin Python wrapper plus a same-name `.html` template only when the markup is large or the `<script>` carries real logic. Both forms render identically, so this is a readability choice, not a capability one.
+- For component clicks, inputs, menus, toggles, filters, and list updates, use PulsePoint events and directives inside the component template (inline `html(...)` or the `.html` file). Avoid manual DOM selection, manual listener setup, and manual `innerHTML` rendering unless integrating a third-party imperative widget.
 - Keep the component file name, exported function name, and authored tag aligned, such as `Button.py`, `def Button(...)`, and `<x-button />`.
 - Accept `children` or `**props` when the component should support nested content.
 - Keep page-level data loading in `page()` when the data is not intrinsic to the component itself.
