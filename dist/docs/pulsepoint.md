@@ -751,7 +751,7 @@ Upload with progress pattern:
 </section>
 ```
 
-Streaming pattern for server generators that return `text/event-stream`:
+Streaming pattern for server generators that return `text/event-stream`. This is the default path for AI/LLM/chat token streaming: a generator `@rpc()` that `yield`s tokens (often by `async for`-ing over a Python SDK stream) consumed by `pp.rpc(..., { onStream })` that appends each chunk to reactive state. Do not reinvent one-way streaming with raw `fetch`/`ReadableStream`, `EventSource`, or a WebSocket; see [fetch-data.md](./fetch-data.md) for the Python side.
 
 ```html
 <section>

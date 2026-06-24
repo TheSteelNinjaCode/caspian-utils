@@ -720,6 +720,33 @@ In the installed implementation:
 
 The installed `casp.auth` file includes provider helpers for Google and GitHub OAuth.
 
+In the app-owned starter bootstrap, both providers are already registered. Treat Google and GitHub sign-in as a shipped feature, not something to build from scratch. The current `main.py` calls:
+
+```python
+Auth.set_providers(GithubProvider(), GoogleProvider())
+```
+
+so `AuthMiddleware` already delegates the provider signin and callback paths through `auth.auth_providers(...)` on every request. To add a working social sign-in to a page, you usually need only two things:
+
+- a link or button that navigates to the provider signin path, and
+- the provider credentials in `.env`.
+
+The signin and callback paths live under `api_auth_prefix` (default `/api/auth`):
+
+- Google sign-in link target: `/api/auth/signin/google`
+- GitHub sign-in link target: `/api/auth/signin/github`
+- Google callback (provider-side redirect URI): `/api/auth/callback/google`
+- GitHub callback (provider-side redirect URI): `/api/auth/callback/github`
+
+Minimal sign-in button:
+
+```html
+<a href="/api/auth/signin/google">Continue with Google</a>
+<a href="/api/auth/signin/github">Continue with GitHub</a>
+```
+
+Do not reinvent this flow. When a task asks for Google or GitHub login, do not add `authlib`, a hand-written `httpx` token-exchange, a parallel session writer, or custom `/callback` route handlers. The shipped providers plus `auth.auth_providers(...)` already perform the redirect, the code exchange, payload normalization, `auth.sign_in(...)`, and the post-login redirect to `default_signin_redirect`. Reuse them and keep credentials in `.env`.
+
 Available provider classes:
 
 - `GoogleProvider(client_id, client_secret, redirect_uri, max_age="30d")`
@@ -810,7 +837,7 @@ If an AI agent is deciding how to handle auth in Caspian, apply these rules firs
 - Treat `public_routes` as the public exception list for all-private apps. In the current defaults, `/` stays public and `auth_routes=["/signin", "/signup"]` stays public too.
 - For protected grouped sections, follow the section layout pattern in [routing.md](./routing.md) and keep auth-specific route policy in `src/lib/auth/auth_config.py`.
 - Apply settings at startup in `main.py` with `configure_auth(build_auth_settings())`.
-- Register provider instances in `main.py` with `Auth.set_providers(...)` when Google or GitHub OAuth is enabled.
+- Treat Google and GitHub OAuth as shipped: the starter `main.py` already registers both providers with `Auth.set_providers(GithubProvider(), GoogleProvider())`. For social sign-in, link to `/api/auth/signin/{google,github}` and set `.env` credentials; do not hand-roll OAuth, token exchange, or callback routes. Only call `Auth.set_providers(...)` yourself if you are changing which providers are registered.
 - Use `auth.sign_in(...)` and `auth.sign_out(...)` for session lifecycle changes.
 - Prefer `pp.rpc("signout")` plus `@rpc(require_auth=True)` for logout buttons or menus in pages and components.
 - Use a dedicated `/signout` route only for plain HTML form POST, no-JavaScript fallback, or other full-navigation edge cases.

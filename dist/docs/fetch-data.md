@@ -227,6 +227,43 @@ Client example:
 
 Use streaming when the user should see partial progress instead of waiting for a single final payload.
 
+This is the shipped, default mechanism for AI/LLM/chat token streaming in Caspian. When a task asks for a chat app, an assistant reply, or any "stream the model's tokens as they arrive" experience, use this RPC streaming path. Do not reinvent one-way streaming with raw `fetch` + `ReadableStream`, a browser `EventSource`, or a WebSocket. WebSockets are only for genuinely bidirectional channels (see [websockets.md](./websockets.md)); a one-way token stream from server to browser belongs in a generator `@rpc()` consumed by `pp.rpc(..., { onStream })`.
+
+Bridging a Python LLM/SDK stream is the common case: `async for` over the provider's streaming response inside the `@rpc()` action and `yield` each chunk. The runtime turns the generator into an SSE response automatically.
+
+```python
+from casp.rpc import rpc
+from anthropic import AsyncAnthropic
+
+client = AsyncAnthropic()
+
+@rpc(require_auth=True, limits="20/minute")
+async def chat(message: str):
+    async with client.messages.stream(
+        model="claude-opus-4-8",
+        max_tokens=1024,
+        messages=[{"role": "user", "content": message}],
+    ) as stream:
+        async for text in stream.text_stream:
+            yield text
+```
+
+Client side, append each chunk to reactive state so the UI grows token by token:
+
+```html
+<script>
+  const [answer, setAnswer] = pp.state("");
+
+  async function send(message) {
+    setAnswer("");
+    await pp.rpc("chat", { message }, {
+      onStream: (chunk) => setAnswer((current) => current + chunk),
+      onStreamComplete: () => console.log("done"),
+    });
+  }
+</script>
+```
+
 In the current runtime, generator and async-generator RPC results are wrapped with `SSE(...)` inside `casp.rpc.py`, and route-level generator results are also wrapped by `main.py` before the response is returned.
 
 ## File Uploads
@@ -377,6 +414,7 @@ If an AI agent is choosing how to load data in Caspian, apply these rules first.
 - Use [cache.md](./cache.md) when a route's initial HTML should be reused across requests and invalidated after writes.
 - Use [state.md](./state.md) when an RPC mutation needs transient request-scoped success or error state outside the direct response payload.
 - Use `onStream` for streamed responses and `onUploadProgress` for upload-aware client calls.
+- For AI/LLM/chat token streaming, default to a generator `@rpc()` that `yield`s chunks (bridge a Python SDK stream with `async for ... yield`) consumed by `pp.rpc(..., { onStream })`. Do not reinvent one-way streaming with raw `fetch`/`ReadableStream`, `EventSource`, or WebSockets.
 - Add `require_auth`, `allowed_roles`, and `limits` to sensitive RPC actions.
 - Keep reusable database clients and service wrappers in `src/lib/`.
 - Use `.venv/Lib/site-packages/casp/rpc.py` only when the task is about Caspian core RPC internals or framework debugging.
