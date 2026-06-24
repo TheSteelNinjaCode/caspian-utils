@@ -346,11 +346,12 @@ Important:
 - The script lookup walks the current root and skips nested `pp-component` boundaries, so a parent does not consume a child component's script.
 - If multiple matching runtime scripts exist in the same root, the first matching owned script wins. Generate one script per root.
 - Authored route, layout, and component templates still need one top-level parent node so Caspian can inject the component boundary correctly after component expansion.
-- A scriptless component root still mounts and can receive props, refs, events, and nested children, but it has no local runtime scope beyond its props.
+- A scriptless component root still mounts and can receive props, refs, events, and nested children, but it does not create local bindings from those props on its own.
 - Component scripts are plain JavaScript executed with `new Function(...)`. Do not use `import`, `export`, or top-level `await` inside them.
 - The runtime auto-returns supported top-level bindings from the script. Do not rely on manual `return { ... }` objects.
 - `pp.props` contains the current prop bag for the component.
 - `pp.props.children` contains the root's initial inner HTML before the owned script is removed from the render template.
+- Props are not auto-injected as standalone top-level template or handler variables. Read them through `pp.props` or explicitly destructure them in the component script.
 
 Bindings exported to the template:
 
@@ -575,6 +576,7 @@ When a child component needs the same token object, pass it from the provider sc
 - Mixed strings such as `class="card {isActive ? 'active' : ''}"` are interpolated in the parent scope.
 - Non-expression attribute values are passed through as strings.
 - `children` is injected into props using the root's initial inner HTML.
+- Inside the child component, those values should be accessed through `pp.props` or a top-level destructure such as `const { title } = pp.props`; they are not implicitly available as bare identifiers.
 
 Nested components:
 
