@@ -113,7 +113,7 @@ Use these behavior checkpoints when AI needs the fastest verification path for a
 | Runtime area | Verify these behaviors |
 | --- | --- |
 | `main.py` routing and request flow | route registration, path and query injection, static asset handling, session-middleware wiring, response-header middleware, and exception rendering |
-| `main.py` WebSockets | `cfg.websocket` route-registration gate, `@app.websocket(...)` paths, origin checks before `accept()`, auth/session extraction, message-size and idle-timeout handling, close codes, and connection cleanup |
+| `main.py` WebSockets | `cfg.websocket` route-registration gate, `@app.websocket(...)` paths, and the shared transport loop (message-size, idle-timeout, close codes, connection cleanup). Authorization is a single guard in `src/lib/websocket/websocket_security.py` (`authorize_websocket`) that runs the origin check before `accept()` and delegates auth to `Auth`. The HTTP middleware stack skips `scope["type"] == "websocket"`, so socket auth is enforced by that guard, not by `AuthMiddleware` |
 | `public/js/pp-reactive-v2.js` browser runtime | SPA interception, history-vs-push scroll behavior, `pp-reset-scroll` semantics, and browser-side `pp.rpc()` behavior |
 | `casp.auth` | auth settings, signin and signout flow, provider wiring, and page protection behavior |
 | `casp.rpc` and streamed RPC responses | middleware interception, CSRF and session expectations, registry behavior, and helper-level RPC contracts |

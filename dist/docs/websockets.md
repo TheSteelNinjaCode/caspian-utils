@@ -43,8 +43,9 @@ WEBSOCKET_PATH = "/ws/channel"
 
 @app.websocket(WEBSOCKET_PATH)
 async def websocket_live_endpoint(websocket: WebSocket):
-    if not is_origin_allowed(websocket):
-        await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
+    # ONE guard authorizes the connection (origin + auth) and returns the
+    # identity, or None after closing. Pass require_auth / roles per channel.
+    if await authorize_websocket(websocket, require_auth=True) is None:
         return
 
     await manager.connect(websocket)
@@ -57,6 +58,8 @@ async def websocket_live_endpoint(websocket: WebSocket):
     finally:
         manager.disconnect(websocket)
 ```
+
+Keep the authorization gate in one reusable helper rather than re-deriving auth in each endpoint. A public and a private channel should differ only by their `require_auth`/`roles` policy and their broadcast pool, not by a second copy of origin and session logic. Keep authenticated and guest traffic in separate connection managers so a private broadcast can never fan out to a guest connection.
 
 Keep reusable socket helpers in `src/lib/**` when they are shared by more than one endpoint or route. Good candidates include connection managers, session helpers, auth-payload extraction, payload normalization, and shared broadcast code.
 
@@ -108,11 +111,28 @@ This is one of the narrow cases where direct browser APIs and event listeners ar
 
 ## Auth And Sessions
 
-HTTP route privacy does not automatically make a WebSocket endpoint private. If a socket is authenticated, the endpoint must explicitly inspect the session or auth payload available on the WebSocket scope and close unauthenticated clients.
+HTTP route privacy does not automatically make a WebSocket endpoint private. The HTTP middleware stack (`AuthMiddleware`, `CSRFMiddleware`, `RPCMiddleware`, body-size, security-header, and diagnostics layers) early-returns on every non-`http` scope, so a WebSocket handshake (`scope["type"] == "websocket"`) is never seen by `AuthMiddleware`. The only middleware that runs on socket scopes is `SessionMiddleware`, which exposes `websocket.session`. Each authenticated socket endpoint must therefore authorize itself.
+
+Align that self-check with the rest of the app by delegating to Caspian's `Auth` instead of re-implementing session/`exp`/payload parsing. `Auth` methods read only `request.session`, and a `WebSocket` exposes `.session`, so binding the socket as the request context reuses the exact HTTP auth logic as a single source of truth:
+
+```python
+from casp.auth import Auth
+
+Auth.set_request(websocket)            # WebSocket exposes .session
+auth = Auth.get_instance()
+if auth.is_authenticated():
+    payload = auth.get_payload() or {}
+    if roles and not auth.check_role(payload, roles):
+        ...                            # forbidden -> close 1008
+else:
+    ...                                # unauthenticated -> close 1008 if required
+```
 
 Use close code `1008` for policy violations such as failed origin checks or missing authentication. If the endpoint accepts before rejecting, send a small JSON error payload first so the browser UI can show a useful message.
 
-If the app refreshes auth sessions, verify whether the WebSocket helper refreshes session expiry and whether that session mutation is persisted in the current middleware stack. Do not assume HTTP `AuthMiddleware` behavior applies to `scope["type"] == "websocket"`.
+Treat the socket auth check as read-only. `SessionMiddleware` only writes the session cookie on `http.response.start`, which never fires for a WebSocket, so session mutations made during a connection (including `refresh_session` / sliding `exp`) are not persisted back to the cookie. Do not rely on the socket to extend a session; verify identity and, if needed, drive session refresh from an HTTP request. Do not assume HTTP `AuthMiddleware` behavior applies to `scope["type"] == "websocket"`.
+
+Path-based `Auth` helpers (`is_private_route`, `get_required_roles`) read the HTTP route configuration and do not know about `/ws/*` paths. For socket RBAC, pass the required roles explicitly into the guard rather than asking `Auth` to classify the socket path.
 
 ## Origin And Proxy Checks
 

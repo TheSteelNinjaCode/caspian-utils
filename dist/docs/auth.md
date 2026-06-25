@@ -329,6 +329,8 @@ The pasted `main.py` auth middleware currently behaves like this:
 
 Because `AuthMiddleware` initializes `StateManager` on every request, auth flows can also use [state.md](./state.md) for transient request-scoped success or error state. Keep identity, session lifetime, and authorization decisions in `auth.sign_in(...)`, `auth.sign_out(...)`, and the auth decorators rather than moving them into the state manager.
 
+`AuthMiddleware` only runs on `scope["type"] == "http"`; it early-returns on WebSocket scopes. A private page route therefore does not protect a WebSocket. To keep socket auth aligned with page auth, reuse the same `Auth` instance inside the socket guard: bind the socket with `Auth.set_request(websocket)` (a `WebSocket` exposes `.session`, the one piece `Auth` reads) and call `auth.is_authenticated()`, `auth.get_payload()`, and `auth.check_role(...)`. See [websockets.md](./websockets.md) for the full guard pattern and the read-only-session caveat.
+
 ## The `auth` Object
 
 The global `auth` singleton owns the session lifecycle.
