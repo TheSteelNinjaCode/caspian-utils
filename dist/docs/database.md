@@ -16,7 +16,7 @@ This page documents the Prisma workflow for Caspian projects where `caspian.conf
 
 When a project enables Prisma, use `prisma/schema.prisma` for schema management, `prisma.config.ts` for Prisma config and seed wiring, and reuse an app-owned `src/lib/prisma/` package when the project includes one.
 
-High-priority rule: when `caspian.config.json` has `prisma: true`, Python-side database access must use the generated Prisma Python ORM. Route `page()` functions, route-owned `@rpc()` actions, auth handlers, upload flows, and shared helpers should import the generated client from `src/lib/prisma/**` instead of inventing direct driver calls, hand-written SQL wrappers, JSON manifests as active stores, app-specific HTTP fetches, or browser-side database fetches. Use raw SQL only through Prisma as a narrow fallback when the generated ORM cannot express a query clearly.
+High-priority rule: when `caspian.config.json` has `prisma: true`, Python-side database access must use the generated Prisma Python ORM. Route `page()` functions, route-owned `@rpc()` actions, auth handlers, upload flows, and shared helpers should import the generated client from `src/lib/prisma/**` instead of inventing direct driver calls, hand-written SQL wrappers, JSON manifests as active stores, app-specific HTTP fetches, or browser-side database fetches. For normal reads and writes, default to Prisma methods such as `find_many`, `find_unique`, `create`, `update`, `delete`, `delete_many`, aggregates, includes, and transactions. Use raw SQL only through Prisma as a narrow fallback when the generated ORM cannot express a query clearly, and treat that fallback as provider-specific code that may break when a project moves between SQLite, MySQL, and PostgreSQL.
 
 Treat `caspian.config.json` as the single source of truth for whether Prisma is enabled in a workspace. If `prisma` is false and the user wants Prisma, ask first, then update `caspian.config.json` and run `npx casp update project` before assuming Prisma-managed files exist.
 
@@ -31,7 +31,7 @@ The standard Prisma flow in Caspian is:
 5. Run `npx ppy generate` so the Python ORM classes stay aligned with the updated schema.
 6. Reuse the shared Python database layer in `src/lib/prisma/` when Python route or RPC code needs database access, and never hand-edit generated ORM classes.
 
-Use this workflow instead of writing raw SQL first. Drop to raw SQL only through Prisma when a query cannot be expressed clearly with the generated client.
+Use this workflow instead of writing raw SQL first. For normal CRUD and relation work, stay on the generated Prisma API. Drop to raw SQL only through Prisma when a query cannot be expressed clearly with the generated client, and assume that raw SQL requires extra review for cross-database portability.
 
 ## Environment Setup
 
@@ -49,7 +49,7 @@ Example for PostgreSQL in async-friendly production environments:
 DATABASE_URL="postgresql://user:password@localhost:5432/mydb"
 ```
 
-For most local development, SQLite is the simplest starting point. For production or higher concurrency workloads, prefer PostgreSQL or MySQL.
+For most local development, SQLite is the simplest starting point. For production or higher concurrency workloads, prefer PostgreSQL or MySQL. Regardless of the starting provider, keep application queries on the Prisma ORM whenever possible so schema and query behavior stay easier to migrate across providers.
 
 ## Global Prisma Configuration
 
@@ -320,14 +320,25 @@ async with prisma.transaction() as tx:
 
 ### Raw SQL Fallback
 
+Use this escape hatch sparingly. Raw SQL is not the default query style in a Prisma-enabled Caspian project.
+
+Before using `query_raw()` or `execute_raw()`, confirm that the generated Prisma API cannot express the query clearly with normal methods such as `find_many`, `find_unique`, `create`, `update`, `delete`, `delete_many`, `aggregate`, relation `include`, or transactions.
+
+Important portability warning:
+
+- Raw SQL is provider-specific. Placeholder style, identifier quoting, JSON operators, case-sensitivity rules, date functions, and aggregate behavior can differ across SQLite, MySQL, and PostgreSQL.
+- A raw query that works in SQLite may fail after a move to PostgreSQL or MySQL even when the Prisma schema migrates cleanly.
+- If a project may switch providers, prefer Prisma ORM methods first and treat raw SQL as an exception that needs provider-aware review.
+
 ```python
-users = await prisma.query_raw(
-    "SELECT * FROM User WHERE email LIKE ?",
-    "%@gmail.com",
+users = await prisma.user.find_many(
+    where={
+        "email": {"contains": "@gmail.com"},
+    },
 )
 ```
 
-Use raw SQL sparingly and only through Prisma. Prefer the generated Prisma API when the query can be expressed clearly there.
+If raw SQL is still unavoidable, keep it tightly scoped, document why the ORM was insufficient, and verify it against the current datasource provider in `prisma/schema.prisma`.
 
 ## Recommended Project Rules
 
@@ -339,7 +350,7 @@ Use raw SQL sparingly and only through Prisma. Prefer the generated Prisma API w
 - Use `await` with Prisma operations.
 - Convert Prisma objects to template-safe dictionaries when rendering HTML.
 - Validate incoming mutation data before calling `create`, `update`, or `delete` operations.
-- Prefer Prisma queries over raw SQL, and prefer raw SQL over undocumented custom query helpers.
+- Prefer Prisma queries over raw SQL. If raw SQL is unavoidable, keep it provider-aware, narrowly scoped, and documented so future database-provider migrations do not silently break application behavior.
 
 ## AI Retrieval Notes
 
