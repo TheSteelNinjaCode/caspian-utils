@@ -266,6 +266,54 @@ Rules for inline `html(...)`:
 
 The leading `# html` comment above the string is an optional editor hint: some editors color the HTML inside a string tagged that way (JetBrains uses `# language=HTML`). It has no runtime effect.
 
+### Single-Root Inside `html(...)`: Script Goes In The Root, Not Below It
+
+The most common single-file mistake is returning a parent element and then a sibling `<script>` underneath it. The string handed to `html(...)` is the component's template, so it must follow the same single-root contract as a `.html` file: exactly one top-level element, with the PulsePoint `<script>` nested inside that element. A `<script>` that sits after the closing tag is a second top-level node, and the compiler raises `TemplateRootError` because there is no single root to receive `pp-component`.
+
+Think of the returned string exactly like the one node a React component returns: everything, including the script, lives inside it.
+
+Good — the `<script>` is inside the single root:
+
+```python
+from casp.component_decorator import component, html
+
+@component
+def Counter(label: str = "Clicks", **props):
+    # html
+    return html("""
+      <div class="counter">
+        <h3>{{ label }}</h3>
+        <button onclick="setCount(count + 1)">{count}</button>
+
+        <script>
+          const [count, setCount] = pp.state(0);
+        </script>
+      </div>
+    """, label=label)
+```
+
+Bad — the `<script>` is a sibling after the root, so the string has two top-level nodes:
+
+```python
+from casp.component_decorator import component, html
+
+@component
+def Counter(label: str = "Clicks", **props):
+    # html
+    return html("""
+      <div class="counter">
+        <h3>{{ label }}</h3>
+        <button onclick="setCount(count + 1)">{count}</button>
+      </div>
+
+      <script>
+        const [count, setCount] = pp.state(0);
+      </script>
+    """, label=label)
+```
+
+The fix is always the same: move the `<script>` above the root's closing tag so the whole return value is one element. Caspian has no fragment syntax — the single root must be a real native element — so if a component genuinely needs sibling-looking sections, wrap them all in one outer element (a `<div>` or `<section>`) and keep the script inside that wrapper. This rule is identical for the two-file `render_html(...)` form, so the same `.html` file must also end with `</script></root>` rather than `</root>` followed by a trailing `<script>`.
+
 ## Component Imports: Python Imports Or `@import`
 
 A component can render other components with `x-*` tags in either the two-file `.html` or the inline `html(...)` form. There are two ways to tell Caspian which component a tag refers to.

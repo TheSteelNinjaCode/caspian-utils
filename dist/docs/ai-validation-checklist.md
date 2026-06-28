@@ -75,7 +75,7 @@ Treat the table as a prompt pack for spot checks, not as a full validation matri
 - AI reads only the packaged feature doc and never checks `main.py` or the installed runtime.
 - AI edits framework internals when the task only requires app-owned route or helper changes.
 - AI treats runtime HTML examples as authored template examples.
-- AI generates a route or component template with a valid-looking root element but leaves a sibling top-level `<script>` or second top-level element after it.
+- AI generates a route or component template with a valid-looking root element but leaves a sibling top-level `<script>` or second top-level element after it. This includes single-file `html("""...""")` components where the `<script>` is placed after the root's closing tag instead of nested inside it; the string handed to `html(...)` must resolve to one top-level element, script included.
 - AI starts first-party interactivity with ids, `data-*` attributes, `querySelector`, `addEventListener`, manual `fetch`, manual `innerHTML`, or per-input `pp-ref` payload collection instead of PulsePoint `on*` attributes, form submit events, state, directives, and `pp.rpc()`.
 - AI bypasses the generated Prisma Python ORM in a Prisma-enabled project with direct database drivers, custom fetch helpers, JSON active stores, browser-side database fetches, or a second app-owned database abstraction.
 - AI extracts one-route backend logic into `src/lib/**` even though the logic is not shared; route-specific first-render queries, RPC actions, validation, and response shaping belong in the owning `src/app/**/index.py`.
