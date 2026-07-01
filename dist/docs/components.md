@@ -37,8 +37,8 @@ As the app grows, treat `src/components/` as the default home for reusable appli
 
 When the task is about component internals rather than normal app-owned components, these runtime files are the most relevant:
 
-- `.venv/Lib/site-packages/casp/component_decorator.py` owns `@component`, `Component`, `render_html(...)`, the inline `html(...)` helper, and component loading.
-- `.venv/Lib/site-packages/casp/components_compiler.py` owns `@import` parsing, `x-*` tag resolution (including resolving a component's own tags from its Python module imports), parent-scope expansion of slot content, root validation, and `pp-component` injection.
+- `.venv/Lib/site-packages/casp/component_decorator.py` owns `@component`, `Component`, `render_html(...)`, the inline `html(...)` helper (including direct-call scope capture), and component loading.
+- `.venv/Lib/site-packages/casp/components_compiler.py` owns `@import` parsing, `x-*` tag resolution (including resolving a component's own tags from its Python module imports and the scope captured by directly-called components), parent-scope expansion of slot content, root validation, and `pp-component` injection.
 - `.venv/Lib/site-packages/casp/html_attrs.py` owns `get_attributes(...)` and the Python-side `merge_classes(...)` contract.
 Use [core-runtime-map.md](./core-runtime-map.md) when you need the broader Python runtime-module map. Use [pulsepoint-runtime-map.md](./pulsepoint-runtime-map.md) when a component task is specifically about browser-side PulsePoint state, refs, context, portals, events, RPC, or SPA behavior.
 
@@ -347,6 +347,33 @@ Resolution precedence for an `x-*` tag inside a component's own output, lowest t
 - a local `<!-- @import ... -->` in that same template
 
 So a component's Python import wins over an inherited same-name component, and an explicit local `@import` wins over both.
+
+### Direct-Call Composition (Calling A Component As A Function)
+
+A component can compose another component two ways: by writing its `<x-*>` tag, or by calling it as a plain Python function and interpolating the result with `{{ }}` (React-style). Both work, and both resolve nested `<x-*>` tags from the callee's own Python module imports.
+
+```python
+from casp.component_decorator import component, html
+from src.components.Panel import Panel  # Panel's markup contains <x-tag>
+
+@component
+def Page(**props):
+    panel_markup = Panel()  # direct call, not <x-panel>
+    # html
+    return html("""
+      <div>
+        {{ panel_markup }}
+      </div>
+    """, panel_markup=panel_markup)
+```
+
+Even though `Panel()` returns a plain string here, its nested `<x-tag>` still resolves from `Panel`'s own module imports, exactly as if `Panel` had been reached through an `<x-panel>` tag. The calling component does not need to import `Tag` or add an `@import` for it — a component's tags always resolve against the module that authored them.
+
+Notes:
+
+- Resolution stays import-driven and per-module, so the same-name/no-collision guarantee holds: the `<x-tag>` inside `Panel`'s output resolves to whatever `Tag` `Panel`'s module imported, regardless of where `Panel()` was called from.
+- Prefer the `<x-*>` tag form for readability; reach for the direct call when you need the rendered markup as a value (e.g. to pass into another context key or compose conditionally in Python).
+- This is handled entirely by the runtime; there is nothing extra to author. The owning functions live in `component_decorator.py` and `components_compiler.py` (see the Framework Internals Note above).
 
 ### Slot Content Resolves In The Parent Scope
 
