@@ -27,11 +27,25 @@ The standard Prisma flow in Caspian is:
 1. Define models in `prisma/schema.prisma`.
 2. Configure `DATABASE_URL` in `.env`.
 3. Run `npx prisma migrate dev` after schema changes so the development database and migration history stay aligned.
-4. If the change requires seed data, run `npx prisma generate` and then `npx prisma db seed`.
+4. If the change requires seed data, run `npx prisma generate`, then request explicit user approval before running `npx prisma db seed`.
 5. Run `npx ppy generate` so the Python ORM classes stay aligned with the updated schema.
 6. Reuse the shared Python database layer in `src/lib/prisma/` when Python route or RPC code needs database access, and never hand-edit generated ORM classes.
 
 Use this workflow instead of writing raw SQL first. For normal CRUD and relation work, stay on the generated Prisma API. Drop to raw SQL only through Prisma when a query cannot be expressed clearly with the generated client, and assume that raw SQL requires extra review for cross-database portability.
+
+## Seed Command Safety
+
+Treat `npx prisma db seed` as a destructive data operation, not as a routine regeneration command. A project's `prisma/seed.ts` may delete existing rows, reset lookup tables, replace users, or otherwise rewrite the current datasource before inserting seed data. If `DATABASE_URL` points at a shared, staging, or production database, running the seed command can delete production information.
+
+Before any AI agent runs `npx prisma db seed`, it must:
+
+1. Read `prisma.config.ts` and `prisma/seed.ts` to understand what the seed command will execute.
+2. State the exact command it intends to run: `npx prisma db seed`.
+3. Warn the user clearly that the command can delete or overwrite database data.
+4. Confirm the active datasource or `DATABASE_URL` when practical, without exposing secrets.
+5. Wait for explicit user approval before executing the command.
+
+Do not run `npx prisma db seed` merely because it appears in the standard workflow. Ask first, and only continue after the user has approved that specific seed operation.
 
 ## Environment Setup
 
@@ -107,7 +121,7 @@ model Post {
 After changing the schema, use this order:
 
 1. Run `npx prisma migrate dev`.
-2. If seed data or the seed script needs the new schema, run `npx prisma generate` and then `npx prisma db seed`.
+2. If seed data or the seed script needs the new schema, run `npx prisma generate`, then request explicit user approval before running `npx prisma db seed`.
 3. Run `npx ppy generate` to refresh the generated Python ORM classes.
 
 Do not hand-edit generated Prisma or Python ORM output. Treat `prisma/schema.prisma` as the source of truth and regenerate from it.
@@ -118,7 +132,7 @@ Use these commands for the normal Prisma lifecycle in Caspian:
 
 - `npx prisma migrate dev` creates and applies a development migration. This is the first command to run after changing `prisma/schema.prisma`.
 - `npx prisma generate` compiles `schema.prisma` into the generated Node Prisma client. Run it before `npx prisma db seed` when the updated seed flow depends on the new schema.
-- `npx prisma db seed` runs the configured seeding script.
+- `npx prisma db seed` runs the configured seeding script. This may delete or overwrite existing database data; an AI agent must warn the user and receive explicit approval before executing it.
 - `npx ppy generate` regenerates the Python ORM classes used by the app. Use this after every schema change.
 - `npx prisma migrate deploy` applies pending migrations in deployment environments.
 - `npx prisma db push` syncs schema changes without creating a migration file, which is useful for prototyping.
@@ -126,7 +140,7 @@ Use these commands for the normal Prisma lifecycle in Caspian:
 
 Default rule:
 
-- When `prisma/schema.prisma` changes, use this order: `npx prisma migrate dev`; if seeding is involved, run `npx prisma generate` and `npx prisma db seed`; then run `npx ppy generate`.
+- When `prisma/schema.prisma` changes, use this order: `npx prisma migrate dev`; if seeding is involved, run `npx prisma generate`, ask for explicit approval before `npx prisma db seed`, then run `npx ppy generate`.
 - Never hand-edit generated Prisma or Python ORM classes, and never replace `npx ppy generate` with a manual class update.
 - Use migrations for tracked application changes.
 - Use `db push` only when you intentionally want a faster, migration-free prototype loop.
@@ -359,7 +373,7 @@ If an AI agent is working on a Caspian app with Prisma enabled, apply these rule
 - Treat Prisma as the default ORM and persistence layer.
 - Read `prisma/schema.prisma` before proposing model, relation, or field changes.
 - When `prisma/schema.prisma` changes, run `npx prisma migrate dev` first.
-- If the schema change requires seed data, run `npx prisma generate` and then `npx prisma db seed`.
+- If the schema change requires seed data, run `npx prisma generate`, then request explicit user approval before running `npx prisma db seed`.
 - Run `npx ppy generate` after schema changes to refresh the Python ORM classes.
 - Never hand-edit generated Prisma or Python ORM classes.
 - Read `prisma.config.ts` and `prisma/seed.ts` when you need the current project's Prisma tooling examples.

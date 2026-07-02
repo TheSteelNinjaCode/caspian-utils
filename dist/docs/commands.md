@@ -105,12 +105,15 @@ npx prisma migrate dev
 
 # If the change requires refreshed seed data:
 npx prisma generate
+# Destructive-data warning: ask the user for explicit approval before running this.
 npx prisma db seed
 
 npx ppy generate
 ```
 
 Use when `prisma/schema.prisma` changes and you need migrations, seed flow, and the generated Python ORM layer to stay aligned.
+
+`npx prisma db seed` is a delicate operation because the configured seed script may clean tables or replace existing rows before inserting seed data. Before running it, an AI agent must say the exact command it plans to run, warn that it can delete or overwrite database data, confirm the active datasource when practical, and wait for explicit user approval.
 
 ## 2. Script Guardrails
 
@@ -597,6 +600,7 @@ npx prisma migrate dev
 
 # Only when seed flow or prisma/seed.ts depends on the new schema:
 npx prisma generate
+# Destructive-data warning: ask the user for explicit approval before running this.
 npx prisma db seed
 
 npx ppy generate
@@ -605,7 +609,7 @@ npx ppy generate
 Use this order:
 
 1. Run `npx prisma migrate dev` first so migrations and the development database stay aligned.
-2. If `prisma/seed.ts` or seed data depends on the new schema, run `npx prisma generate` and then `npx prisma db seed`.
+2. If `prisma/seed.ts` or seed data depends on the new schema, run `npx prisma generate`, then request explicit user approval before running `npx prisma db seed` because the seed script may delete or overwrite database data.
 3. Run `npx ppy generate` last so the generated Python ORM layer matches the updated Prisma schema.
 
 Do not manually create or edit these generated files:
@@ -678,7 +682,7 @@ If an AI agent is deciding which command flow to use, apply these rules first.
 - Treat `--tailwindcss` and `--typescript` as frontend-oriented flags. They are not meaningful in normal backend-only scaffolds.
 - Treat starter kit defaults as a base layer that can be overridden by explicit flags.
 - Read `caspian.config.json` before running update commands.
-- When `prisma/schema.prisma` changes, run `npx prisma migrate dev` first, then any required seed refresh, then `npx ppy generate`.
+- When `prisma/schema.prisma` changes, run `npx prisma migrate dev` first, then any required seed refresh, then `npx ppy generate`. Before running `npx prisma db seed`, warn the user that it can delete or overwrite data and wait for explicit approval.
 - Never hand-edit generated Python ORM files under `src/lib/prisma/` or `settings/prisma-schema.json`.
 - Read [database.md](./database.md) before generating Prisma schema, migration, seed, or ORM guidance.
 - Read [routing.md](./routing.md) before generating or modifying route folders under `src/app/`.
