@@ -47,6 +47,7 @@ If an inspected browser DOM disagrees with authored template source, remember th
 | SPA navigation | `body[pp-spa="true"]`, links | `pp-reactive-v2.js`, `main.py` | same-origin eligible links intercept; root-layout mismatches hard reload |
 | Scroll restoration | `pp-reset-scroll="true"` | `pp-reactive-v2.js` | push navigation resets window; mark only content panes that should reset |
 | Tailwind merge | `{twMerge(...)}`, Python `merge_classes(...)` | `html_attrs.py`, `pp-reactive-v2.js` | Python emits frontend-ready expressions when Tailwind is enabled |
+| Markup deferral | `<template pp-component>` / `<template pp-owner>` wrappers | render pipeline (`main.py`), `pp-reactive-v2.js` (`materializeTemplateComponentBoundaries`) | top-level roots ship inside an inert `<template>`; runtime materializes them on mount and SPA navigation before scanning. Browser never validates `<template>` contents, so `{...}` is safe in any attribute/position (SVG geometry, `src`/`href`, form `value`/date, table/select text) — no per-tag workarounds. See [pulsepoint.md](./pulsepoint.md) "Component markup is deferred inside an inert `<template>`" |
 
 ## AI Decision Rules
 

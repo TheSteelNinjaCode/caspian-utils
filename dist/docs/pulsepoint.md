@@ -621,6 +621,14 @@ Example:
 </div>
 ```
 
+### Component markup is deferred inside an inert `<template>`
+
+The render pipeline wraps each top-level `pp-component` root in an inert `<template pp-component="…">`, and the runtime materializes it back into live DOM on `mount()` (and on every SPA navigation) before it scans for roots. The browser never parses, validates, or fetches the contents of a `<template>`, so raw `{...}` placeholders never reach live DOM at first paint.
+
+- Because of this, `{...}` is safe in **any** attribute or position — including slots the browser would otherwise validate eagerly: SVG geometry (`d`, `viewBox`, `points`, `transform`), URL attributes (`src`, `srcset`, `href`, `poster`), form `value` on `date`/`number`/`color` inputs, and text placed directly inside `<table>` or `<select>`.
+- Do not add per-tag workarounds to dodge first-paint validation (static-path `hidden` toggles instead of binding `d`, `data-*` URL holders, `hidden`-gated `<img src>`, or an SSR-resolved initial value). The deferral removes the whole class at once.
+- `pp-style` and the `<input>`/`<select>`/`checked`/`defaultvalue`/`<textarea>` value rewrites still apply — but for different reasons that deferral does not replace: authoring-source tooling (`style="{...}"` breaks HTML/CSS linters) and attribute-vs-property correctness for controlled form fields.
+
 ## Refs
 
 - Refs are for imperative element access. Do not use `pp-ref` as the default way to read normal form input values on submit; prefer the form's `onsubmit` event plus `Object.fromEntries(new FormData(event.currentTarget).entries())`.
