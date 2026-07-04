@@ -127,6 +127,8 @@ Use this folder for reusable UI components that should be imported into route te
 
 As the app grows, default to `src/components/` for application-level UI that will be shared across routes or features. Keep page-only markup close to the route in `src/app/`, but move shared cards, forms, shells, navigation, and other reusable visual building blocks into `src/components/`.
 
+For page-specific chunks that are still substantial, a route-local component folder is also acceptable. Use this when a component is owned by one route but deserves its own focused file, such as one tab panel, one settings form, one analytics section, or one table toolbar. The route should still read as a short assembly of named `x-*` tags.
+
 The common Caspian pattern is a Python file such as `Button.py` with `@component`, optionally paired with a same-name HTML file such as `Button.html` when the component has richer markup or PulsePoint behavior. In authored HTML, that component is consumed as `<x-button />`.
 
 One Python file can also export multiple related `@component` functions. When that happens, import those tags from that exact file path in HTML, for example `<!-- @import { Breadcrumb, BreadcrumbItem, BreadcrumbList } from "../components/Breadcrumb.py" -->`, and render them as `<x-breadcrumb />`, `<x-breadcrumb-item />`, and `<x-breadcrumb-list />` instead of assuming each tag has its own sibling `.py` file.
@@ -335,9 +337,10 @@ If an AI agent is deciding where to make changes, use these rules first.
 - Read [file-uploads.md](./file-uploads.md) when the task involves upload widgets, media libraries, or file-manager flows.
 - Check [routing.md](./routing.md) when you need URL segment rules, layout nesting behavior, or dynamic route conventions.
 - Put reusable component files in `src/components/` and check [components.md](./components.md) for `@component`, `render_html(__file__)`, `x-*` component tags, import comments, and single-root template rules.
+- Split UI by component responsibility before files become large. A tab panel, settings form, table section, toolbar, or repeated card/list item can be its own component even when it is only used by one route.
 - When deciding between `src/components/` and `src/lib/`, use `src/components/` for anything rendered as reusable UI and `src/lib/` for helpers, services, validators, adapters, and shared business logic.
 - Use [mcp.md](./mcp.md) only when `caspian.config.json` enables MCP and the task involves FastMCP tool definitions, nested config discovery, or local MCP commands.
-- Keep `<!-- @import ... -->` comments above the single authored root element in route, layout, and component HTML files.
+- Keep `<!-- @import ... -->` comments above the single authored root element in route, layout, and component HTML files. Do not nest them inside `<html>`, `<body>`, `<section>`, or any other parent wrapper.
 - Follow the single-root authoring contract in [routing.md](./routing.md), [components.md](./components.md), and [pulsepoint.md](./pulsepoint.md): one authored root, any owned `<script>` inside that root, and no handwritten `pp-component` or `type="text/pp"` in source templates.
 - Put shared helpers and reusable libraries in `src/lib/`.
 - Use `settings/bs-config.ts` when uploaded public assets should not trigger BrowserSync reloads during the local stack.

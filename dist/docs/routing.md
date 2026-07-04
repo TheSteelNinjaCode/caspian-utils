@@ -183,6 +183,8 @@ Route templates can import reusable Python components with `<!-- @import ... -->
 
 Place those import comments at the top of the file, above the authored root element. They are file-level directives, not children of the route root.
 
+Keep route templates as composition, not as the place where all section markup accumulates. A route with tabs, dashboard panels, forms, tables, or repeated cards should import focused components for those responsibilities and assemble them with `x-*` tags. For example, a dashboard route can import `<x-dashboard-header />`, `<x-metric-strip />`, `<x-activity-tab />`, and `<x-settings-tab />` rather than placing every tab panel's full markup in `index.html` or one giant Python component.
+
 Route templates follow the same authored-vs-runtime contract documented in [pulsepoint.md](./pulsepoint.md) and the same single-root discipline documented in [components.md](./components.md): keep one authored parent node, keep any `<!-- @import ... -->` directives above that root, use a plain `<script>` inside that root when needed, and do not handwrite `pp-component` or `type="text/pp"`. That root may be a native HTML element or a single imported `x-*` component tag, but after expansion it must resolve to one final HTML root.
 
 When a route needs button clicks, form submits, input changes, filters, tabs, menus, uploads, polling, or reactive list updates, author those interactions as PulsePoint behavior in `index.html`. Use `onclick`, `oninput`, `onchange`, `onsubmit`, `pp.state(...)`, `pp-for`, refs, effects, and `pp.rpc(...)` instead of starting with `id` attributes plus `document.querySelector(...)` or `addEventListener(...)`. For simple form submits, prefer `onsubmit="{submitForm(event)}"` and `Object.fromEntries(new FormData(event.currentTarget).entries())` over per-input `pp-ref` payload collection.
@@ -228,6 +230,16 @@ Also bad:
 ```html
 <section class="dashboard-shell">
   <!-- @import StatsCard from "../components" -->
+  <x-stats-card title="Users" value="42" />
+</section>
+```
+
+Correct:
+
+```html
+<!-- @import StatsCard from "../components" -->
+
+<section class="dashboard-shell">
   <x-stats-card title="Users" value="42" />
 </section>
 ```
@@ -511,6 +523,7 @@ If an AI agent is choosing where to add or update route code, apply these rules 
 - Add `index.py` only when the same route needs metadata or server behavior; do not place route HTML in `index.py`.
 - Keep route-specific backend logic in the route's own `index.py`; extract to `src/lib/**` only for genuinely shared logic.
 - Keep visible page markup in `index.html` and shared subtree shells in `layout.html`; do not place route HTML in `index.py` or layout HTML in `layout.py`.
+- Keep `index.html` as a short assembly of focused `x-*` components. When a route area has its own responsibility, such as a tab panel, settings form, data table, toolbar, or metric section, create a component for that area and pass route data into it as props.
 - Use PulsePoint as the first-party interaction model for route and layout HTML. Avoid custom DOM wiring for normal events and reactivity.
 - When the user asks for a dashboard, admin area, account section, or any grouped subtree of child routes, create a parent folder with `layout.html` and place the child routes beneath it. Follow the same mental model as the Next.js App Router.
 - Use a normal folder such as `dashboard/` when the segment should appear in the URL. Use `(group)/` only when the folder should organize or wrap child routes without adding a path segment.

@@ -42,7 +42,7 @@ Treat `caspian.config.json` and the actual project tree as the source of truth f
 
 For authored route, layout, loading, not-found, and error HTML files, keep exactly one top-level parent HTML element or one imported `x-*` component root.
 
-- Keep any `<!-- @import ... -->` directives above that root.
+- Keep any `<!-- @import ... -->` directives above that root. They are header directives for the file, not children of the root element.
 - Keep any owned plain `<script>` inside that root, not after it.
 - Do not handwrite `pp-component` or `type="text/pp"`.
 
