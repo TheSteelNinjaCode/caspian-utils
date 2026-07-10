@@ -419,7 +419,7 @@ Notes:
 
 - The global `pp` singleton auto-mounts once the runtime is loaded and the DOM is ready. Manual `pp.mount()` is still safe because it short-circuits after the first mount.
 - `pp.state` setters accept either a value or an updater function.
-- `pp.effect` and `pp.layoutEffect` are cleanup-style hooks. Returned promises are not awaited.
+- `pp.effect` and `pp.layoutEffect` are cleanup-style hooks. They may return only a synchronous cleanup function; returning a promise warns and is ignored, so start async work inside the effect instead.
 - `pp.portal(ref)` defaults to `document.body` when no target is provided.
 - Older docs may call the RPC helper `pp.fetchFunction()`. In the current bundled runtime the implemented global API is `pp.rpc()`.
 - Keep template-facing bindings at the top level so the AST-based exporter can see them.
@@ -595,10 +595,11 @@ Nested components:
 - Mixed text like `class="card {isActive ? 'active' : ''}"` is supported.
 - Arrays in template expressions are joined without commas.
 - `null`, `undefined`, and boolean expression results render as an empty string in text output.
+- Plain objects, functions, and symbols are invalid template children; the runtime warns and omits them instead of rendering accidental strings such as `[object Object]`.
 - Supported boolean attributes are normalized so truthy values emit the bare attribute and falsy values remove it.
 - `<textarea value="{draft}"></textarea>` is normalized into textarea content.
 - Use `pp-spread="{...attrs}"` to spread an object expression into attributes.
-- `pp-spread` omits nullish values and escapes `&`, `"`, and `<` in emitted attribute values.
+- `pp-spread` omits nullish values, omits known HTML boolean attributes when their value is `false`, emits them bare when `true`, preserves string-valued `aria-*`/`data-*` booleans, and escapes `&`, `"`, and `<` in emitted attribute values.
 - Use plain `key` for keyed diffing. `pp-key` is not implemented.
 
 Example:
@@ -659,9 +660,9 @@ Example:
 
 - Use `pp-for` only on `<template>`.
 - Supported forms are `item in items` and `(item, index) in items`.
-- The collection must be an array. Non-arrays are treated as empty lists.
+- Collections may be arrays or synchronous iterables such as `Set`, `Map`, typed arrays, strings, and generators. Non-null non-iterable values warn and render as empty lists.
 - Loop content can contain interpolations, events, refs, and nested components.
-- Event handlers inside loops are rewritten so loop variables still resolve after rerender.
+- Event handlers inside loops capture each rendered item, so later collection changes do not retarget an existing row handler.
 - Use stable unique `key` values on repeated sibling elements.
 - Duplicate keys trigger warnings and reduce diff quality.
 - Keyed reconciliation preserves DOM identity across reorders and insertions.
@@ -719,6 +720,7 @@ Example:
 - Saved history-entry scroll state is used during history traversal instead of relying only on the live DOM scroll at the time the user clicks Back or Forward.
 - Unmarked scrollable containers may keep their outgoing scroll on push navigation so shared shells such as sidebars, rails, and docs nav panes stay stable across child-route changes.
 - `pp-reset-scroll="true"` on a scroll container opts that container into reset-on-navigation behavior. Use it on the main content pane of a grouped shell when page content should start at the top on each child-route navigation.
+- `pp-scroll-key="stable-name"` gives a scroll container a stable restoration identity. Prefer it when an element has no stable `id`, or when its classes or position can change between routes.
 - `body[pp-reset-scroll="true"]` is the global override for routes that should reset window scroll and every scrollable element.
 - Navigation dispatches `pp:navigation:start`, `pp:navigation:complete`, and `pp:navigation:error` events on `document`.
 
