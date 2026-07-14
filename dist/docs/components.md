@@ -264,6 +264,7 @@ Rules for inline `html(...)`:
 - The single-root rule still applies: exactly one top-level element with any `<script>` nested inside it.
 - Keep the component focused on one UI responsibility. Prefer composing several single-file components over one long Python file that contains multiple sections, tab panels, or workflows.
 - Pass data, labels, variants, current selection, counts, permissions, or callbacks as props instead of making child components reach back into route markup or duplicate parent state.
+- Component attributes are props regardless of the value type. Kebab-case names become camel-cased in `pp.props`, so callbacks may be authored as `on-open-change="{setOpen}"`, `open-change="{setOpen}"`, or `select-first="{selectFirst}"` according to the component API. The `on-` prefix is conventional, not required. Lowercase native DOM event attributes such as `onclick` and `oninput` remain events on the boundary element; use `on-click` only when the component API intentionally exposes an `onClick` prop.
 - Autoescaping is ON (Jinja default), so `{{ value }}` escapes HTML automatically and user text is safe without `| e`. The flip side: trusted HTML you want rendered as-is must be `Markup(...)` or piped through `| safe`.
 - A `children` value is auto-marked safe (parity with `render_html(...)`), so `{{ children }}` renders nested component markup correctly without `| safe`.
 - Do not use a Python f-string for the markup. PulsePoint single braces `{ ... }` would collide with f-string interpolation. Use a plain triple-quoted string passed to `html(...)`.
@@ -412,6 +413,25 @@ Do not create a single `AccountPage.py` or `DashboardTabs.py` that contains ever
 Related subcomponents may live in one Python file only when they are tiny and tightly coupled, such as `Tabs`, `TabsList`, `TabsTrigger`, and `TabsContent` primitives, or a component plus two very small private helpers. For app-specific page chunks, prefer one exported component per file with a name that explains its role.
 
 Props are the boundary between components. Pass parent-owned data and configuration down through attributes or direct Python calls, keep local interactive state inside the component that owns the behavior, and use slot content when the parent needs to provide authored child markup. If two sibling chunks need the same server data, load it in the route's `page()` or a shared helper and pass the relevant pieces into each component.
+
+## Component Root Refs
+
+`pp-ref` on an `x-*` tag is a parent-owned component ref. It resolves in the scope that authored the component tag and binds to the component's rendered root DOM element. Generated component kits that accept `**props` and spread unknown attributes need no `forwardRef` wrapper and should not special-case `pp-ref`.
+
+```html
+<div>
+  <x-input pp-ref="{codeInput}" />
+  <button onclick="codeInput.current?.focus()">Focus code</button>
+
+  <script>
+    const codeInput = pp.ref(null);
+  </script>
+</div>
+```
+
+For ref purposes, a component's root is the single native element that receives its injected `pp-component` boundary. If a composition component renders another `x-*` component as its root, Caspian forwards the ref through its layout-neutral boundary host to the eventual concrete DOM root.
+
+The default takes precedence over catch-all `**props`: `pp-ref` is reserved for root ref forwarding and is not delivered in that dictionary. A component that intentionally wants `pp-ref` as ordinary data can opt out by declaring an explicit camel-case `ppRef` parameter, for example `def Inspector(ppRef="", **props)`. That explicit declaration consumes the prop, disables automatic root forwarding for that component invocation, and makes the component responsible for how the value is used. Use this escape hatch sparingly; ordinary UI primitives should keep the standard root-ref contract.
 
 ## Auto-Injected `pp-component` And PulsePoint Script Type
 

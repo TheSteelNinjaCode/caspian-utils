@@ -420,6 +420,7 @@ Notes:
 - The global `pp` singleton auto-mounts once the runtime is loaded and the DOM is ready. Manual `pp.mount()` is still safe because it short-circuits after the first mount.
 - `pp.state` setters accept either a value or an updater function.
 - `pp.effect` and `pp.layoutEffect` are cleanup-style hooks. They may return only a synchronous cleanup function; returning a promise warns and is ignored, so start async work inside the effect instead.
+- A function used through `pp-ref` may return a synchronous cleanup function. PulsePoint runs it when that callback ref is replaced or detached; callbacks that do not return cleanup retain the legacy `callback(null)` detach behavior.
 - `pp.portal(ref)` defaults to `document.body` when no target is provided.
 - Older docs may call the RPC helper `pp.fetchFunction()`. In the current bundled runtime the implemented global API is `pp.rpc()`.
 - Keep template-facing bindings at the top level so the AST-based exporter can see them.
@@ -588,6 +589,7 @@ Nested components:
 ## Template expressions and attributes
 
 - Use `{expression}` in text nodes and attribute values.
+- Follow HTML-first attribute naming. Native event attributes are lowercase DOM event attributes (`onclick`, `oninput`, `onsubmit`). Every other attribute on a component boundary is a prop: kebab-case names become camel-cased only inside `pp.props` (`selected-value` becomes `selectedValue`, `open-change` becomes `openChange`, and `on-open-change` becomes `onOpenChange`). A function prop does not need an `on-` prefix; that prefix is only an API naming convention. Use `on-click` when a component intentionally exposes an `onClick` prop, because lowercase `onclick` is reserved for the native DOM event on the boundary element.
 - Pure bindings like `value="{count}"` are evaluated as expressions.
 - For dynamic inline styles in authored templates, prefer `pp-style="{styleText}"` over `style="{styleText}"` so HTML/CSS tooling does not parse the brace expression as raw CSS.
 - `pp-style` is an authoring alias. The compiler rewrites it to a native `style` attribute in rendered output.
@@ -633,11 +635,14 @@ The render pipeline wraps each top-level `pp-component` root in an inert `<templ
 ## Refs
 
 - Refs are for imperative element access. Do not use `pp-ref` as the default way to read normal form input values on submit; prefer the form's `onsubmit` event plus `Object.fromEntries(new FormData(event.currentTarget).entries())`.
-- Use `pp-ref="nameInput"` when the ref object or callback is already available in scope.
-- Use `pp-ref="{registerRef(id)}"` when you want the compiler to capture a dynamic ref expression.
+- `pp-ref` works on native elements and on `x-*` component tags. On a component tag it resolves in the parent's scope and binds to the component's concrete root DOM element, so `<x-input pp-ref="{nameInput}" />` exposes the rendered `<input>` without a wrapper or `querySelector(...)`.
+- Use the bare-name form, such as `pp-ref="nameInput"`, when the ref object or callback is already available under that name in scope. The runtime resolves this form by scope lookup.
+- Use the brace-expression form, such as `pp-ref="{nameInput}"`, `pp-ref="{registerRef(id)}"`, or `pp-ref="{el => setNode(el)}"`, when the compiler should capture an expression. This is the preferred general form for component tags and dynamic or callback expressions.
 - `pp.ref(null)` is the normal way to create a ref object.
 - Callback refs and `{ current }` refs are both supported.
 - Captured brace-form refs are compiled into an internal `data-pp-ref` token and rebound after render.
+- Component refs are attached before layout effects and passive effects run, and detach with `null` (or a callback's returned synchronous cleanup) when the owning element unmounts.
+- A composition component whose root is another `x-*` component forwards the ref through Caspian's layout-neutral component hosts to the eventual concrete DOM root.
 - Plain `pp-ref` bindings are preserved across rerenders, including no-op rerenders that skip DOM diffing.
 - Ref callbacks may be called with `null` during cleanup.
 - The runtime generates `data-pp-ref` internally. Do not author it.
@@ -648,6 +653,19 @@ Example:
 ```html
 <div>
   <input pp-ref="nameInput" />
+  <button onclick="nameInput.current?.focus()">Focus</button>
+
+  <script>
+    const nameInput = pp.ref(null);
+  </script>
+</div>
+```
+
+Component example:
+
+```html
+<div>
+  <x-input pp-ref="{nameInput}" name="name" />
   <button onclick="nameInput.current?.focus()">Focus</button>
 
   <script>
@@ -864,6 +882,7 @@ These are current runtime caveats that matter for authors and AI tools:
 - Nested roots without their own `script[type="text/pp"]` block are not fully isolated during parent template compilation.
 - The global `pp` singleton auto-mounts on DOM ready, and `pp.mount()` is idempotent.
 - `pp.effect` and `pp.layoutEffect` are cleanup-style hooks. Their callbacks are not promise-aware.
+- Callback refs may return synchronous cleanup functions, which run instead of a later `callback(null)` detach call.
 - `pp.context()` resolves through ancestor components, not the current component's own pending providers.
 - `pp.provideContext` is not part of the current runtime API. Use an HTML-first lowercase provider tag such as `<themecontext.provider>`.
 - `pp.portal()` preserves logical ancestry through the registry, so context and prop refresh behavior continue to work through portaled descendants.
