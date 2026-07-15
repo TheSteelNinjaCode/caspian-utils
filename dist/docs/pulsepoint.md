@@ -599,6 +599,7 @@ Nested components:
 - `null`, `undefined`, and boolean expression results render as an empty string in text output.
 - Plain objects, functions, and symbols are invalid template children; the runtime warns and omits them instead of rendering accidental strings such as `[object Object]`.
 - Supported boolean attributes are normalized so truthy values emit the bare attribute and falsy values remove it.
+- Boolean expressions bound to string-valued attributes such as `aria-pressed`, `aria-expanded`, and `data-*` serialize as the literal strings `"true"` and `"false"`, including on nested component boundaries.
 - `<textarea value="{draft}"></textarea>` is normalized into textarea content.
 - Use `pp-spread="{...attrs}"` to spread an object expression into attributes.
 - `pp-spread` omits nullish values, omits known HTML boolean attributes when their value is `false`, emits them bare when `true`, preserves string-valued `aria-*`/`data-*` booleans, and escapes `&`, `"`, and `<` in emitted attribute values.
