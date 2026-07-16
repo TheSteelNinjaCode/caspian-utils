@@ -1,6 +1,6 @@
 ---
 title: Components
-description: Use this page when the task mentions `@component`, reusable UI, HTML-first `x-*` component tags, component imports, same-name `.html` templates, `merge_classes(...)`, `twMerge(...)`, or where shared components belong in a Caspian project.
+description: Use this page when the task mentions `@component`, reusable UI, HTML-first `x-*` component tags, component imports, same-name `.html` templates, forwarding Python component props to `pp.props`, `get_attributes(...)`, `merge_classes(...)`, `twMerge(...)`, or where shared components belong in a Caspian project.
 related:
   title: Related docs
   description: Use the structure guide for file placement, the routing guide for route templates, the PulsePoint guide for browser-side scripts, and the data guide for component-owned RPC flows.
@@ -258,6 +258,108 @@ def UserCard(user, **props):
 ```
 
 The returned value is `Markup`, so the normal pipeline still injects `pp-component` on the single root and `transform_scripts(...)` rewrites the plain `<script>` to `type="text/pp"`. A single-file component renders identically to the two-file `render_html(...)` form; the choice is purely about readability.
+
+### Receiving Props In A Python Component
+
+There are two separate prop handoffs in a single-file Python component, and the Python component is the bridge between them:
+
+1. Caspian converts attributes on the parent-authored `x-*` tag from kebab-case to camelCase and calls the Python component with them as string keyword arguments. PulsePoint expressions are not evaluated at this stage: `open="{permOpen}"` arrives in Python as the literal string `"{permOpen}"`, and `on-apply="{applyPermissions}"` arrives as `onApply="{applyPermissions}"`.
+2. The Python component must deliberately re-emit the props it wants the browser component to receive as attributes on its rendered root. Build those attributes with `get_attributes({...}, props)`, place `{{ attributes }}` on the single native root, and pass `attributes=attributes` to `html(...)`.
+3. PulsePoint derives `pp.props` from that rendered root. It evaluates pure `{expression}` attribute values in the parent component's scope, then exposes kebab-case root attribute names as camelCase keys such as `on-apply` -> `pp.props.onApply`.
+
+Python function parameters do not automatically become root attributes or browser props. A parameter that is accepted but not included in `get_attributes(...)` is server-only and is discarded when the Python call returns.
+
+Minimal end-to-end example:
+
+Parent template:
+
+```html
+<!-- @import { UserPermissionsDialog } from "../../components/UserPermissionsDialog.py" -->
+
+<div>
+  <button onclick="setPermOpen(true)">Edit permissions</button>
+  <x-user-permissions-dialog
+    open="{permOpen}"
+    value="{permValue}"
+    on-open-change="{setPermOpen}"
+    on-apply="{applyPermissions}"
+  />
+
+  <script>
+    const [permOpen, setPermOpen] = pp.state(false);
+    const [permValue, setPermValue] = pp.state([]);
+
+    function applyPermissions(nextValue) {
+      setPermValue(nextValue);
+      setPermOpen(false);
+    }
+  </script>
+</div>
+```
+
+`UserPermissionsDialog.py`:
+
+```python
+from casp.component_decorator import component, html
+from casp.html_attrs import get_attributes, merge_classes
+
+@component
+def UserPermissionsDialog(
+    open=None,
+    value=None,
+    onOpenChange=None,
+    onApply=None,
+    **props,
+):
+    incoming_class = props.pop("class", "")
+    attributes = get_attributes({
+        "class": merge_classes("permissions-dialog", incoming_class),
+        "open": open,
+        "value": value,
+        "onOpenChange": onOpenChange,
+        "onApply": onApply,
+    }, props)
+
+    # html
+    return html("""
+      <section {{ attributes }} hidden="{!open}">
+        <p>Selected permissions: {value.length}</p>
+        <button onclick="onOpenChange(false)">Cancel</button>
+        <button onclick="onApply(value)">Apply</button>
+
+        <script>
+          const { open, value, onOpenChange, onApply } = pp.props;
+        </script>
+      </section>
+    """, attributes=attributes)
+```
+
+The browser can evaluate `permOpen`, `permValue`, `setPermOpen`, and `applyPermissions` because their literal brace expressions survived the Python render and were placed on the child root. If `{{ attributes }}` or `attributes=attributes` is missing, `pp.props` has none of those forwarded keys and may be completely empty.
+
+Pitfalls:
+
+- **Silent empty `pp.props`:** accepting `open`, `value`, or callback parameters in Python without re-emitting them on the root raises no server error and no browser warning. The component renders, but those keys are absent from `pp.props` and values such as `pp.props.open` are `undefined`.
+- **Reserved/native attribute collisions:** forwarded props are real DOM attributes. A prop named `title` produces the native `title="..."` tooltip on the root. Prefer a component-specific non-native name such as `user-name` (Python `userName`, browser `pp.props.userName`) when native behavior is not intended.
+- `get_attributes(...)` omits empty strings. To pass a reactive boolean, prefer a pure expression such as `disabled="{isDisabled}"` rather than relying on a bare empty attribute to survive the Python bridge.
+
+### HTML Attribute Helper Contract
+
+`casp.html_attrs.get_attributes(defaults, overrides=None)` builds one Jinja-safe attribute string for a component root:
+
+- It processes the first dictionary, then the optional second dictionary. A non-empty value in `overrides` replaces the same normalized key from `defaults`. An omitted/empty override does not delete an already-renderable default. This is why the usual component pattern passes authored defaults first and remaining `**props` second.
+- It resolves Python-safe aliases before normalization: `class_name` and `className` become `class`, `html_for` and `htmlFor` become `for`, `defaultValue` becomes `defaultvalue`, and `defaultChecked` becomes `defaultchecked`.
+- It converts every other camelCase key to kebab-case, so `onOpenChange` renders as `on-open-change` and later becomes `pp.props.onOpenChange` in PulsePoint.
+- It omits keys whose value is `None`, `False`, an empty string, or an empty/falsy list, tuple, or set. `True` renders as the explicit string `"true"`; non-empty iterables are space-joined.
+- It HTML-escapes attribute values and returns `Markup`, so `{{ attributes }}` is not double-escaped by Jinja.
+- Passing `**props` as the second dictionary is the passthrough contract for unconsumed `id`, `data-*`, `aria-*`, reactive expressions, callbacks, and other boundary attributes. Pop or otherwise consume a prop first when it should not be forwarded or when it has already been merged into a default.
+
+`casp.html_attrs.merge_classes(*classes)` flattens truthy strings and truthy items from lists, tuples, or sets:
+
+- When `caspian.config.json` has `tailwindcss: false`, it joins the class parts with spaces.
+- When `tailwindcss: true`, it emits a PulsePoint expression such as `{twMerge("base classes", incomingClass)}` so the browser's global `twMerge(...)` resolves Tailwind conflicts after parent-scope prop evaluation.
+- An incoming pure `{expression}` becomes an expression argument rather than a quoted string. An existing `{twMerge(...)}` expression is preserved or incorporated without nesting another `twMerge(...)` call.
+- Empty inputs produce an empty string, which `get_attributes(...)` omits.
+- When combining a default class with incoming `**props`, remove the incoming `class` from `props` before passing `props` as overrides; otherwise that later override replaces the merged class attribute.
 
 Rules for inline `html(...)`:
 

@@ -569,6 +569,8 @@ When a child component needs the same token object, pass it from the provider sc
 
 ## Props and nested components
 
+In Caspian single-file Python components, the root element's attributes must be authored via `get_attributes(...)` and `{{ attributes }}`; see [components.md](./components.md#receiving-props-in-a-python-component). Attributes accepted from an `x-*` tag but not forwarded to the rendered root are dropped and never reach `pp.props`.
+
 - Child component props are derived from DOM attributes.
 - Attribute names are converted from kebab-case to camelCase for the prop bag.
 - Native `on*` attributes and `pp-component` are not included in props.
