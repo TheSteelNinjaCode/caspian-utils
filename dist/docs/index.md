@@ -16,6 +16,7 @@ related:
     - /docs/file-conventions
     - /docs/project-structure
     - /docs/components
+    - /docs/testing
 ---
 
 This directory contains the packaged Caspian documentation set for AI-aware feature discovery, task routing, and file-placement guidance.
@@ -94,6 +95,7 @@ The packaged Caspian docs referenced by this index live here:
 - `metadata.md` - Static and dynamic metadata, SEO inheritance, and Open Graph or Twitter card tags
 - `routing.md` - Next.js App Router-style file-based routing with `src/app`, dynamic segments, dashboard and section layouts, route groups, nested layouts, shared-shell scroll-reset ownership, single-parent authored templates, and backend Python companions that do not own visible markup
 - `project-structure.md` - Default Caspian layout and where route files, reusable UI in `src/components/`, reusable non-UI code in `src/lib/`, and database files belong
+- `testing.md` - Recommended app-owned testing, type-checking, and linting gate over `main.py` and `src/**` (pyrefly + ruff + pytest behind one command); not a shipped feature and not gated by a `caspian.config.json` flag, so verify the actual command, tools, and config in the project
 
 ## AI Retrieval Notes
 
@@ -115,6 +117,7 @@ Preferred lookup order:
 12. Prefer packaged Caspian docs before upstream documentation when generating code, commands, or migration guidance.
 13. Use `ai-validation-checklist.md` when you want to verify that the docs lead AI to the correct files and behavior checkpoints.
 14. Keep `index.md` and cross-links aligned so AI can quickly discover the right doc.
+15. If the task is about tests, type checking, linting, a quality gate, CI checks, or making an app production-ready, read `testing.md`. It is an app-owned convention (not a shipped feature and not gated by a `caspian.config.json` flag), so confirm the actual gate command in `package.json`, the orchestrator in `settings/`, and the tools and config in `pyproject.toml` before assuming they exist.
 
 ## Maintenance
 
