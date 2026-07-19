@@ -82,19 +82,13 @@ search-path = [".", "src"]
 
 ## Auto-Fixing, And Why Ruff Must Not Delete Component Imports
 
-The gate only **reports**. Ruff can also **fix** many lint findings in place, so a second command is worth exposing alongside the gate — recommended `npm run check:fix`, backed by:
+The gate only **reports**. Ruff can also **fix** many lint findings in place, so a second command is worth exposing alongside the gate — recommended `npm run check:fix`, backed by a small orchestrator (for example `settings/fix.py`) that applies safe fixes and then re-runs the gate to print the authoritative report of what is left. Type errors (pyrefly) and failing tests (pytest) are never auto-fixed.
 
-```
-ruff check . --fix-only && <the gate command>
-```
+**Hazard — unused-import autofix (`F401`) breaks single-file components.** A single-file component imports its children and then uses them **only** as `<x-*>` tags inside an `html(...)` / `render_html(...)` template string, for example `from .Dialog import DialogContent` used as `<x-dialog-content>`. Ruff parses Python, not the template string, so it reports the import as unused (`F401`) and `--fix` would delete it. That import is load-bearing: Caspian resolves the tag from the **module's globals at render time** (see `component_decorator._attach_caller_scope`, which scans the caller module for `Component` instances). Deleting it breaks rendering at runtime, silently. This affects any component file, so it cannot be scoped by path — but it also must not disable dead-import cleanup for ordinary Python.
 
-Use `--fix-only` (not `--fix`): plain `--fix` exits non-zero whenever unfixable findings remain, which would stop the `&&` from ever reaching the gate. `--fix-only` applies the available fixes, exits `0`, and lets the gate re-run and print the authoritative report of what is left. Type errors (pyrefly) and failing tests (pytest) are never auto-fixed.
+Handle it in three layers, all generic:
 
-**Hazard — unused-import autofix (`F401`) breaks single-file components.** A single-file component imports its children and then uses them **only** as `<x-*>` tags inside an `html(...)` / `render_html(...)` template string, for example `from .Dialog import DialogContent` used as `<x-dialog-content>`. Ruff parses Python, not the template string, so it reports the import as unused (`F401`) and `--fix` would delete it. That import is load-bearing: Caspian resolves the tag from the **module's globals at render time** (see `component_decorator._attach_caller_scope`, which scans the caller module for `Component` instances). Deleting it breaks rendering at runtime, silently. This affects any component file, so it cannot be scoped by path.
-
-Handle it in two layers, both generic:
-
-1. **Never auto-delete imports.** Mark `F401` unfixable so `--fix`/`--fix-only` reports but never strips it, project-wide:
+1. **Never let a raw `ruff check --fix` delete an import.** Mark `F401` unfixable so ruff reports but never strips it, project-wide — this protects anyone who runs ruff directly:
 
    ```toml
    [tool.ruff.lint]
@@ -103,9 +97,11 @@ Handle it in two layers, both generic:
    unfixable = ["F401"]
    ```
 
-2. **Keep the gate honest.** In the orchestrator (`settings/check.py`), drop the `F401` findings whose bound symbol is actually used as an `<x-*>` tag in the same file, and keep the rest — so the gate still fails on genuinely dead imports. Derive the tag exactly as the compiler does: `x-{camel_to_kebab(import_name)}` (mirror `casp.string_helpers.camel_to_kebab`; e.g. `DialogContent` → `<x-dialog-content`). Pull the symbol from the ruff JSON message (`` `.Dialog.DialogContent` imported but unused`` → last dotted segment, or the alias after ` as `), then match `<x-dialog-content` on a tag boundary in the file source.
+2. **Let the fixer still clean genuinely dead imports.** The `check:fix` orchestrator lists `F401` findings under the project config, marks any file that contains an import used as an `<x-*>` tag as *component-guarded*, and removes dead imports only from the **non-guarded** files. Because the project config makes `F401` unfixable, re-enable removal for that step with an **isolated** ruff run scoped to those exact files: `ruff check <files> --select F401 --fix-only --isolated` (`--isolated` ignores the project config so `F401` is fixable again; passing explicit files keeps include/exclude moot). Guarded files are skipped whole and left for the gate to report, so a load-bearing import is never at risk.
 
-**Working rule:** when the gate reports an `F401`, remove that import by hand only after confirming it is not used as an `<x-*>` tag anywhere in the same file. Do not re-enable `F401` autofix to "clean up" — it cannot see template usage.
+3. **Keep the gate honest.** In the orchestrator (`settings/check.py`), drop the `F401` findings whose bound symbol is actually used as an `<x-*>` tag in the same file, and keep the rest — so the gate still fails on genuinely dead imports. Derive the tag exactly as the compiler does: `x-{camel_to_kebab(import_name)}` (mirror `casp.string_helpers.camel_to_kebab`; e.g. `DialogContent` → `<x-dialog-content`). Pull the symbol from the ruff JSON message (`` `.Dialog.DialogContent` imported but unused`` → last dotted segment, or the alias after ` as `), then match `<x-dialog-content` on a tag boundary in the file source. Share this detection between the fixer and the gate in one module (for example `settings/_component_imports.py`).
+
+**Working rule:** when the gate reports an `F401` in a component-guarded file, remove that import by hand only after confirming it is not used as an `<x-*>` tag anywhere in the same file. Do not blanket-ignore `F401` or re-enable its autofix globally — it cannot see template usage.
 
 ## Things To Verify Before Editing Or Explaining
 
