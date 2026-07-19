@@ -95,7 +95,7 @@ The packaged Caspian docs referenced by this index live here:
 - `metadata.md` - Static and dynamic metadata, SEO inheritance, and Open Graph or Twitter card tags
 - `routing.md` - Next.js App Router-style file-based routing with `src/app`, dynamic segments, dashboard and section layouts, route groups, nested layouts, shared-shell scroll-reset ownership, single-parent authored templates, and backend Python companions that do not own visible markup
 - `project-structure.md` - Default Caspian layout and where route files, reusable UI in `src/components/`, reusable non-UI code in `src/lib/`, and database files belong
-- `testing.md` - Recommended app-owned testing, type-checking, and linting gate over `main.py` and `src/**` (pyrefly + ruff + pytest behind one command); not a shipped feature and not gated by a `caspian.config.json` flag, so verify the actual command, tools, and config in the project
+- `testing.md` - Recommended app-owned testing, type-checking, and linting gate over `main.py` and `src/**` (pyrefly + ruff + pytest behind one command), plus the auto-fix command and why ruff must not auto-delete component imports used as `<x-*>` tags (F401 unfixable); not a shipped feature and not gated by a `caspian.config.json` flag, so verify the actual command, tools, and config in the project
 
 ## AI Retrieval Notes
 

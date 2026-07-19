@@ -1,6 +1,6 @@
 ---
 title: Testing And Quality Gate
-description: Use this page when the task mentions tests, pytest, type checking, pyrefly, linting, ruff, a quality gate, CI checks, or "make the code production-ready" for a Caspian app's own Python. Explains the recommended one-command gate over `main.py` and `src/**`.
+description: Use this page when the task mentions tests, pytest, type checking, pyrefly, linting, ruff, auto-fixing lint (ruff --fix / check:fix), unused-import (F401) removal, a quality gate, CI checks, or "make the code production-ready" for a Caspian app's own Python. Explains the recommended one-command gate over `main.py` and `src/**`, and why ruff must not auto-delete component imports used as `<x-*>` tags.
 related:
   title: Related docs
   description: Pair the quality gate with the runtime map when a failing check points into core files, and with the structure and command docs when deciding where tests and tooling belong.
@@ -79,6 +79,33 @@ ignore = ["E501"]
 project-includes = ["main.py", "src/**"]
 search-path = [".", "src"]
 ```
+
+## Auto-Fixing, And Why Ruff Must Not Delete Component Imports
+
+The gate only **reports**. Ruff can also **fix** many lint findings in place, so a second command is worth exposing alongside the gate — recommended `npm run check:fix`, backed by:
+
+```
+ruff check . --fix-only && <the gate command>
+```
+
+Use `--fix-only` (not `--fix`): plain `--fix` exits non-zero whenever unfixable findings remain, which would stop the `&&` from ever reaching the gate. `--fix-only` applies the available fixes, exits `0`, and lets the gate re-run and print the authoritative report of what is left. Type errors (pyrefly) and failing tests (pytest) are never auto-fixed.
+
+**Hazard — unused-import autofix (`F401`) breaks single-file components.** A single-file component imports its children and then uses them **only** as `<x-*>` tags inside an `html(...)` / `render_html(...)` template string, for example `from .Dialog import DialogContent` used as `<x-dialog-content>`. Ruff parses Python, not the template string, so it reports the import as unused (`F401`) and `--fix` would delete it. That import is load-bearing: Caspian resolves the tag from the **module's globals at render time** (see `component_decorator._attach_caller_scope`, which scans the caller module for `Component` instances). Deleting it breaks rendering at runtime, silently. This affects any component file, so it cannot be scoped by path.
+
+Handle it in two layers, both generic:
+
+1. **Never auto-delete imports.** Mark `F401` unfixable so `--fix`/`--fix-only` reports but never strips it, project-wide:
+
+   ```toml
+   [tool.ruff.lint]
+   select = ["E", "F", "W"]
+   ignore = ["E501"]
+   unfixable = ["F401"]
+   ```
+
+2. **Keep the gate honest.** In the orchestrator (`settings/check.py`), drop the `F401` findings whose bound symbol is actually used as an `<x-*>` tag in the same file, and keep the rest — so the gate still fails on genuinely dead imports. Derive the tag exactly as the compiler does: `x-{camel_to_kebab(import_name)}` (mirror `casp.string_helpers.camel_to_kebab`; e.g. `DialogContent` → `<x-dialog-content`). Pull the symbol from the ruff JSON message (`` `.Dialog.DialogContent` imported but unused`` → last dotted segment, or the alias after ` as `), then match `<x-dialog-content` on a tag boundary in the file source.
+
+**Working rule:** when the gate reports an `F401`, remove that import by hand only after confirming it is not used as an `<x-*>` tag anywhere in the same file. Do not re-enable `F401` autofix to "clean up" — it cannot see template usage.
 
 ## Things To Verify Before Editing Or Explaining
 
