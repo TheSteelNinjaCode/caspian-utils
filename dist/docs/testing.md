@@ -1,6 +1,6 @@
 ---
 title: Testing And Quality Gate
-description: Use this page when the task mentions tests, pytest, type checking, pyrefly, linting, ruff, auto-fixing lint (ruff --fix / check:fix), unused-import (F401) removal, a quality gate, CI checks, or "make the code production-ready" for a Caspian app's own Python. Explains the recommended one-command gate over `main.py` and `src/**`, and why ruff must not auto-delete component imports used as `<x-*>` tags.
+description: Use this page when the task mentions tests, pytest, type checking, pyright, linting, ruff, auto-fixing lint (ruff --fix / check:fix), unused-import (F401) removal, a quality gate, CI checks, or "make the code production-ready" for a Caspian app's own Python. Explains the recommended one-command gate over `main.py` and `src/**`, and why ruff must not auto-delete component imports used as `<x-*>` tags.
 related:
   title: Related docs
   description: Pair the quality gate with the runtime map when a failing check points into core files, and with the structure and command docs when deciding where tests and tooling belong.
@@ -26,11 +26,11 @@ Caspian does not ship a test runner, type checker, or linter. Quality tooling is
 
 Expose a single gate command so an agent or CI has exactly one thing to run. The recommended command runs three tools in one pass and reports every problem with its exact location:
 
-- **type check** — [pyrefly](https://pyrefly.org) over `main.py` and `src/**`
+- **type check** — [pyright](https://github.com/microsoft/pyright) over `main.py` and `src/**` (Pylance, the default VS Code Python language server, is Pyright under the hood and reads the same `[tool.pyright]` config, so the editor and `npm run check` report the same thing)
 - **lint** — [ruff](https://docs.astral.sh/ruff/)
 - **tests** — [pytest](https://docs.pytest.org)
 
-The command should print each problem as `path:line:col [tool:code] message` and exit non-zero when any check fails, so the file and line to fix are always explicit. Prefer a single `npm run check` script (backed by an app-owned orchestrator such as `settings/check.py`) over separate `test` / `lint` / `typecheck` scripts, so the surface stays minimal. Keep a per-tool escape hatch (for example `--only pyrefly`) for debugging rather than as additional npm scripts.
+The command should print each problem as `path:line:col [tool:code] message` and exit non-zero when any check fails, so the file and line to fix are always explicit. Prefer a single `npm run check` script (backed by an app-owned orchestrator such as `settings/check.py`) over separate `test` / `lint` / `typecheck` scripts, so the surface stays minimal. Keep a per-tool escape hatch (for example `--only pyright`) for debugging rather than as additional npm scripts.
 
 ## Source Of Truth
 
@@ -57,7 +57,7 @@ Keep the dev tooling in a dependency group and install it with `uv sync --group 
 ```toml
 [dependency-groups]
 dev = [
-    "pyrefly>=0.16",
+    "pyright>=1.1",
     "ruff>=0.6",
     "pytest>=8.0",
 ]
@@ -75,14 +75,27 @@ extend-exclude = [".venv", "node_modules"]
 select = ["E", "F", "W"]
 ignore = ["E501"]
 
-[tool.pyrefly]
-project-includes = ["main.py", "src/**"]
-search-path = [".", "src"]
+[tool.pyright]
+# Pylance (the VS Code Python extension) reads this same config, so the editor
+# and `npm run check` report the same thing instead of disagreeing.
+include = ["main.py", "src"]
+exclude = [".venv", "node_modules", "**/__pycache__"]
+# `basic` is Pylance's default mode. It catches reportArgumentType-style bugs
+# (e.g. passing a dict[str, str | None] to a TypedDict whose field is `str`)
+# without flooding the gate with strict-mode noise. Subject the generated Prisma
+# Python ORM under `src/lib/prisma/**` to its own exclusion so its
+# Optional-everywhere models do not dominate the gate.
+pythonPlatform = "Windows"   # or Linux/Darwin to match the deploy target
+typeCheckingMode = "basic"
+# Mirror suppressions from older pyrefly-based setups if you migrated; otherwise
+# leave these out. Re-enable per-rule when tightening.
+# reportReturnType = "none"
+# reportAssignmentType = "none"
 ```
 
 ## Auto-Fixing, And Why Ruff Must Not Delete Component Imports
 
-The gate only **reports**. Ruff can also **fix** many lint findings in place, so a second command is worth exposing alongside the gate — recommended `npm run check:fix`, backed by a small orchestrator (for example `settings/fix.py`) that applies safe fixes and then re-runs the gate to print the authoritative report of what is left. Type errors (pyrefly) and failing tests (pytest) are never auto-fixed.
+The gate only **reports**. Ruff can also **fix** many lint findings in place, so a second command is worth exposing alongside the gate — recommended `npm run check:fix`, backed by a small orchestrator (for example `settings/fix.py`) that applies safe fixes and then re-runs the gate to print the authoritative report of what is left. Type errors (pyright) and failing tests (pytest) are never auto-fixed.
 
 **Hazard — unused-import autofix (`F401`) breaks single-file components.** A single-file component imports its children and then uses them **only** as `<x-*>` tags inside an `html(...)` / `render_html(...)` template string, for example `from .Dialog import DialogContent` used as `<x-dialog-content>`. Ruff parses Python, not the template string, so it reports the import as unused (`F401`) and `--fix` would delete it. That import is load-bearing: Caspian resolves the tag from the **module's globals at render time** (see `component_decorator._attach_caller_scope`, which scans the caller module for `Component` instances). Deleting it breaks rendering at runtime, silently. This affects any component file, so it cannot be scoped by path — but it also must not disable dead-import cleanup for ordinary Python.
 
@@ -107,7 +120,7 @@ Handle it in three layers, all generic:
 
 - Confirm the gate command name and orchestrator path in `package.json` and `settings/`, since they are app-owned and may differ per project.
 - Confirm the dev tools are actually installed (`[dependency-groups]` in `pyproject.toml`, resolved in `uv.lock`) before telling a user to run the gate.
-- Check `[tool.pyrefly.errors]` in `pyproject.toml`. A project may suppress specific error kinds (commonly `bad-return` and `bad-assignment`); those are then not reported by the gate, so do not assume every annotation mismatch is caught.
+- Check `[tool.pyright]` in `pyproject.toml`. A project may set `typeCheckingMode = "basic"` (Pylance's default, recommended) and individually silence rules with `reportReturnType = "none"` / `reportAssignmentType = "none"` (commonly done to mirror older pyrefly-based setups). Any rule silenced there is then not reported by the gate, so do not assume every annotation mismatch is caught. Pylance in the editor reads this same config, so the IDE and `npm run check` agree.
 - Keep the scope on app code. If a check points into `.venv/Lib/site-packages/casp/**`, use [core-runtime-map.md](./core-runtime-map.md) to understand the runtime, but do not add framework files to the app's test, lint, or type-check scope.
 
 ## Working Rule For Agents

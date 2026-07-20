@@ -68,9 +68,8 @@ If the project enables MCP, use `mcp.md` after scaffold to place the app-owned F
 For the best development experience, use these VS Code extensions:
 
 - [Caspian Official Framework Support](https://marketplace.visualstudio.com/items?itemName=JeffersonAbrahamOmier.caspian)
-- [Python](https://marketplace.visualstudio.com/items?itemName=ms-python.python)
-- [Pyright](https://marketplace.visualstudio.com/items?itemName=ms-pyright.pyright)
-- [Pyrefly](https://marketplace.visualstudio.com/items?itemName=tamasfe.pyrefly)
+- [Python](https://marketplace.visualstudio.com/items?itemName=ms-python.python) — ships [Pylance](https://marketplace.visualstudio.com/items?itemName=ms-python.vscode-pylance) as the default language server, which is Pyright under the hood and therefore agrees with the `npm run check` gate (recommended).
+- [Pyright](https://marketplace.visualstudio.com/items?itemName=ms-pyright.pyright) — optional if you want the standalone Pyright server and CLI on top of Pylance; otherwise Pylance already covers editor parity.
 - [Prisma](https://marketplace.visualstudio.com/items?itemName=Prisma.prisma)
 - [Tailwind CSS IntelliSense](https://marketplace.visualstudio.com/items?itemName=bradlc.vscode-tailwindcss)
 
