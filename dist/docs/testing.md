@@ -67,7 +67,9 @@ testpaths = ["tests"]
 addopts = "-q"
 
 [tool.ruff]
-include = ["main.py", "src/**/*.py", "tests/**/*.py", "settings/check.py"]
+# `settings/*.py` (not just `settings/check.py`) so every orchestrator script —
+# `check.py`, `fix.py`, `_component_imports.py` — is linted, not just the entrypoint.
+include = ["main.py", "src/**/*.py", "tests/**/*.py", "settings/*.py"]
 extend-exclude = [".venv", "node_modules"]
 
 [tool.ruff.lint]
@@ -82,9 +84,11 @@ include = ["main.py", "src"]
 exclude = [".venv", "node_modules", "**/__pycache__"]
 # `basic` is Pylance's default mode. It catches reportArgumentType-style bugs
 # (e.g. passing a dict[str, str | None] to a TypedDict whose field is `str`)
-# without flooding the gate with strict-mode noise. Subject the generated Prisma
-# Python ORM under `src/lib/prisma/**` to its own exclusion so its
-# Optional-everywhere models do not dominate the gate.
+# without flooding the gate with strict-mode noise. Note this `include`/`exclude`
+# pair analyzes everything under `src`, including the generated Prisma Python ORM
+# in `src/lib/prisma/**`; `basic` mode (plus the optional suppressions below)
+# keeps its Optional-everywhere models from dominating the gate. If that ORM still
+# produces too much noise, add `"src/lib/prisma"` to `exclude` explicitly.
 pythonPlatform = "Windows"   # or Linux/Darwin to match the deploy target
 typeCheckingMode = "basic"
 # Mirror suppressions from older pyrefly-based setups if you migrated; otherwise
