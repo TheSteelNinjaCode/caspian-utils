@@ -80,7 +80,8 @@ ignore = ["E501"]
 [tool.pyright]
 # Pylance (the VS Code Python extension) reads this same config, so the editor
 # and `npm run check` report the same thing instead of disagreeing.
-include = ["main.py", "src"]
+# `settings/*.py` is included so the orchestrator scripts are type-checked too.
+include = ["main.py", "src", "settings/*.py"]
 exclude = [".venv", "node_modules", "**/__pycache__"]
 # `basic` is Pylance's default mode. It catches reportArgumentType-style bugs
 # (e.g. passing a dict[str, str | None] to a TypedDict whose field is `str`)
