@@ -747,7 +747,7 @@ Minimal sign-in button:
 <a href="/api/auth/signin/github">Continue with GitHub</a>
 ```
 
-Do not reinvent this flow. When a task asks for Google or GitHub login, do not add `authlib`, a hand-written `httpx` token-exchange, a parallel session writer, or custom `/callback` route handlers. The shipped providers plus `auth.auth_providers(...)` already perform the redirect, the code exchange, payload normalization, `auth.sign_in(...)`, and the post-login redirect to `default_signin_redirect`. Reuse them and keep credentials in `.env`.
+Do not reinvent this flow. When a task asks for Google or GitHub login, do not add `authlib`, a hand-written `httpx2` token-exchange, a parallel session writer, or custom `/callback` route handlers. The shipped providers plus `auth.auth_providers(...)` already perform the redirect, the code exchange, payload normalization, `auth.sign_in(...)`, and the post-login redirect to `default_signin_redirect`. Reuse them and keep credentials in `.env`.
 
 Available provider classes:
 
@@ -758,7 +758,7 @@ The current `auth.auth_providers(*providers)` implementation:
 
 - redirects to the provider when the request path contains `signin/google` or `signin/github`
 - handles callbacks when the path contains `callback/google` or `callback/github` and a `code` query parameter is present
-- exchanges the code with the provider using `httpx`
+- exchanges the code with the provider using `httpx2`
 - builds a normalized user payload
 - signs the user in with the provider's `max_age`
 - redirects to `default_signin_redirect` on success
