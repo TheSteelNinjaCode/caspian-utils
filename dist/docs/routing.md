@@ -349,6 +349,8 @@ Use catch-all routes when the number of path segments is not fixed ahead of time
 
 Add a sibling `index.py` when that catch-all route also needs backend logic or metadata.
 
+If the project uses static export (SSG) and you want a dynamic or catch-all route pre-rendered into the static build, export a `static_paths` provider from that route's `index.py` (Caspian's `getStaticPaths` equivalent). Without it, the static exporter skips the route by design. See [static-export.md](./static-export.md).
+
 ## Route Groups
 
 Wrap a folder name in parentheses to organize code without adding that segment to the URL.

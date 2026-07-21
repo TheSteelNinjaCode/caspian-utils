@@ -95,6 +95,7 @@ The packaged Caspian docs referenced by this index live here:
 - `metadata.md` - Static and dynamic metadata, SEO inheritance, and Open Graph or Twitter card tags
 - `routing.md` - Next.js App Router-style file-based routing with `src/app`, dynamic segments, dashboard and section layouts, route groups, nested layouts, shared-shell scroll-reset ownership, single-parent authored templates, and backend Python companions that do not own visible markup
 - `project-structure.md` - Default Caspian layout and where route files, reusable UI in `src/components/`, reusable non-UI code in `src/lib/`, and database files belong
+- `static-export.md` - App-owned static HTML export (SSG, like Next.js `output: export`) via `npm run static`/`settings/build-static.py`, dynamic-route pre-rendering with `static_paths`, and the robust port-aware preview server `npm run static:serve`/`settings/serve-static.py`; not a shipped feature and not gated by a `caspian.config.json` flag, so verify the scripts exist in the project
 - `testing.md` - Recommended app-owned testing, type-checking, and linting gate over `main.py` and `src/**` (pyright + ruff + pytest behind one command, so the gate and Pylance in the editor report the same thing), plus the auto-fix command and why ruff must not auto-delete component imports used as `<x-*>` tags (F401 unfixable); not a shipped feature and not gated by a `caspian.config.json` flag, so verify the actual command, tools, and config in the project
 
 ## AI Retrieval Notes
@@ -118,6 +119,7 @@ Preferred lookup order:
 13. Use `ai-validation-checklist.md` when you want to verify that the docs lead AI to the correct files and behavior checkpoints.
 14. Keep `index.md` and cross-links aligned so AI can quickly discover the right doc.
 15. If the task is about tests, type checking, linting, a quality gate, CI checks, or making an app production-ready, read `testing.md`. It is an app-owned convention (not a shipped feature and not gated by a `caspian.config.json` flag), so confirm the actual gate command in `package.json`, the orchestrator in `settings/`, and the tools and config in `pyproject.toml` before assuming they exist.
+16. If the task is about static export, static-site generation, `output: export`-style output, previewing a static build over HTTP, pre-rendering dynamic routes, or a preview server whose port is already in use, read `static-export.md`. It is also an app-owned convention (not a shipped feature, not gated by a `caspian.config.json` flag), so confirm `settings/build-static.py`, `settings/serve-static.py`, and the `static`/`static:serve` scripts exist in the project before assuming static export is available.
 
 ## Maintenance
 

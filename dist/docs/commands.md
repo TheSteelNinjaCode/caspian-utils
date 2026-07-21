@@ -10,6 +10,7 @@ related:
     - /docs/mcp
     - /docs/file-uploads
     - /docs/routing
+    - /docs/static-export
     - /docs/project-structure
     - /docs/index
 ---
@@ -98,6 +99,27 @@ Only use this when the current project's `package.json` actually defines `npm ru
 
 Do not use `npm run build` as the default validation step for routine route, feature, or documentation edits.
 
+### Export the app to static HTML and preview it
+
+```bash
+# Export to static/ (SSG, like Next.js `output: export`)
+npm run static
+
+# Serve the exported static/ folder over HTTP on an auto-selected free port
+npm run static:serve
+```
+
+Use `npm run static` when the user wants a folder of static HTML for a static host, and `npm run static:serve` to preview that folder locally.
+
+This is an **app-owned build convention**, not a shipped Caspian feature and not gated by a `caspian.config.json` flag. Only use these when the current project's `package.json` actually defines them and `settings/build-static.py` (exporter) and `settings/serve-static.py` (preview server) exist.
+
+Two things AI must keep correct:
+
+- The `static` script must run `npm run build` (Tailwind **and** `projectName`) before `settings/build-static.py`, because the exporter walks the route index in `settings/files-list.json` that `projectName` regenerates. A build that only runs `tailwind:build` can export from a stale route index.
+- `settings/serve-static.py` auto-selects a free port starting at a preferred default (8000) and binds loopback `127.0.0.1` by default; read the port it prints rather than assuming 8000 or reading `settings/bs-config.json` (that file is the dev BrowserSync source of truth, not the static preview).
+
+See [static-export.md](./static-export.md) for the full export scope policy, `static_paths` dynamic-route pre-rendering, and the preview-server security and port behavior.
+
 ### Regenerate ORM after schema changes
 
 ```bash
@@ -120,7 +142,8 @@ Use when `prisma/schema.prisma` changes and you need migrations, seed flow, and 
 - Before using an optional feature, confirm its flag in `caspian.config.json`.
 - If the flag is false and the user wants that feature, ask first, then update `caspian.config.json` and run `npx casp update project` before assuming feature-managed files or scripts exist.
 - Do not run `package.json` scripts by default just because source files changed.
-- Treat `npm run dev` and `npm run build` as opt-in workflows.
+- Treat `npm run dev`, `npm run build`, `npm run static`, and `npm run static:serve` as opt-in workflows.
+- Use `npm run static` only when the user wants a static HTML export, and `npm run static:serve` only to preview it. Both are app-owned conventions; confirm the scripts and `settings/build-static.py` / `settings/serve-static.py` exist first.
 - Use `npm run dev` only when the user explicitly asks to start the local stack or the task truly needs that running workflow.
 - Use `npm run build` only for deployment prep or an explicit build request.
 - Treat `public/css/styles.css`, `settings/component-map.json`, `settings/files-list.json`, `__pycache__/`, and `.pyc` files as generated outputs when a script intentionally runs.
@@ -637,6 +660,8 @@ See [database.md](./database.md) for the full schema, migration, seed, and async
 | Update current project to beta safely in PowerShell | `npx casp update project --tag beta` |
 | Update current project to an exact version | `npx casp update project --version 1.2.3 -y` |
 | Regenerate Python ORM after schema changes | `npx prisma migrate dev` then optional seed commands, then `npx ppy generate` |
+| Export the app to static HTML (SSG) | `npm run static` (when the project defines it) |
+| Preview the exported static build over HTTP | `npm run static:serve` (auto-selects a free port) |
 
 ## 10. Configuration Notes
 
@@ -685,5 +710,6 @@ If an AI agent is deciding which command flow to use, apply these rules first.
 - When `prisma/schema.prisma` changes, run `npx prisma migrate dev` first, then any required seed refresh, then `npx ppy generate`. Before running `npx prisma db seed`, warn the user that it can delete or overwrite data and wait for explicit approval.
 - Never hand-edit generated Python ORM files under `src/lib/prisma/` or `settings/prisma-schema.json`.
 - Read [database.md](./database.md) before generating Prisma schema, migration, seed, or ORM guidance.
+- Read [static-export.md](./static-export.md) before generating or explaining static export (`npm run static`), dynamic-route pre-rendering with `static_paths`, or the `npm run static:serve` preview server. Confirm the scripts and `settings/build-static.py` / `settings/serve-static.py` exist first.
 - Read [routing.md](./routing.md) before generating or modifying route folders under `src/app/`.
 - Read [project-structure.md](./project-structure.md) before placing generated files into the project.
