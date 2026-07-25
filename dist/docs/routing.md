@@ -36,7 +36,7 @@ Start with these rules:
 - In grouped shells with separate shell and content scrolling, put `pp-reset-scroll="true"` on the content pane in `layout.html` when that pane should reset on child-route navigation while the shell sidebar or rail keeps its own scroll.
 - Use `layout.py` when a layout needs shared props or metadata before rendering. The `layout()` function may be synchronous or async.
 - Keep visible route and layout markup in `index.html` and `layout.html`. Treat `index.py` and `layout.py` as backend companions, not as places to author visible HTML.
-- Treat every authored route and layout template like a React component body: it must have exactly one top-level parent HTML element or one imported `x-*` root, and any owned plain `<script>` must live inside that same root.
+- Treat every authored route and layout template like a React component body **for root counting only**: exactly one top-level parent HTML element or one imported `x-*` root, with any owned plain `<script>` inside that same root. The markup itself is plain HTML, never JSX — see [pulsepoint.md](./pulsepoint.md) "PulsePoint Is Not JSX".
 - For route and layout interactivity, use PulsePoint in the authored HTML first: native `on*` event attributes, `pp.state(...)`, refs, effects, directives, and `pp.rpc()`. Do not create standard JavaScript event systems with ids, `data-*` state, `querySelector`, `addEventListener`, or manual `innerHTML` for normal first-party UI.
 
 ## Hard Template Invariant
@@ -189,7 +189,7 @@ Route templates follow the same authored-vs-runtime contract documented in [puls
 
 When a route needs button clicks, form submits, input changes, filters, tabs, menus, uploads, polling, or reactive list updates, author those interactions as PulsePoint behavior in `index.html`. Use `onclick`, `oninput`, `onchange`, `onsubmit`, `pp.state(...)`, `pp-for`, refs, effects, and `pp.rpc(...)` instead of starting with `id` attributes plus `document.querySelector(...)` or `addEventListener(...)`. For simple form submits, prefer `onsubmit="{submitForm(event)}"` and `Object.fromEntries(new FormData(event.currentTarget).entries())` over per-input `pp-ref` payload collection.
 
-For AI-generated route templates, treat `src/app/**/index.html` the same way you would a React component body: return one parent node that contains the entire route markup. This includes any owned script.
+For AI-generated route templates, treat `src/app/**/index.html` the same way you would a React component body **in root count only**: one parent node containing the entire route markup, including any owned script. Inside that root, write plain HTML with PulsePoint directives — `hidden="{...}"` for conditionals, `<template pp-for="…">` for lists, and quoted brace attributes such as `class="{…}"`. JSX shapes (`{cond && <div/>}`, `{list.map(...)}`, `class={...}`) break the render.
 
 Good:
 

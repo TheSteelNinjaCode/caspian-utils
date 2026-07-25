@@ -31,6 +31,7 @@ As the app grows, treat `src/components/` as the default home for reusable appli
 - Use `html(...)` to keep markup, server interpolation, and a PulsePoint `<script>` inline in one Python file (single-file component) for a small or medium UI responsibility. It renders through Caspian's Jinja env, so `{{ ... }}` is server-side and `{ ... }` stays for PulsePoint.
 - Use `render_html(...)` with a same-name `.html` file when the component has large markup, a long script, or you want clearer separation between Python logic and UI.
 - Split UI by responsibility the way you would split React components. Single-file component authoring is a file shape, not permission to put a full page, dashboard, or all tab panels into one Python file.
+- **The React comparison in this document is about decomposition and single-root shape only — never about syntax.** Component markup is plain HTML compiled by PulsePoint. JSX in a component template (`{cond && <div/>}`, `{list.map(...)}`, unquoted `class={...}`, `className`, `onClick`) corrupts the markup before the compiler runs, and an unquoted brace attribute silently blanks the whole page. Read [pulsepoint.md](./pulsepoint.md) "PulsePoint Is Not JSX" first.
 - When a component needs first-party interactivity, bind events in the component template with PulsePoint-handled `on*` attributes and keep state in `pp.state(...)`; do not build id-driven `querySelector(...)` or `addEventListener(...)` wiring for normal component behavior.
 - Keep page-level workflows in `src/app/`, move reusable UI into `src/components/`, and keep helpers, services, validators, and adapters in `src/lib/`.
 
@@ -626,7 +627,7 @@ In source, that parent may be a native HTML element or a single imported `x-*` c
 
 This is not just style guidance. The installed compiler injects `pp-component` onto the final root element, and it raises an error when the template has no root, multiple sibling roots, a sibling script after the root, or stray top-level text.
 
-For AI-generated templates, treat this as a hard authoring rule: write the HTML the same way a React component returns one parent node. If the template needs a PulsePoint script, keep that script inside the same parent root.
+For AI-generated templates, treat this as a hard authoring rule: write the HTML the same way a React component returns one parent node — one parent, script inside it. The analogy covers the *number of roots*, nothing about the syntax inside them: the body is plain HTML, not JSX.
 
 Failure shape to avoid:
 

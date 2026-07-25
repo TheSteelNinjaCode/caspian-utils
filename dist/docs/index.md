@@ -33,7 +33,8 @@ When generating or editing a Caspian app, treat these as the default choices unl
 
 - Use PulsePoint for reactive frontend behavior.
 - For first-party HTML events and reactivity, use PulsePoint `on*` attributes, state, refs, effects, directives, and `pp.rpc()` instead of ordinary DOM wiring with ids, `data-*` state, `querySelector`, `addEventListener`, or manual `innerHTML`.
-- Treat every authored route, layout, and component HTML file like a React component return value: exactly one top-level parent HTML element or one imported `x-*` root, with any owned plain `<script>` kept inside that same root.
+- Treat every authored route, layout, and component HTML file like a React component return value **in shape only**: exactly one top-level parent HTML element or one imported `x-*` root, with any owned plain `<script>` kept inside that same root.
+- That single-root analogy is the *only* place React applies to markup. Template files are plain HTML — no JSX, no `{cond && <div/>}`, no `{list.map(...)}`, no unquoted `class={...}`. Conditionals are `hidden="{...}"` and lists are `<template pp-for="…">`. See [pulsepoint.md](./pulsepoint.md) "PulsePoint Is Not JSX" before writing any template.
 - When `caspian.config.json` has `tailwindcss: true`, use Python `merge_classes(...)` plus browser `twMerge(...)` as the only supported Tailwind class-merging path.
 - Use `@rpc()` plus `pp.rpc()` for browser-triggered reads, writes, streaming, and uploads.
 - When `caspian.config.json` has `websocket: true`, use app-owned FastAPI WebSocket endpoints only for long-lived bidirectional live channels; keep normal browser-triggered data work on RPC.

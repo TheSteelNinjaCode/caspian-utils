@@ -1,6 +1,6 @@
 ---
 title: PulsePoint Runtime Guide
-description: Use this page when the task mentions PulsePoint, `pp.state`, `pp.effect`, `pp-ref`, `pp-style`, `pp-for`, portals, `pp-reset-scroll`, SPA navigation, or `public/js/pp-reactive-v2.js`.
+description: Use this page when the task mentions PulsePoint, `pp.state`, `pp.effect`, `pp-ref`, `pp-style`, `pp-for`, portals, `pp-reset-scroll`, SPA navigation, or `public/js/pp-reactive-v2.js`. Read the "PulsePoint Is Not JSX" section before writing any template — PulsePoint borrows React's hook API but its markup is plain HTML, and JSX constructs silently corrupt the page.
 related:
   title: Related docs
   description: Read the components, routing, data-fetching, and project-structure docs alongside the PulsePoint runtime contract.
@@ -20,9 +20,9 @@ This file documents the PulsePoint contract for the shipped Caspian browser runt
 
 If a task involves `pp.state`, `pp.effect`, `pp.layoutEffect`, `pp-ref`, `pp-style`, `pp-spread`, `pp-for`, context, portals, `pp-reset-scroll`, SPA navigation, or component boundary behavior, read this page first and keep generated code aligned with the current Caspian runtime.
 
-Use `components.md` for authoring Python `@component` files, same-name HTML templates, and HTML-first `x-*` component tags. Use this page for the browser-side PulsePoint contract, the authoring rules that feed it, and the React-style mental model used by the shipped runtime.
+Use `components.md` for authoring Python `@component` files, same-name HTML templates, and HTML-first `x-*` component tags. Use this page for the browser-side PulsePoint contract and the authoring rules that feed it.
 
-PulsePoint is the default reactive frontend layer for Caspian. In the current runtime it follows a React-like component pattern, but it is HTML-first rather than JSX-first.
+PulsePoint is the default reactive frontend layer for Caspian. Its **script API** deliberately mirrors React hooks. Its **markup is plain HTML**, compiled by a template compiler that has no JSX support of any kind. Those two facts are independent, and conflating them is the single most common way generated PulsePoint code fails. Read the next section before writing a template.
 
 Do not assume React, Vue, Svelte, JSX, Alpine, HTMX, or older PulsePoint docs unless the task explicitly asks for a different frontend contract.
 
@@ -38,6 +38,93 @@ Apply these before generating any template, even without reading the rest of thi
 6. Call the backend with `pp.rpc(...)` backed by Python `@rpc()` actions; do not invent fetch wrappers or `pp.fetchFunction()`.
 7. `pp-for` goes only on `<template>` with plain `key`; context uses `pp.createContext(...)`, a lowercase `<token.provider>` tag, and `pp.context(token)`.
 8. If an API is not in `public/js/pp-reactive-v2.js`, it does not exist; do not invent hooks, directives, or globals.
+9. **Every brace expression in an attribute must be inside quotes**: `class="{expr}"`, never `class={expr}`. Unquoted braces are shredded by the HTML parser.
+10. **A `{...}` expression produces text, never elements.** There is no JSX. Conditionals use `hidden="{...}"`, lists use `<template pp-for="…">`.
+
+## PulsePoint Is Not JSX
+
+This section exists because the React comparison in this doc, in `components.md`, and in `index.md` has repeatedly been over-read as permission to write JSX. It is not.
+
+**The React comparison is scoped to exactly two things:**
+
+1. The **hook API inside `<script>`** — `pp.state`, `pp.effect`, `pp.memo`, `pp.ref`, dependency arrays, cleanup functions. These behave like their React counterparts.
+2. **Component decomposition** — split a page into small single-responsibility components with props, the way you would split a React tree. This is about *file and responsibility shape*, not syntax.
+
+**The React comparison does not extend to markup — at all.** A Caspian template is an HTML file. It is parsed by an HTML parser first, then compiled. It is never parsed as JavaScript, so JSX expressions in element position are not "unsupported" — they are not even seen as code.
+
+### The JSX constructs that break PulsePoint
+
+Each row is a real failure, not a style preference.
+
+| JSX construct | What actually happens | PulsePoint form |
+|---|---|---|
+| `{cond && (<div>…</div>)}` | The `{cond && (` becomes literal text; the `<div>` becomes a real always-visible element; the `)}` becomes literal text. | `<div hidden="{!cond}">…</div>` |
+| `{cond ? <A/> : <B/>}` | Same — both branches render, plus visible stray text. | Two elements with complementary `hidden` bindings. |
+| `{items.map(i => (<li>{i.name}</li>))}` | The `<li>` renders exactly once with the literal text `{items.map(i => (` before it. | `<template pp-for="item in items"><li key="{item.id}">{item.name}</li></template>` |
+| An unquoted template-literal class, `class={` … `}` | **Silent HTML corruption.** The parser splits the unquoted value on spaces, producing junk attributes like `${b}="" 'a'=""`. The component root fails to compile and the page renders blank. | Quote the whole thing: ``class="{`a ${b}`}"`` |
+| `selected={x === 'y'}` | Same unquoted-attribute corruption, because of the spaces around `===`. | `selected="{x === 'y'}"`, or bind `value` on the `<select>`. |
+| `className=` | Not an HTML attribute. Ignored. | `class=` |
+| `onClick={fn}` | Not a DOM event attribute in HTML (attributes are case-insensitive, so this lands as `onclick` with a JSX value). | `onclick="{fn()}"` |
+| `htmlFor=`, `key={x}` in JSX braces | `htmlFor` is not HTML; `key` is a plain attribute here. | `for=`, `key="{x}"` |
+| `<>…</>` fragments | Parsed as an unknown tag. Also breaks the single-root rule. | One real root element. |
+| `style={{color:'red'}}` | Double-brace object literal is not CSS text. | `pp-style="{'color:red'}"` — a **string**, not an object. |
+| `dangerouslySetInnerHTML` | Does not exist. | Server-render trusted HTML, or use `pp-for` over real data. |
+
+### Why the corruption is silent
+
+`class={...}` and `selected={...}` fail in the parser, not in PulsePoint. The template compiler never gets valid markup, the component root never mounts, and the runtime's reveal step never clears `<body style="opacity: 0">`. The result is a **blank white page with no console error** — the hardest possible failure to diagnose. Quoting the attribute is not cosmetic.
+
+### The one-line test
+
+Before writing a template, ask: *"Would this file be valid HTML if I deleted every `{}` from it?"* If not, it is JSX and it will not work.
+
+## Complete Directive And API Surface
+
+**These lists are closed.** PulsePoint has no other directives, template syntax, or globals. If something is not listed here, it does not exist — do not infer it from React, Vue, Alpine, or another PulsePoint version. Verify against `public/js/pp-reactive-v2.js` when in doubt.
+
+### Author-facing template syntax (the whole list)
+
+| Syntax | Where it goes | Purpose |
+|---|---|---|
+| `{expression}` | Text nodes and **quoted** attribute values | Interpolate a value as text/attribute content |
+| `on*` (`onclick`, `oninput`, `onchange`, `onsubmit`, any native DOM event attribute) | Any element | Event binding |
+| `pp-for="item in items"` / `"(item, index) in items"` | **`<template>` only** | Keyed list rendering |
+| `key="{expr}"` | Repeated sibling inside a `pp-for` template | Keyed diffing identity |
+| `pp-ref="name"` / `pp-ref="{expr}"` | Native elements and `x-*` component tags | Imperative element access |
+| `pp-style="{cssText}"` | Any element | Dynamic inline style, as a **CSS string** |
+| `pp-spread="{...obj}"` | Any element | Spread an object into attributes |
+| `pp-ref-forward` | *Server-set* on component roots — see note below | Ref forwarding through layout-neutral hosts |
+| `<token.provider value="{v}">` (lowercase) | Anywhere in markup | Context provider |
+| `pp-spa="true"` / `pp-spa="false"` | `<body>` enables SPA navigation; `pp-spa="false"` on an `<a>` opts that link out | SPA navigation interception |
+| `pp-reset-scroll="true"` | A scroll container, or `<body>` | Reset that container's scroll on navigation |
+| `pp-scroll-key="stable-name"` | A scroll container | Stable scroll-restoration identity |
+| `pp-loading-content="true"` | The region swapped during navigation | Marks the navigation content region |
+| `pp-loading-url="/route"` | A loading-state element | Route-specific loading lookup |
+| `pp-loading-transition='{"fadeIn":…,"fadeOut":…}'` | The loading region | Navigation fade timings |
+
+There is **no** `pp-if`, `pp-show`, `pp-else`, `pp-model`, `pp-bind`, `pp-class`, `pp-text`, `pp-html`, `pp-on`, or `pp-key`. Conditionals are `hidden="{...}"`; two-way binding is `value="{state}"` plus an `oninput` handler.
+
+### Runtime-managed — never author these
+
+The render pipeline or the browser runtime writes these. Handwriting them corrupts instance tracking:
+
+`pp-component`, `type="text/pp"`, `pp-owner`, `pp-event-owner`, `pp-ref-owner`, `pp-ref-forward`, `pp-context-provider` (the generated tag), `pp-context-token`, `pp-context-value`, `pp-root-layout`, `pp-fragment-root`, `data-pp-ref`, `data-pp-input-value`, `data-pp-default-value`, `data-pp-checked-value`, `data-pp-default-checked`, `data-pp-select-value`, `pp-dynamic-script`, `pp-dynamic-meta`, `pp-dynamic-link`.
+
+`pp-ref-forward` appears in the author-facing table only because you will see it in rendered HTML and in composition components; the server component compiler sets it on a root whose own root is another `x-*` component. Do not write it yourself.
+
+### Component-script hooks (the whole list)
+
+`pp.state`, `pp.effect`, `pp.layoutEffect`, `pp.ref`, `pp.memo`, `pp.callback`, `pp.reducer`, `pp.context`, `pp.portal`, `pp.id`, `pp.errorBoundary`, `pp.syncExternalStore`, `pp.imperativeHandle`, `pp.transition`, `pp.deferredValue`, `pp.optimistic`, plus the `pp.props` bag.
+
+### Runtime utilities (the whole list)
+
+`pp.createContext`, `pp.mount`, `pp.redirect`, `pp.rpc`, `pp.enablePerf`, `pp.disablePerf`, `pp.getPerfStats`, `pp.resetPerfStats`.
+
+React hooks with **no** PulsePoint equivalent: `useContext`-as-a-provider-call, `useInsertionEffect`, `useDebugValue`, `useActionState`, `useFormStatus`, `forwardRef`, `memo()` as a component wrapper, `lazy`, `Suspense`, `startTransition` as a free function. Do not generate them.
+
+### Identifiers injected into event handlers
+
+Inside an `on*` attribute the runtime provides `event`, plus the aliases `e`, `$event`, `target` (→ `event.target`), `currentTarget` and `el` (both → `event.currentTarget`). An alias is skipped when the component scope already declares that name.
 
 ## Source Of Truth
 
@@ -393,7 +480,7 @@ That is the authored form. In browser-inspected runtime HTML, Caspian will alrea
 
 ## Hooks and runtime API
 
-PulsePoint uses a React-style mental model inside each component script: stateful render scope, dependency-based effects, refs, reducer-style updates, context consumption, and portals.
+PulsePoint uses a React-style mental model **inside each component script**: stateful render scope, dependency-based effects, refs, reducer-style updates, context consumption, and portals. That similarity stops at the `<script>` boundary — the surrounding markup is plain HTML, never JSX. See [PulsePoint Is Not JSX](#pulsepoint-is-not-jsx).
 
 Hooks exposed inside component scripts through `pp`:
 
@@ -762,6 +849,9 @@ Nested components:
 ## Template expressions and attributes
 
 - Use `{expression}` in text nodes and attribute values.
+- **Attribute brace expressions must be quoted.** Write `class="{expr}"`, `disabled="{isSaving}"`, `selected="{role === 'admin'}"`. The unquoted JSX form `class={expr}` is not a PulsePoint syntax variant — it is invalid HTML. An unquoted value ends at the first space, so everything after it is re-parsed as further attribute names, and the element (and usually the whole component root) is destroyed before the compiler ever runs. This is silent: no console error, just a blank page.
+- **An interpolation evaluates to a value, never to markup.** The compiler coerces the result with `String(...)` and HTML-escapes it. Elements cannot come out of an expression, so there is no JSX-style element-returning branch or `.map()`. Use `hidden="{...}"` for conditionals and `<template pp-for="…">` for lists.
+- Objects, functions, and symbols in text position log `[PP-WARN] Invalid template child` and render nothing — that warning usually means JSX-shaped code was attempted.
 - Follow HTML-first attribute naming. Native event attributes are lowercase DOM event attributes (`onclick`, `oninput`, `onsubmit`). Every other attribute on a component boundary is a prop: kebab-case names become camel-cased only inside `pp.props` (`selected-value` becomes `selectedValue`, `open-change` becomes `openChange`, and `on-open-change` becomes `onOpenChange`). A function prop does not need an `on-` prefix; that prefix is only an API naming convention. Use `on-click` when a component intentionally exposes an `onClick` prop, because lowercase `onclick` is reserved for the native DOM event on the boundary element.
 - Pure bindings like `value="{count}"` are evaluated as expressions.
 - For dynamic inline styles in authored templates, prefer `pp-style="{styleText}"` over `style="{styleText}"` so HTML/CSS tooling does not parse the brace expression as raw CSS.
@@ -847,6 +937,57 @@ Component example:
     const nameInput = pp.ref(null);
   </script>
 </div>
+```
+
+## Conditional rendering
+
+PulsePoint has **no conditional directive**. There is no `pp-if`, no `pp-show`, no `pp-else`, and no JSX-style `{cond && (<div/>)}`. Conditional UI is expressed three ways, in this order of preference.
+
+**1. `hidden="{...}"` — the default.** Bind the native boolean attribute. The element stays in the DOM and keeps its state; only its visibility changes.
+
+```html
+<div hidden="{!message}" class="notice">{message}</div>
+
+<div hidden="{!showForm}">
+  <form onsubmit="{submitForm(event)}"> … </form>
+</div>
+```
+
+Notes:
+
+- `hidden` is in the runtime's boolean-attribute set, so a truthy value emits the bare attribute and a falsy value removes it.
+- Under Tailwind's preflight, `[hidden]:where(:not([hidden="until-found"]))` is `display: none !important`, so `hidden` reliably beats a `flex`/`grid`/`block` utility on the same element. **Without Tailwind preflight**, `hidden` is only a UA-stylesheet `display: none` and any `display` rule overrides it — in that case hide with a bound class instead.
+- Because the subtree still exists, guard expressions inside it: use `{deleteTarget?.name}`, not `{deleteTarget.name}`. A hidden element is still rendered, so a throw there still breaks the component.
+
+**2. A ternary inside an interpolation — for text, classes, and attributes.**
+
+```html
+<h3>{editingUser ? 'Edit User' : 'Create User'}</h3>
+<button disabled="{isSaving}">{isSaving ? 'Saving…' : 'Save'}</button>
+<span class="{'badge ' + (user.role === 'admin' ? 'badge-admin' : 'badge-user')}">{user.role}</span>
+```
+
+Template literals work too, as long as the attribute is quoted — the compiler tracks nested braces and quotes: ``class="{`badge ${isAdmin ? 'badge-admin' : ''}`}"``. String concatenation is easier to read and avoids nesting mistakes.
+
+**3. `pp-for` over a 0-or-1 length collection — when the node must truly leave the DOM.** Use this when a hidden subtree would be wrong (an expensive child component, a duplicate form field name, a video that must stop).
+
+```html
+<template pp-for="item in selected ? [selected] : []">
+  <x-detail-panel key="{item.id}" item="{item}" />
+</template>
+```
+
+For an empty-state row, bind `hidden` on the placeholder rather than branching:
+
+```html
+<tbody>
+  <tr hidden="{users.length !== 0}">
+    <td colspan="5">No users found.</td>
+  </tr>
+  <template pp-for="user in users">
+    <tr key="{user.id}">…</tr>
+  </template>
+</tbody>
 ```
 
 ## Lists and keyed diffing
@@ -1001,6 +1142,7 @@ These are runtime details.
 
 Use these rules when generating or editing PulsePoint runtime code:
 
+- **Write plain HTML, never JSX.** Before finishing any template, verify it would still be valid HTML with every `{}` deleted, that every attribute brace expression is quoted, that conditionals use `hidden="{...}"`, and that lists use `<template pp-for="…">` with `key`. This check catches the highest-frequency generation failure and costs one pass.
 - Treat PulsePoint as the default reactive frontend for Caspian app code.
 - For first-party HTML interactions, use PulsePoint `on*` event attributes, state, refs, effects, directives, and `pp.rpc()` before reaching for DOM APIs.
 - For simple forms, bind `onsubmit` in the authored HTML and read named fields with `Object.fromEntries(new FormData(event.currentTarget).entries())`; do not generate per-input refs or effect-managed submit listeners just to gather values.
@@ -1031,6 +1173,19 @@ Use these rules when generating or editing PulsePoint runtime code:
 ## What to avoid
 
 Do not generate these unless the current source explicitly adds support:
+
+JSX constructs in markup — these are the highest-frequency generation failure, so check for them explicitly before finishing a template:
+
+- `{cond && (<element/>)}` or `{cond ? <A/> : <B/>}` element-returning branches — use `hidden="{...}"`
+- `{list.map(item => (<element/>))}` — use `<template pp-for="item in list">`
+- unquoted brace attributes: `class={…}`, `selected={…}`, `value={…}`, `disabled={…}` — always quote: `class="{…}"`
+- `className`, `htmlFor`, `onClick`/`onChange`/`onSubmit` camelCase event props, `defaultValue` as a React prop, `dangerouslySetInnerHTML`
+- `style={{ color: "red" }}` object literals — `pp-style` takes a CSS **string**
+- `<>…</>` fragments, or any second top-level node
+- `key` written as a JSX brace prop outside a quoted attribute
+- imported/returned components as JavaScript values — components are server-side `x-*` tags
+
+Also avoid:
 
 - React, Vue, Svelte, Alpine, HTMX, or JSX-first patterns as the default Caspian frontend approach
 - standard DOM scripting as the default first-party interaction model, including id/data-attribute driven `querySelector(...)`, `addEventListener(...)`, or manual `innerHTML` rendering for normal buttons, forms, filters, toggles, uploads, and reactive lists
