@@ -350,6 +350,10 @@ Important:
 - Component scripts are plain JavaScript executed with `new Function(...)`. Do not use `import`, `export`, or top-level `await` inside them.
 - The runtime auto-returns supported top-level bindings from the script. Do not rely on manual `return { ... }` objects.
 - `pp.props` contains the current prop bag for the component.
+- `pp.props` is computed from the **rendered root element's attributes**, not from any server-side signature. A prop that never lands on the root is `undefined` in the browser, with no server error and no console warning. In a Python component this means every prop the template references must be forwarded through `get_attributes({...}, props)`; see [components.md](./components.md#every-prop-a-template-reads-must-be-forwarded-to-the-root).
+- Prop value types depend on how the attribute reaches the root. An unevaluated brace expression such as `volume="{vol}"` is evaluated in the parent component's scope and keeps its real type (number, boolean, object, function). A literal attribute such as `volume="0"` arrives as the **string** `"0"`, so `volume === 0` is false. A valueless attribute arrives as boolean `true`. Coerce or compare loosely when the value may be a server-rendered literal.
+- Attribute names round-trip through kebab-case: `isFullscreen` renders as `is-fullscreen` and returns as `pp.props.isFullscreen`.
+- Attribute names that are JavaScript reserved words are dropped from the prop bag, so `pp.props.class` and `pp.props.for` never exist. Use a non-reserved prop name when the script must read the value.
 - `pp.props.children` contains the root's initial inner HTML before the owned script is removed from the render template.
 - Props are not auto-injected as standalone top-level template or handler variables. Read them through `pp.props` or explicitly destructure them in the component script.
 
@@ -402,6 +406,13 @@ Hooks exposed inside component scripts through `pp`:
 - `pp.reducer(reducer, initialState)` returns `[state, dispatch]`.
 - `pp.context(token)` resolves a provided context value from ancestor components.
 - `pp.portal(ref, target?)` registers a ref-managed element for portal rendering and returns an object that includes `sourceParent`.
+- `pp.id()` returns a stable, DOM-safe unique id for the life of that hook slot.
+- `pp.syncExternalStore(subscribe, getSnapshot)` subscribes to a mutable source outside PulsePoint and rerenders when its snapshot changes.
+- `pp.imperativeHandle(ref, createHandle, deps?)` publishes an imperative API on a parent-owned ref instead of the raw DOM node.
+- `pp.transition()` returns `[isPending, startTransition]`.
+- `pp.deferredValue(value, initialValue?)` returns a copy of `value` that catches up one commit later.
+- `pp.optimistic(passthrough, reducer?)` returns `[optimisticState, addOptimistic]`.
+- `pp.errorBoundary()` returns `[error, reset]` and marks the component as an error boundary.
 - `pp.props` exposes the current props.
 
 Global helpers exposed through the `pp` singleton and also merged into the component runtime:
@@ -425,6 +436,12 @@ Notes:
 - Older docs may call the RPC helper `pp.fetchFunction()`. In the current bundled runtime the implemented global API is `pp.rpc()`.
 - Keep template-facing bindings at the top level so the AST-based exporter can see them.
 - For predictable code generation, prefer passing an explicit dependency array to `pp.effect`, `pp.layoutEffect`, `pp.memo`, and `pp.callback`.
+- Top-level destructuring is exported to template scope for every form: array patterns, object patterns, nested patterns, defaults, rest elements, and holes. `const [isPending, startTransition] = pp.transition()` and `const [error, reset] = pp.errorBoundary()` reach the template the same way `pp.state` does.
+- `pp.id()` is derived from the component id plus the hook slot, so the same slot keeps its id across rerenders and two instances of the same component never collide. Use it for `id`/`for` pairing and `aria-*` references instead of hand-rolled counters.
+- `pp.syncExternalStore` requires a referentially stable `subscribe`. Wrap it in `pp.callback(..., [])`, otherwise the store is unsubscribed and resubscribed on every render. The runtime re-reads the snapshot immediately after subscribing so a change that lands between render and subscription is not lost.
+- `pp.transition` does not deprioritize rendering the way React's concurrent scheduler does, because PulsePoint renders synchronously. It does give a correct `isPending` flag for both synchronous and promise-returning scopes, which is the common use (disabling a submit button while `pp.rpc()` resolves). Overlapping scopes stay pending until the last one settles.
+- `pp.optimistic` drops its pending actions as soon as `passthrough` changes, which is the point at which the server has confirmed or rejected the guess. Without a reducer, each action replaces the value.
+- `pp.deferredValue` lags by one commit. Use it to keep an input responsive while an expensive derived subtree catches up.
 
 Effect with cleanup and dependencies:
 
@@ -512,6 +529,160 @@ Portal pattern for overlays that must escape clipping ancestors:
 ```
 
 `pp.portal(ref)` moves the ref-managed element to `document.body` by default, or to the element passed as the second argument. Portaled content keeps its logical component ancestry, so context, props, and events keep working.
+
+Stable ids for accessible field pairing:
+
+```html
+<div>
+  <label for="{emailId}">Email</label>
+  <input id="{emailId}" type="email" aria-describedby="{hintId}" />
+  <p id="{hintId}">We never share this.</p>
+
+  <script>
+    const emailId = pp.id();
+    const hintId = pp.id();
+  </script>
+</div>
+```
+
+Never derive ids from an index or a module-level counter. `pp.id()` is the only form that stays stable across rerenders and unique across instances of the same component.
+
+External store subscription:
+
+```html
+<section>
+  <p>{isNarrow ? "Compact layout" : "Wide layout"}</p>
+
+  <script>
+    const subscribe = pp.callback((onStoreChange) => {
+      const query = window.matchMedia("(max-width: 640px)");
+      query.addEventListener("change", onStoreChange);
+      return () => query.removeEventListener("change", onStoreChange);
+    }, []);
+
+    const isNarrow = pp.syncExternalStore(
+      subscribe,
+      () => window.matchMedia("(max-width: 640px)").matches
+    );
+  </script>
+</section>
+```
+
+Prefer this over `pp.state` plus `pp.effect` for anything the component does not own. It reads the snapshot during render and closes the gap between render and subscription, which a hand-rolled effect silently drops.
+
+Imperative handle for a child-owned API. The parent passes its own ref down as an ordinary prop:
+
+```html
+<!-- parent -->
+<div>
+  <button onclick="{dialogControl.current.open()}">Open</button>
+  <x-confirm-dialog control-ref="{dialogControl}" />
+
+  <script>
+    const dialogControl = pp.ref(null);
+  </script>
+</div>
+```
+
+```html
+<!-- ConfirmDialog component -->
+<section>
+  <script>
+    const [open, setOpen] = pp.state(false);
+
+    pp.imperativeHandle(
+      pp.props.controlRef,
+      () => ({
+        open: () => setOpen(true),
+        close: () => setOpen(false),
+      }),
+      []
+    );
+  </script>
+
+  <div hidden="{!open}">
+    <button onclick="{setOpen(false)}">Close</button>
+  </div>
+</section>
+```
+
+Notes:
+
+- A prop whose bound expression evaluates to an object is passed through by reference, so `control-ref="{dialogControl}"` arrives as the real ref object on `pp.props.controlRef`.
+- Do **not** author `pp-ref-forward` to make this work. That attribute is runtime-managed, and `pp-ref` on an `x-*` tag binds the child's root DOM node, which is a different feature. Use a normal prop when the parent needs a child-defined API rather than an element.
+- The handle is published in the layout-effect phase and cleared on unmount, so parents should call into it from event handlers or effects, not during their own render.
+
+Optimistic update around an RPC call:
+
+```html
+<section>
+  <button onclick="{addLike()}">Like ({likes})</button>
+
+  <script>
+    const [confirmedLikes, setConfirmedLikes] = pp.state(pp.props.likes ?? 0);
+    const [likes, addOptimisticLike] = pp.optimistic(
+      confirmedLikes,
+      (state, delta) => state + delta
+    );
+
+    async function addLike() {
+      addOptimisticLike(1);
+      const result = await pp.rpc("like_post", { postId: pp.props.postId });
+      setConfirmedLikes(result.likes);
+    }
+  </script>
+</section>
+```
+
+The optimistic `+1` is discarded the moment `confirmedLikes` changes, so the server value never double-counts the guess.
+
+Transition for pending async work:
+
+```html
+<section>
+  <button onclick="{save()}" disabled="{isSaving}">
+    {isSaving ? "Saving..." : "Save"}
+  </button>
+
+  <script>
+    const [isSaving, startSaving] = pp.transition();
+
+    function save() {
+      startSaving(() => pp.rpc("save_profile", { name: pp.props.name }));
+    }
+  </script>
+</section>
+```
+
+### Error boundaries
+
+`pp.errorBoundary()` marks a component as the recovery point for render and effect failures. Without one, a throwing render is logged to the console and leaves the subtree in whatever state it reached.
+
+```html
+<section>
+  <script>
+    const [error, reset] = pp.errorBoundary();
+  </script>
+
+  <div hidden="{!error}">
+    <p>Something went wrong: {error?.message}</p>
+    <button onclick="{reset()}">Try again</button>
+  </div>
+
+  <div hidden="{!!error}">
+    <x-report-chart />
+  </div>
+</section>
+```
+
+Behavior to rely on:
+
+- Errors thrown during a child's render or effects bubble up the logical component ancestry to the nearest boundary. If nothing catches, the runtime logs `[PP-ERROR] Render Cycle Failed` as before.
+- Unlike React, a boundary also catches throws from its **own** render and effects, because in Caspian the boundary and its fallback markup live in the same single-root component.
+- Effect callbacks and effect cleanups take the same path as render failures, so a throwing subscription teardown is not silently swallowed.
+- The boundary **latches**: it keeps holding the error until `reset()` is called.
+- A boundary absorbs at most five errors without an intervening `reset()`, then logs and stops catching. This stops a fallback that itself throws from spinning the render loop. `reset()` re-arms it.
+- Event handler errors are not routed to boundaries. Handle those with `try`/`catch` inside the handler, which matches React.
 
 ## Context
 
@@ -606,6 +777,7 @@ Nested components:
 - Use `pp-spread="{...attrs}"` to spread an object expression into attributes.
 - `pp-spread` omits nullish values, omits known HTML boolean attributes when their value is `false`, emits them bare when `true`, preserves string-valued `aria-*`/`data-*` booleans, and escapes `&`, `"`, and `<` in emitted attribute values.
 - Use plain `key` for keyed diffing. `pp-key` is not implemented.
+- Only top-level declarations in the component script reach template scope, but every destructuring shape is supported there: `const [a, b] = anyTuple()`, `const [, only] = pair`, `const [first = 1, ...rest] = list`, `const [{ id }] = rows`, and the object-pattern forms. A binding declared inside a block or function is not exported.
 
 Example:
 
@@ -889,6 +1061,12 @@ These are current runtime caveats that matter for authors and AI tools:
 - `pp.context()` resolves through ancestor components, not the current component's own pending providers.
 - `pp.provideContext` is not part of the current runtime API. Use an HTML-first lowercase provider tag such as `<themecontext.provider>`.
 - `pp.portal()` preserves logical ancestry through the registry, so context and prop refresh behavior continue to work through portaled descendants.
+- Top-level array destructuring is exported to template scope for any initializer, not only `pp.state` and `pp.reducer`. A binding declared inside a block or function is still not exported.
+- `pp.transition()` does not deprioritize work. PulsePoint renders synchronously; the hook provides an accurate `isPending` flag, not a concurrent scheduler.
+- `pp.syncExternalStore(...)` resubscribes whenever `subscribe` changes identity, so pass a `pp.callback(..., [])`-wrapped function.
+- `pp.optimistic(...)` clears its pending actions on the render where `passthrough` changes, using a render-phase update rather than an effect, so there is no frame showing stale optimistic output.
+- `pp.errorBoundary()` catches render, effect, and effect-cleanup throws, including the boundary component's own. It does not catch event-handler errors. It latches until `reset()` and stops catching after five captures without a reset.
+- `pp.imperativeHandle(...)` needs the parent's ref passed down as an ordinary prop. `pp-ref` on an `x-*` tag is a different feature that binds the child's root DOM node, and `pp-ref-forward` is runtime-managed and must not be authored.
 
 ## Final reminder
 

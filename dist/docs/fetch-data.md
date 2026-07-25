@@ -356,7 +356,25 @@ Use [auth.md](./auth.md) when the action should also participate in centralized 
 
 According to the upstream Caspian RPC docs, actions are private by default until decorated with `@rpc()`, and the framework includes CSRF protection plus origin validation for exposed actions.
 
-For reverse-proxy deployments, RPC origin validation can also resolve the public app origin from `APP_BASE_URL`, `PUBLIC_BASE_URL`, or `SITE_URL`, and otherwise falls back to forwarded host and protocol headers when they are present.
+For reverse-proxy deployments, RPC origin validation resolves the public app origin from `APP_BASE_URL` and `CORS_ALLOWED_ORIGINS`. Forwarded host and protocol headers are consulted **only** when `TRUST_FORWARDED_HEADERS` is enabled, because a direct client can set those headers itself; the same flag decides whether the forwarded address is used as the rate-limit bucket key.
+
+### Only Declared Parameters Are Accepted
+
+The RPC payload is attacker-controlled, so the runtime filters it against the function signature before the call. A key that does not name a declared parameter is dropped rather than passed through.
+
+This makes a parameter client-settable only when you declare it. Anything the server should decide — the acting user, an ownership check, a privilege flag — must be derived inside the function rather than accepted as an argument with a default:
+
+```python
+@rpc(require_auth=True)
+def update_post(post_id: int, title: str = ""):
+    # Correct: identity comes from the session, not the payload.
+    author = auth.get_payload()
+
+    # If this were `def update_post(..., author_id: str = "")`, the browser
+    # could set author_id and edit another user's post.
+```
+
+Declaring `**kwargs` opts the function into the entire payload, so use it deliberately. A sent-but-undeclared key is silently ignored, which also means a client-side typo shows up as a missing value rather than a 500.
 
 ## Serialization Rules
 

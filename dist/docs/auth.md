@@ -119,7 +119,7 @@ Important behavior from the current implementation:
 - `token_auto_refresh` only changes behavior when the request lifecycle calls `auth.refresh_session()`. In the installed `auth.py`, the flag alone does not refresh expiry by itself.
 - The framework `AuthSettings` dataclass defaults `is_all_routes_private=True`, but the project example above explicitly changes that to `False`.
 - In generated app-owned starter config, `src/lib/auth/auth_config.py` starts with `is_all_routes_private=False`, so routes are public by default until the app chooses stricter route protection.
-- `public_routes`, `auth_routes`, `private_routes`, and `role_based_routes` are exact path matches in the installed `Auth` methods.
+- `public_routes`, `auth_routes`, `private_routes`, and `role_based_routes` are matched as route **scopes**, not exact paths, in the installed `Auth` methods. An entry covers the path itself *and* everything nested under it, so `/admin` also matches `/admin/users`. Segment boundaries are respected (`/admin` does not match `/administration`), and dynamic segments work (`/orders/[id]` matches `/orders/42` and below). Root `/` is the one exception: it matches only `/`, so listing it in `public_routes` does not make the whole site public. Verify the exact rule in `_route_scope_matches_request` before relying on an entry to protect or expose a subtree.
 - `private_routes` matters only when `is_all_routes_private=False`.
 - `role_based_routes` currently expects `PATH -> [ROLES]`, not role names keyed to paths the other way around.
 - `role_identifier` defaults to `role`, and the current `auth.sign_in(...)` flow also normalizes `userRole` into `role` when possible.
@@ -189,7 +189,7 @@ The installed auth code reads several values from `.env` when explicit values ar
 - App-owned startup helpers may also validate `AUTH_SECRET` and refuse production startup when the value is missing or still on a default placeholder.
 - `AUTH_COOKIE_NAME` backs `AuthSettings.cookie_name`.
 - `SESSION_LIFETIME_HOURS` controls `SessionMiddleware.max_age` in the current `main.py` bootstrap.
-- `APP_ENV=production` enables secure session cookies and the `Secure` flag on the current CSRF cookie.
+- `APP_ENV` selects the environment, resolved **fail-closed** by `casp.runtime_security.is_production_environment()`: only an explicit development value (`dev`, `development`, `local`, `staging`, `test`, `testing`) turns the development relaxations on, so an unset or misspelled value is treated as production. Production enables secure session cookies and the `Secure` flag on the CSRF cookie.
 - `CASPIAN_BROWSER_SYNC_PORT` can override the development cookie scope suffix used by the current `main.py` bootstrap.
 - `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, and `GOOGLE_REDIRECT_URI` back `GoogleProvider`.
 - `GITHUB_CLIENT_ID` and `GITHUB_CLIENT_SECRET` back `GithubProvider`.
@@ -249,11 +249,11 @@ The current `main.py` also wires the session middleware directly, and some apps 
 
 ```python
 from starlette.middleware.sessions import SessionMiddleware
-from casp.runtime_security import get_session_secret
+from casp.runtime_security import get_session_secret, is_production_environment
 
 
 SESSION_LIFETIME_HOURS = int(os.getenv("SESSION_LIFETIME_HOURS", 7))
-IS_PRODUCTION = os.getenv("APP_ENV") == "production"
+IS_PRODUCTION = is_production_environment()
 
 
 app.add_middleware(
@@ -344,7 +344,7 @@ The current installed methods are:
 | `auth.is_authenticated()`                                    | Check current auth state   | Returns `False` when the payload is missing, malformed, or expired, and clears invalid session data.     |
 | `auth.get_payload()`                                         | Read the signed-in payload | Returns the stored dict payload, or wraps non-dict payloads as `{"value": data}`.                        |
 | `auth.refresh_session()`                                     | Extend expiration          | Only updates expiry when `token_auto_refresh=True`.                                                      |
-| `auth.check_role(user, allowed_roles)`                       | Check RBAC access          | Reads the configured role field from the payload and compares it to the allowed roles.                   |
+| `auth.check_role(user, allowed_roles)`                       | Check RBAC access          | Reads the configured role field (a single role or a list of them) and grants access on any overlap.      |
 
 Sign-in example:
 
@@ -715,7 +715,8 @@ In the installed implementation:
 
 - `auth.check_role(...)` reads `user[role_identifier]` when the payload is a dict.
 - If you pass a plain string instead of a dict, that string is treated as the role directly.
-- `role_based_routes` is an exact-path lookup with `dict.get(path)`.
+- That field may hold a single role or a list/tuple/set of them, so a user who is both `editor` and `auditor` passes a check for either. Access is granted when the user's roles and the allowed roles intersect.
+- `role_based_routes` keys are matched as route *scopes*, not exact paths: `get_required_roles(path)` ranks every matching key by specificity and returns the most specific one. A key therefore also covers nested paths (`/admin` gates `/admin/users`), and dynamic segments such as `/orders/[id]` match. A static key wins over a dynamic one, which wins over a catch-all.
 - The installed payload normalization helps when your Prisma include returns a `userRole` object and you want a plain `role` field in the session payload.
 
 ## OAuth Providers

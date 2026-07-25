@@ -149,7 +149,7 @@ When a project includes an app-owned Python database layer under `src/lib/prisma
 
 When MCP is enabled for the project, this folder also contains the app-owned FastMCP server under `src/lib/mcp/`.
 
-Do not add `src/lib/security/runtime_security.py` for normal app work. Runtime security helpers for safe public-file serving, production session-secret enforcement, production-safe error messages, and baseline non-CSP response headers are package-owned by `casp.runtime_security`.
+Do not add `src/lib/security/runtime_security.py` for normal app work. Runtime security helpers for safe public-file serving, production session-secret enforcement, production-safe error messages, fail-closed environment resolution, and baseline response headers including the Content-Security-Policy are package-owned by `casp.runtime_security`.
 
 ### Shared Database Helpers
 
