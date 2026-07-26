@@ -1,6 +1,6 @@
 ---
 title: Fetch Data
-description: Use this page when the task mentions `page()`, `layout()`, `@rpc()`, `pp.rpc()`, streaming, interactive fetches, uploads, or browser-triggered data loads in Caspian.
+description: Use this page when the task mentions `page()`, `layout()`, `@rpc()`, `pp.rpc()`, debounced search, filters, stale request races, streaming, interactive fetches, uploads, or browser-triggered data loads in Caspian.
 related:
   title: Related docs
   description: Use the routing guide to place route logic correctly, then use the auth guide for protected actions, the MCP guide for AI-facing tools, the state guide for transient request-scoped mutation state, the cache guide for reusable first-render HTML, and the PulsePoint runtime guide for client-side `pp.rpc()` details.
@@ -188,6 +188,78 @@ Important:
 - Older docs may refer to `pp.fetchFunction()`. In this repo's current runtime, the supported helper is `pp.rpc()`.
 - Use [pulsepoint-runtime-map.md](./pulsepoint-runtime-map.md) when debugging browser-side RPC options such as streaming, upload progress, abort behavior, redirects, or SPA interaction.
 - Use [websockets.md](./websockets.md) when `caspian.config.json` has `websocket: true` and the browser and server need a persistent bidirectional channel instead of request/response RPC or one-way SSE streaming.
+
+## Search, Filters, And Request Races
+
+A debounced search has two separate costs:
+
+1. how often it starts an RPC request
+2. what PulsePoint renders when the debounce timer fires and when the response arrives
+
+Debouncing a `pp.state` setter reduces frequency but does not make its owner cheaper to render. If query text is not displayed by the template and exists only to build the eventual RPC payload, keep it in a ref, debounce the request directly, and put only the returned rows in state.
+
+```html
+<section>
+  <input
+    type="search"
+    placeholder="Search products"
+    oninput="scheduleSearch(event.target.value)"
+  />
+
+  <p hidden="{results.length !== 0}">No results.</p>
+  <template pp-for="result in results">
+    <article key="{result.id}">{result.label}</article>
+  </template>
+
+  <script>
+    const [results, setResults] = pp.state([]);
+    const searchText = pp.ref("");
+    const searchTimer = pp.ref(null);
+    const requestGeneration = pp.ref(0);
+
+    function scheduleSearch(value) {
+      searchText.current = value;
+      const generation = ++requestGeneration.current;
+
+      clearTimeout(searchTimer.current);
+      searchTimer.current = setTimeout(
+        () => search(generation),
+        300
+      );
+    }
+
+    async function search(generation) {
+      const response = await pp.rpc(
+        "search_products",
+        { query: searchText.current },
+        { abortPrevious: true }
+      );
+
+      if (generation !== requestGeneration.current) return;
+      setResults(response.items ?? []);
+    }
+
+    pp.effect(
+      () => () => clearTimeout(searchTimer.current),
+      []
+    );
+  </script>
+</section>
+```
+
+Why this shape is responsive:
+
+- The native input paints each character immediately.
+- Updating `searchText.current`, the timer, and the generation does not request a render.
+- The large result subtree changes only when an authoritative response is accepted.
+- A response for an older query cannot overwrite a newer query.
+- The timer is cleaned up when the component is disposed.
+
+Use state for the query when the template genuinely renders from it, such as a controlled input, a visible query label, or a local filtered view. Keep that state in the smallest useful component boundary. When a large derived consumer may lag one commit, pass `pp.deferredValue(query)` to that consumer. Do not use a ref when the UI is expected to react to the mutation.
+
+Loading indicators are state only when they create useful visible feedback. Do not set `loading=true` before every background refresh if existing results stay visible and no indicator changes; that adds a render before the result render. If feedback is needed, keep the indicator near the control rather than making a page-sized owner rerender.
+
+`abortPrevious` reduces wasted request work, but a generation check still documents and enforces which response is authoritative. Reset pagination cursors when the accepted query/filter changes, and keep cursors in refs when changing them should not itself render.
 
 ## Streaming Responses
 

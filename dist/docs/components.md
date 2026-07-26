@@ -1,6 +1,6 @@
 ---
 title: Components
-description: Use this page when the task mentions `@component`, reusable UI, HTML-first `x-*` component tags, component imports, same-name `.html` templates, forwarding Python component props to `pp.props`, `get_attributes(...)`, `merge_classes(...)`, `twMerge(...)`, or where shared components belong in a Caspian project.
+description: Use this page when the task mentions `@component`, reusable UI, component granularity or render ownership, HTML-first `x-*` component tags, component imports, same-name `.html` templates, forwarding Python component props to `pp.props`, `get_attributes(...)`, `merge_classes(...)`, `twMerge(...)`, or where shared components belong in a Caspian project.
 related:
   title: Related docs
   description: Use the structure guide for file placement, the routing guide for route templates, the PulsePoint guide for browser-side scripts, and the data guide for component-owned RPC flows.
@@ -584,6 +584,10 @@ Do not create a single `AccountPage.py` or `DashboardTabs.py` that contains ever
 Related subcomponents may live in one Python file only when they are tiny and tightly coupled, such as `Tabs`, `TabsList`, `TabsTrigger`, and `TabsContent` primitives, or a component plus two very small private helpers. For app-specific page chunks, prefer one exported component per file with a name that explains its role.
 
 Props are the boundary between components. Pass parent-owned data and configuration down through attributes or direct Python calls, keep local interactive state inside the component that owns the behavior, and use slot content when the parent needs to provide authored child markup. If two sibling chunks need the same server data, load it in the route's `page()` or a shared helper and pass the relevant pieces into each component.
+
+Component boundaries are also performance ownership boundaries. A value typed into a search field should not normally rerender a page-sized component that also owns a large card grid, several dialogs, and unrelated forms. Put high-frequency state in the smallest component that actually renders from it, and pass only the committed result or callback across the boundary. Do not split every element into a component; split where update frequency and subtree cost differ. A small search/toolbar component beside a result-list component is a useful boundary, while a wrapper that still owns both states and rerenders both subtrees is not.
+
+Before blaming the PulsePoint runtime for a slow interaction, check whether the component explicitly requested the expensive render. Debouncing `setQuery(...)` still rerenders the query's owner when the timer fires. If the query is used only to build an RPC payload, keep it in `pp.ref(...)`, debounce the RPC, and keep returned rows in `pp.state(...)`. See [pulsepoint.md](./pulsepoint.md#high-performance-authoring) and [fetch-data.md](./fetch-data.md#search-filters-and-request-races).
 
 ## Component Root Refs
 

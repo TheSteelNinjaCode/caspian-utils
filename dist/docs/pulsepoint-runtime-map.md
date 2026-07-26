@@ -1,6 +1,6 @@
 ---
 title: PulsePoint Runtime Map
-description: Use this page when AI needs a fast feature-to-runtime lookup for PulsePoint behavior before editing `src/app/**`, component templates, or `public/js/pp-reactive-v2.js`.
+description: Use this page when AI needs a fast feature-to-runtime lookup for PulsePoint behavior or must classify a performance problem as component ownership versus runtime reconciliation before editing `src/app/**`, component templates, or `public/js/pp-reactive-v2.js`.
 related:
   title: Related docs
   description: Use the PulsePoint guide for authoring rules, the routing and component guides for template placement, and the core runtime map when Python-side transforms are involved.
@@ -45,6 +45,7 @@ If an inspected browser DOM disagrees with authored template source, remember th
 | Imperative handles | `pp.imperativeHandle(ref, createHandle, deps?)` | `public/js/pp-reactive-v2.js` | parent passes its own `pp.ref(...)` down as a normal prop (object props pass by reference); do not author `pp-ref-forward`; handle publishes in the layout-effect phase and clears on unmount |
 | Transitions | `pp.transition()` | `public/js/pp-reactive-v2.js` | returns `[isPending, startTransition]`; not concurrent — rendering is still synchronous; handles sync and promise scopes; overlapping scopes stay pending until the last settles |
 | Deferred values | `pp.deferredValue(value, initialValue?)` | `public/js/pp-reactive-v2.js` | lags one commit behind the source |
+| Render performance | state/ref ownership, component boundaries, `pp.enablePerf()` | authored component first; `public/js/pp-reactive-v2.js` when runtime phases are disproportionate | state means "render required"; refs hold non-rendering mutable bookkeeping; debounce does not reduce render cost; `pp.transition()` is not concurrent; diagnose redundant owner renders before changing reconciliation |
 | Optimistic updates | `pp.optimistic(passthrough, reducer?)` | `public/js/pp-reactive-v2.js` | pending actions are dropped when `passthrough` changes, so a confirmed server value never double-counts the guess; without a reducer each action replaces the value |
 | Error boundaries | `pp.errorBoundary()` | `public/js/pp-reactive-v2.js` | returns `[error, reset]`; render **and** effect/cleanup throws walk logical component ancestry to the nearest boundary; a boundary also catches its own throws; latches until `reset()`; caps at 5 captures per arming; event-handler errors are not routed — use `try`/`catch` |
 | Conditional UI | `hidden="{!cond}"`, a ternary inside `{...}`, or `pp-for` over a 0/1-length array | `public/js/pp-reactive-v2.js` | **there is no `pp-if`, `pp-show`, or `pp-else`, and no JSX `{cond && <div/>}`**; `hidden` is a bound boolean attribute (Tailwind preflight makes `[hidden]` `display:none !important`, so it beats a `flex`/`grid` utility; without preflight a `display` rule wins); a hidden subtree still renders, so guard with `?.`. See [pulsepoint.md](./pulsepoint.md) "Conditional rendering" |
@@ -67,6 +68,8 @@ If an inspected browser DOM disagrees with authored template source, remember th
 - Use this map when the task names a PulsePoint feature and you need the owning runtime file quickly.
 - Verify implemented behavior in `public/js/pp-reactive-v2.js` before adding new PulsePoint API claims.
 - If an interaction is normal first-party HTML behavior, route it through PulsePoint before considering standard DOM scripting.
+- For a slow input, search, filter, sidebar, or provider, classify the update before changing the runtime: unnecessary authored state/broad ownership is an app issue; byte-identical output that still traverses a large stable subtree may be a runtime issue.
+- Use `pp.enablePerf()`, reproduce one interaction, inspect `pp.getPerfStats()`, and reset between comparisons. Correlate the expensive component and phase with the state setter that requested it.
 
 ## Copy-Safe Authoring Rules
 
@@ -85,6 +88,9 @@ If an inspected browser DOM disagrees with authored template source, remember th
 - In a Python component, list every prop the template's `{...}` expressions reference in `get_attributes({...}, props)`. If a binding "does nothing" — an icon toggle that never switches, a `hidden` that never applies — check that prop is on the rendered root before debugging the expression.
 - Prefer PulsePoint state and directives over manual `innerHTML` repainting.
 - Keep direct DOM APIs inside `pp.ref(...)` plus `pp.effect(...)` only when a third-party or browser API integration actually requires them.
+- Use `pp.state(...)` only for values that must render. Use `pp.ref(...)` for debounce handles, request generations, pagination cursors, and transient RPC query text that should persist without rendering.
+- Debounce the expensive action, not an otherwise unnecessary page-sized state update. Keep returned rows in state, discard stale responses, and avoid loading-state commits that change no visible UI.
+- Keep keystroke-frequency state in the smallest useful component boundary. Use `pp.deferredValue(...)` only when the source truly must be state and an expensive consumer may lag by one commit.
 
 ## Compact Examples
 
@@ -180,4 +186,6 @@ Use these prompts after docs or runtime changes to confirm AI can route correctl
 - "Debug a dashboard sidebar losing scroll during child-route navigation."
 - "Add an upload widget with progress and a reactive file list."
 - "Use context to share theme state between parent and child components."
+- "A debounced product search pauses the next keystroke. Decide whether this is component ownership or a PulsePoint runtime defect, then show the correct server-search pattern."
+- "Profile a sidebar toggle whose rendered HTML is byte-identical but whose provider owns 1,000 descendants." (Correct analysis profiles runtime phases and treats stable-subtree traversal as a possible runtime issue.)
 - "Render a list of users with edit and delete buttons, plus a confirmation modal." (Correct output uses `<template pp-for>` with `key` and `hidden="{…}"`; JSX `.map()` or `&&` in the template is a failure.)

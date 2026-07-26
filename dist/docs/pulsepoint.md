@@ -1,6 +1,6 @@
 ---
 title: PulsePoint Runtime Guide
-description: Use this page when the task mentions PulsePoint, `pp.state`, `pp.effect`, `pp-ref`, `pp-style`, `pp-for`, portals, `pp-reset-scroll`, SPA navigation, or `public/js/pp-reactive-v2.js`. Read the "PulsePoint Is Not JSX" section before writing any template — PulsePoint borrows React's hook API but its markup is plain HTML, and JSX constructs silently corrupt the page.
+description: Use this page when the task mentions PulsePoint, performance, rerenders, slow inputs or searches, `pp.state`, `pp.ref`, `pp.effect`, `pp-ref`, `pp-style`, `pp-for`, portals, `pp-reset-scroll`, SPA navigation, or `public/js/pp-reactive-v2.js`. Read "PulsePoint Is Not JSX" before writing templates and "High-performance authoring" before changing runtime reconciliation.
 related:
   title: Related docs
   description: Read the components, routing, data-fetching, and project-structure docs alongside the PulsePoint runtime contract.
@@ -771,6 +771,171 @@ Behavior to rely on:
 - A boundary absorbs at most five errors without an intervening `reset()`, then logs and stops catching. This stops a fallback that itself throws from spinning the render loop. `reset()` re-arms it.
 - Event handler errors are not routed to boundaries. Handle those with `try`/`catch` inside the handler, which matches React.
 
+## High-performance authoring
+
+PulsePoint renders synchronously when a component requests an update. That makes state ownership and component boundaries part of the performance contract: the runtime can optimize reconciliation, but it cannot decide that an authored state change was unnecessary.
+
+### State means "render required"
+
+Use `pp.state(...)` when changing the value must affect at least one render-facing behavior:
+
+- template text, attributes, lists, or conditional visibility
+- a bound child prop or provided context value
+- a memo, effect, or other render dependency that must follow the value
+- authoritative data returned from an RPC call
+
+Use `pp.ref(...)` when a mutable value must persist but changing it should not render:
+
+- debounce and timeout handles
+- request generations or stale-response tokens
+- pagination cursors that are not displayed
+- previous values and imperative integration handles
+- transient search text used only to build a later RPC payload
+
+A ref mutation is intentionally invisible to the template. Do not replace state with a ref when the UI is expected to update.
+
+### Debounce frequency and render cost are different
+
+A debounce answers "how often should this work start?" It does not answer "how much work happens when it starts?"
+
+This shape can still stall a large owner:
+
+```html
+<script>
+  const [query, setQuery] = pp.state("");
+
+  function onSearch(value) {
+    clearTimeout(onSearch.timer);
+    onSearch.timer = setTimeout(() => setQuery(value), 300);
+  }
+
+  pp.effect(() => {
+    loadRows(query);
+  }, [query]);
+</script>
+```
+
+When the timer fires, `setQuery` asks the whole owning component to render even if `query` never appears in its markup. If that owner also contains a large list, dialogs, forms, providers, or many nested components, typing that resumes near the timer can compete with the render.
+
+When query text exists only for an RPC request, keep the query and timer in refs, debounce the request itself, and render only the accepted result:
+
+```html
+<section>
+  <input
+    type="search"
+    placeholder="Search products"
+    oninput="scheduleSearch(event.target.value)"
+  />
+
+  <template pp-for="row in rows">
+    <article key="{row.id}">{row.label}</article>
+  </template>
+
+  <script>
+    const [rows, setRows] = pp.state([]);
+    const query = pp.ref("");
+    const timer = pp.ref(null);
+    const generation = pp.ref(0);
+
+    function scheduleSearch(value) {
+      query.current = value;
+      const requestGeneration = ++generation.current;
+
+      clearTimeout(timer.current);
+      timer.current = setTimeout(
+        () => search(requestGeneration),
+        300
+      );
+    }
+
+    async function search(requestGeneration) {
+      const response = await pp.rpc(
+        "search_products",
+        { query: query.current },
+        { abortPrevious: true }
+      );
+
+      if (requestGeneration !== generation.current) return;
+      setRows(response.items ?? []);
+    }
+
+    pp.effect(
+      () => () => clearTimeout(timer.current),
+      []
+    );
+  </script>
+</section>
+```
+
+The native input remains immediate, timer/query bookkeeping does not render, and only the authoritative rows update the list. The generation check prevents an older response from overwriting a newer search. See [fetch-data.md](./fetch-data.md#search-filters-and-request-races) for the RPC-side rules.
+
+### Keep high-frequency state close to the control
+
+Component boundaries define who owns a render. A keystroke-frequency value should live in the smallest component that needs to render from it.
+
+- Split a search/toolbar from a large result grid when their update frequencies differ.
+- Split frequently edited form state from unrelated dialogs, page shells, and providers.
+- Keep shared state in a parent only when multiple children genuinely need the same render-driving value.
+- Do not create wrapper components that still own all high-frequency state and therefore rerender every subtree.
+
+For a controlled input that genuinely must write state on every keystroke, keep its owner small. If an expensive derived consumer may lag by one commit, use `pp.deferredValue(...)` for that consumer:
+
+```html
+<section>
+  <input value="{query}" oninput="setQuery(event.target.value)" />
+  <x-large-results query="{deferredQuery}" />
+
+  <script>
+    const [query, setQuery] = pp.state("");
+    const deferredQuery = pp.deferredValue(query, "");
+  </script>
+</section>
+```
+
+`pp.deferredValue` is not a substitute for correct ownership, and `pp.transition()` does not time-slice or deprioritize work. PulsePoint remains synchronous.
+
+### Avoid duplicate and invisible commits
+
+Each setter that changes a value requests a render, even when the eventual UI change is small.
+
+- Do not set `loading=true` for a background refresh when existing rows remain visible and no loading indicator changes.
+- Batch related state changes in the same synchronous turn when possible; PulsePoint coalesces scheduled updates.
+- Do not mirror the same value in multiple state hooks.
+- Keep pagination/request cursors in refs when moving the cursor should only start work, then put returned rows and visible metadata in state.
+- Memoize only genuinely expensive derivations or values whose identity matters. `pp.memo` does not make an unnecessary owner render free.
+- Use keyed `pp-for` rows so reconciliation can preserve row identity.
+
+### Diagnose the owner before the runtime
+
+Classify the symptom before editing `public/js/pp-reactive-v2.js`:
+
+| Evidence | Likely classification | First action |
+| --- | --- | --- |
+| A state setter fires, but the changed value is not rendered | Component authoring issue | Move non-rendering bookkeeping to a ref or call the action directly |
+| A debounce fires just before typing stalls | Component/request ownership issue | Debounce the RPC or expensive action, not an unnecessary broad-owner setter |
+| Loading and result setters produce two large commits | Component authoring issue | Remove invisible loading commits or isolate the visible indicator |
+| A high-frequency control owns a large list/provider/dialog subtree | Component-boundary issue | Move the state to a smaller focused component |
+| Rendered HTML is byte-identical but a large stable subtree is still reconciled | Possible runtime issue | Profile runtime phases and verify the stable-DOM case |
+| One small necessary binding change spends disproportionate time in DOM diffing or nested bootstrap | Possible runtime issue | Build a focused reproduction and benchmark before changing reconciliation |
+
+Enable measurements only while profiling:
+
+```html
+<script>
+  pp.enablePerf();
+  pp.resetPerfStats();
+
+  // Reproduce one interaction, then inspect:
+  console.log(pp.getPerfStats());
+
+  pp.disablePerf();
+</script>
+```
+
+Correlate the expensive component and phase with the setter or RPC completion that requested it. Compare the same interaction, DOM size, data, and number of repetitions before and after a change. Input paint timing and RPC latency are separate from render timing, so measure them separately.
+
+Do not "fix" a PulsePoint performance problem with `querySelector`, manual listeners, `innerHTML`, or parallel DOM state. Those bypass ownership instead of correcting it.
+
 ## Context
 
 Context is implemented in the current runtime with a React-style provider pattern rather than a legacy `pp.provideContext(...)` helper. Because Caspian templates are HTML-first, authored provider tags should be written in lowercase HTML form, for example `<themecontext.provider>`, even when the JavaScript token is named `ThemeContext`.
@@ -1154,6 +1319,10 @@ Use these rules when generating or editing PulsePoint runtime code:
 - For grouped subtrees, follow the section layout pattern in [routing.md](./routing.md), keep the shared interactive shell in the parent folder's `layout.html`, and keep route-specific PulsePoint code in each child `index.html`.
 - For grouped shells with independent shell and content scrolling, put `pp-reset-scroll="true"` on the content pane rather than the whole shell when only the page content should reset between child-route navigations.
 - Prefer PulsePoint state and template directives over manual DOM mutation for reactive updates.
+- Treat `pp.state(...)` as a request to render. Keep timers, request generations, undisplayed pagination cursors, and transient RPC-only query text in `pp.ref(...)`; do not move a value to a ref when markup or render dependencies must react to it.
+- A debounce limits frequency but does not reduce the cost of the update it eventually runs. For server search, debounce the RPC, discard stale responses, and keep only accepted results in state instead of waking a page-sized owner through an undisplayed query state.
+- Keep high-frequency input state in the smallest useful component boundary. Use `pp.deferredValue(...)` only when an expensive consumer may safely lag one commit, and remember that `pp.transition()` is not concurrent scheduling.
+- Before changing runtime reconciliation, use `pp.enablePerf()` to decide whether the app requested a redundant broad render or stable byte-identical output still incurred disproportionate runtime work.
 - Avoid generating ids, `data-*` state, `querySelector`, `getElementById`, `addEventListener`, manual `innerHTML`, or custom event buses for normal Caspian UI behavior.
 - Avoid data-attribute click wiring such as `data-action="save"` plus a delegated listener. Use `onclick="save()"` or `onsubmit="{save(event)}"` in authored HTML and keep reactive state in `pp.state(...)`.
 - If you are explicitly editing raw runtime HTML or internals, keep `pp-component` unique per live instance.
@@ -1218,6 +1387,8 @@ These are current runtime caveats that matter for authors and AI tools:
 - `pp.portal()` preserves logical ancestry through the registry, so context and prop refresh behavior continue to work through portaled descendants.
 - Top-level array destructuring is exported to template scope for any initializer, not only `pp.state` and `pp.reducer`. A binding declared inside a block or function is still not exported.
 - `pp.transition()` does not deprioritize work. PulsePoint renders synchronously; the hook provides an accurate `isPending` flag, not a concurrent scheduler.
+- `pp.state(...)` changes schedule a component render; `pp.ref(...)` mutations do not. This is an ownership contract, not merely a syntax choice.
+- Debouncing a state setter does not make the resulting render cheaper. A large owner should not hold RPC-only query text, timer handles, request generations, or undisplayed pagination cursors in state.
 - `pp.syncExternalStore(...)` resubscribes whenever `subscribe` changes identity, so pass a `pp.callback(..., [])`-wrapped function.
 - `pp.optimistic(...)` clears its pending actions on the render where `passthrough` changes, using a render-phase update rather than an effect, so there is no frame showing stale optimistic output.
 - `pp.errorBoundary()` catches render, effect, and effect-cleanup throws, including the boundary component's own. It does not catch event-handler errors. It latches until `reset()` and stops catching after five captures without a reset.
