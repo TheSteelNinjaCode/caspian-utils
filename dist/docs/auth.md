@@ -308,9 +308,10 @@ Because Starlette runs the last-added middleware first, the effective request or
 Current behavior by layer:
 
 - `SecurityHeadersMiddleware` can attach baseline response headers from `casp.runtime_security`, such as `X-Content-Type-Options`, framing policy, referrer policy, permissions policy, and production HSTS, while preserving any headers already set by the response. Do not assume this layer emits CSP or owns third-party browser resource allowlists; verify the installed package helper first.
+- `PublicFilesMiddleware` serves any existing `GET`/`HEAD` file under `public/**` before rate limiting, sessions, CSRF, auth, RPC, or page routing. It falls through for missing files and preserves restricted inline-media handling for configured upload directories.
 - `SessionMiddleware` provides `request.session` for the rest of the stack.
 - `CSRFMiddleware` ensures `request.session["csrf_token"]` exists and emits a scoped CSRF cookie based on `pp_csrf`, for example `pp_csrf_5091` in development or plain `pp_csrf` when no dev scope is active.
-- `AuthMiddleware` sets request context with `Auth.set_request(request)`, initializes `StateManager`, runs provider callbacks, skips configured static asset paths, and enforces public, auth, private, and role-based route redirects.
+- `AuthMiddleware` sets request context with `Auth.set_request(request)`, initializes `StateManager`, runs provider callbacks, and enforces public, auth, private, and role-based route redirects. Existing public files never reach it because `PublicFilesMiddleware` serves them first.
 - `RPCMiddleware` handles `POST` requests with `X-PP-RPC: true` and forwards them to Caspian's RPC handler after auth and session setup are already available.
 
 Keep `SessionMiddleware` immediately inside any outer response-header wrapper such as `SecurityHeadersMiddleware`. If CSRF, auth, or RPC handling runs before the session layer, `request.session` will not be available.
@@ -319,7 +320,7 @@ Keep `SessionMiddleware` immediately inside any outer response-header wrapper su
 
 The pasted `main.py` auth middleware currently behaves like this:
 
-- bypasses auth checks for `/css/*`, `/js/*`, `/assets/*`, and `/favicon.ico`
+- receives no request for an existing public file because the outer `PublicFilesMiddleware` has already served it; missing paths continue through normal auth and routing behavior
 - initializes request-bound auth state with `StateManager.init(request)` and `Auth.set_request(request)`
 - runs OAuth provider signin and callback handling before public or private route checks
 - lets public routes through immediately

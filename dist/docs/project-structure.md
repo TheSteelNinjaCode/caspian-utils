@@ -182,6 +182,11 @@ This folder contains your database model definitions in `schema.prisma` and any 
 
 Store static assets here, including images, fonts, and generated frontend assets that should be served directly.
 
+The public root maps directly to the URL root. Any existing nested file is
+available at the same root-relative URL—for example,
+`public/icons/app.png` is served as `/icons/app.png`. Adding a public
+subdirectory does not require a matching route or mount in `main.py`.
+
 Runtime-uploaded public blobs can also live here. Confirm the actual upload path in the project code, commonly `public/uploads/`, and keep that directory aligned with any BrowserSync ignore rules.
 
 If the upload directory is created only at runtime, create it on demand in the owning upload helper instead of assuming it is already committed.
@@ -219,6 +224,13 @@ Use this package module when the task is about:
 - baseline response headers such as permissions, referrer, MIME sniffing, framing, or HSTS behavior
 
 Because this file is framework-owned, edit it only for Caspian runtime work or when documentation must match the installed package. App-specific auth policy still belongs in `src/lib/auth/auth_config.py`, and app-specific upload or storage behavior should live in route-owned code or other `src/lib/**` helpers.
+
+`PublicFilesMiddleware` serves only existing `GET`/`HEAD` files that resolve
+inside the configured public root and falls through for every other request.
+Install it inside the security-header layer and outside rate limiting, sessions,
+CSRF, auth, RPC, and page routing. Preserve a restricted inline-media policy for
+user-upload directories so executable uploads such as HTML and SVG download
+instead of rendering with the application's origin.
 
 ### `caspian.config.json`
 

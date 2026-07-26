@@ -62,7 +62,7 @@ The script is composed so the export always runs against a **fresh route/compone
 
 - boots the real ASGI app in-process and requests every route through Starlette's `TestClient`, so exported HTML is byte-identical to what the dev server serves (layouts, components, PulsePoint deferral, security headers — the whole pipeline),
 - writes each page to `static/<route>/index.html` (`/` → `static/index.html`),
-- mirrors public asset trees (`css`, `js`, `assets`, `uploads`, `favicon.ico`) into `static/`,
+- mirrors the complete `public/**` tree into `static/`, including app-defined directories such as `icons` and `fonts`,
 - runs in `APP_ENV=development` so the build does not require production secrets.
 
 **Scope policy is "warn & skip"** — anything that cannot be fully static is reported and NOT written, so nothing broken ships silently:
