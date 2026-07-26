@@ -35,6 +35,7 @@ If the file manager lives inside a grouped subtree such as a dashboard, account 
 - Keep upload and delete actions in the route's `index.py`; do not move ordinary upload flows into `main.py`.
 - Keep reusable file-manager helpers in `src/lib/`.
 - Store uploaded blobs under a project-owned public directory such as `public/uploads/...` when the files should be browser-accessible.
+- Confirm that the directory's top-level public name is present in `PublicFilesMiddleware.inline_safe_subdirectories` before storing untrusted uploads there. The conventional `public/uploads/**` path uses the `uploads` mapping.
 - Create the upload directory on demand in the shared helper when it does not exist yet; do not assume the folder is committed.
 - Store durable metadata in Prisma, not in JSON manifests or ad hoc metadata files.
 - Use `pp.state(...)` plus `pp-for` to render and update the file list from returned server payloads.
@@ -48,7 +49,7 @@ If the file manager lives inside a grouped subtree such as a dashboard, account 
 | Upload and delete `@rpc()` actions | `src/app/**/index.py` | Keep these route-local so they stay close to the owning page. |
 | Shared storage, normalization, and persistence helpers | `src/lib/**` | Reuse helpers across routes without pushing route behavior into app bootstrap. |
 | Upload metadata model | `prisma/schema.prisma` | Persist owner, file name, MIME type, path, size, collection, and timestamps in Prisma. |
-| Browser-accessible uploaded blobs | `public/uploads/**` or another app-owned public directory | Keep the public path predictable and derived from stored metadata, and create the directory on demand if it may not exist yet. |
+| Browser-accessible uploaded blobs | `public/uploads/**` or another explicitly protected public directory | Keep the public path predictable and derived from stored metadata, create it on demand, and configure its top-level name in `PublicFilesMiddleware.inline_safe_subdirectories` before accepting untrusted files. |
 | BrowserSync upload ignore | `settings/bs-config.ts` | Keep the active public upload directory in `PUBLIC_IGNORE_DIRS`. |
 
 ## Route Flow
@@ -167,6 +168,31 @@ Typical metadata fields include:
 - size in bytes
 - uploaded timestamp
 
+## Public-Serving Security
+
+Every existing file under `public/**` is reachable at the matching
+root-relative URL without a directory-specific route. That is correct for
+trusted first-party assets, but runtime uploads cross a different trust
+boundary. In `main.py`, configure each top-level upload directory with the
+allow-list used by `PublicFilesMiddleware`:
+
+```python
+app.add_middleware(
+    PublicFilesMiddleware,
+    directory="public",
+    inline_safe_subdirectories={
+        "uploads": INLINE_SAFE_UPLOAD_MEDIA_TYPES,
+    },
+)
+```
+
+The resolver rejects traversal and symlink escape. Within configured upload
+directories, allow-listed raster image types render inline; HTML, SVG, unknown,
+and other executable or unsafe types download as
+`application/octet-stream` with `Content-Disposition: attachment` and
+`X-Content-Type-Options: nosniff`. Do not place untrusted uploads in a different
+top-level public directory until that directory is added to the mapping.
+
 ## BrowserSync And Uploaded Public Files
 
 If runtime uploads write into `public/uploads/`, BrowserSync should ignore that directory during local development. Otherwise every upload can trigger a full browser reload.
@@ -188,6 +214,7 @@ const PUBLIC_IGNORE_DIRS = ["uploads"];
 - Do not treat `onUploadProgress` callbacks as the source of truth for the final asset list.
 - Do not manually repaint the file list with `innerHTML` when PulsePoint state can own the list.
 - Do not leave uploaded public directories out of BrowserSync ignore rules.
+- Do not store untrusted runtime uploads in an unconfigured top-level public directory; generic first-party public files render inline.
 
 ## AI Retrieval Notes
 
@@ -195,6 +222,6 @@ const PUBLIC_IGNORE_DIRS = ["uploads"];
 - Use `fetch-data.md` for the route-render versus RPC split.
 - Use `database.md` when Prisma models or relations must change for upload metadata.
 - Use `validation.md` for MIME, extension, and other boundary checks, then keep explicit size and auth checks in the owning RPC action.
-- Use `project-structure.md` for placement rules, especially `src/app/` versus `src/lib/` and `public/uploads/`.
+- Use `project-structure.md` for placement rules, especially `src/app/` versus `src/lib/` and `public/uploads/`; verify public serving and the restricted-inline mapping in `main.py` plus `casp.runtime_security`.
 - For grouped file-manager sections, follow the section layout pattern in [routing.md](./routing.md) and keep the upload page in a child route folder beneath the shared shell.
 - Use `commands.md` and `settings/bs-config.ts` when uploads should not trigger BrowserSync reloads during `npm run dev`.

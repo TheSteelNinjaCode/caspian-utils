@@ -40,6 +40,7 @@ When generating or editing a Caspian app, treat these as the default choices unl
 - When `caspian.config.json` has `websocket: true`, use app-owned FastAPI WebSocket endpoints only for long-lived bidirectional live channels; keep normal browser-triggered data work on RPC.
 - When `caspian.config.json` has `prisma: true`, use the generated Prisma Python ORM from `src/lib/prisma/**` for Python-side database reads and writes. Do not invent a second fetch layer, raw driver wrapper, JSON active store, or browser-side data path that bypasses Prisma.
 - Use `Validate` and `Rule` from `casp.validate` for server-side input validation and sanitization.
+- Treat `public/` as a direct URL-root mapping: `public/icons/app.png` is `/icons/app.png` without a per-directory route. Use the restricted-inline mapping in `PublicFilesMiddleware` for every top-level directory that receives untrusted runtime uploads.
 
 ## AI Doc Shape
 

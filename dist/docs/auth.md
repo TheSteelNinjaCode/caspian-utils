@@ -293,28 +293,44 @@ app.add_middleware(RPCMiddleware)
 app.add_middleware(AuthMiddleware)
 app.add_middleware(CSRFMiddleware)
 app.add_middleware(SessionMiddleware, ...)
+app.add_middleware(BodySizeLimitMiddleware)
+app.add_middleware(RateLimitMiddleware)
+app.add_middleware(
+    PublicFilesMiddleware,
+    directory="public",
+    inline_safe_subdirectories={
+        "uploads": INLINE_SAFE_UPLOAD_MEDIA_TYPES,
+    },
+)
 app.add_middleware(SecurityHeadersMiddleware)
+# RequestDiagnosticsMiddleware is added last outside production.
 ```
 
 Because Starlette runs the last-added middleware first, the effective request order is:
 
-1. `SecurityHeadersMiddleware`
-2. `SessionMiddleware`
-3. `CSRFMiddleware`
-4. `AuthMiddleware`
-5. `RPCMiddleware`
-6. route handler or RPC endpoint
+1. `RequestDiagnosticsMiddleware` outside production
+2. `SecurityHeadersMiddleware`
+3. `PublicFilesMiddleware`
+4. `RateLimitMiddleware`
+5. `BodySizeLimitMiddleware`
+6. `SessionMiddleware`
+7. `CSRFMiddleware`
+8. `AuthMiddleware`
+9. `RPCMiddleware`
+10. route handler or RPC endpoint
 
 Current behavior by layer:
 
-- `SecurityHeadersMiddleware` can attach baseline response headers from `casp.runtime_security`, such as `X-Content-Type-Options`, framing policy, referrer policy, permissions policy, and production HSTS, while preserving any headers already set by the response. Do not assume this layer emits CSP or owns third-party browser resource allowlists; verify the installed package helper first.
+- `SecurityHeadersMiddleware` attaches baseline response headers from `casp.runtime_security`, including the Content-Security-Policy, `X-Content-Type-Options`, framing policy, referrer policy, permissions policy, and production HSTS, while preserving headers already set by the response. `CONTENT_SECURITY_POLICY` replaces the default CSP wholesale when the app needs a different policy.
 - `PublicFilesMiddleware` serves any existing `GET`/`HEAD` file under `public/**` before rate limiting, sessions, CSRF, auth, RPC, or page routing. It falls through for missing files and preserves restricted inline-media handling for configured upload directories.
+- `RateLimitMiddleware` applies the page budget to requests that were not already served as existing public files; `/health` is explicitly exempt.
+- `BodySizeLimitMiddleware` rejects oversized request bodies before session, auth, RPC, or route parsing.
 - `SessionMiddleware` provides `request.session` for the rest of the stack.
 - `CSRFMiddleware` ensures `request.session["csrf_token"]` exists and emits a scoped CSRF cookie based on `pp_csrf`, for example `pp_csrf_5091` in development or plain `pp_csrf` when no dev scope is active.
 - `AuthMiddleware` sets request context with `Auth.set_request(request)`, initializes `StateManager`, runs provider callbacks, and enforces public, auth, private, and role-based route redirects. Existing public files never reach it because `PublicFilesMiddleware` serves them first.
 - `RPCMiddleware` handles `POST` requests with `X-PP-RPC: true` and forwards them to Caspian's RPC handler after auth and session setup are already available.
 
-Keep `SessionMiddleware` immediately inside any outer response-header wrapper such as `SecurityHeadersMiddleware`. If CSRF, auth, or RPC handling runs before the session layer, `request.session` will not be available.
+Keep `SessionMiddleware` outside CSRF, auth, and RPC so those inner layers can access `request.session`. Keep `PublicFilesMiddleware` outside rate limiting, body parsing, sessions, CSRF, auth, and RPC, but inside `SecurityHeadersMiddleware`, so public files avoid per-user work and cookies while retaining security headers.
 
 ## Current `AuthMiddleware` Flow
 

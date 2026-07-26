@@ -191,6 +191,14 @@ Runtime-uploaded public blobs can also live here. Confirm the actual upload path
 
 If the upload directory is created only at runtime, create it on demand in the owning upload helper instead of assuming it is already committed.
 
+Public means browser-accessible, not automatically safe to render inline.
+`PublicFilesMiddleware.inline_safe_subdirectories` must include every top-level
+public directory that receives untrusted runtime uploads. Unsafe types in a
+configured upload directory, notably HTML and SVG, are sent as attachments with
+`nosniff`; trusted first-party assets are served inline. The standard
+`public/uploads/**` location is protected only when `main.py` configures the
+top-level `uploads` entry.
+
 If the local BrowserSync stack is running, keep that upload directory in `settings/bs-config.ts` `PUBLIC_IGNORE_DIRS` so new uploads do not force a full browser reload.
 
 ## Key Files
