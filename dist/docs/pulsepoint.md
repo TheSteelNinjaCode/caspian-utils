@@ -909,7 +909,7 @@ Each setter that changes a value requests a render, even when the eventual UI ch
 
 A render rebuilds the whole component as one HTML string and reconciles it against the live DOM. For a list, that used to mean changing one row cost the same as rebuilding every row: the entire list was re-serialized, re-parsed and re-walked.
 
-The runtime now remembers the markup each keyed row produced. A row that renders byte-identically again is not re-parsed and not re-diffed — its live node is kept, along with its attributes, text and bound handlers. Reconciliation work scales with the number of rows that actually changed.
+The runtime now remembers the markup each keyed row produced. A row that renders byte-identically again is not re-parsed and not re-diffed — its live node is kept, along with its attributes, text and bound handlers. Runs of consecutive unchanged rows collapse together, so a list where a handful of rows changed costs about what those rows cost, largely independent of how long the list is.
 
 This is automatic, but it only engages for rows the runtime can safely stand in for. A row participates when:
 
@@ -925,9 +925,122 @@ Practical consequences when authoring a large list:
 - **A row built entirely from a child component** (`<template pp-for="row in rows"><x-row key="{row.id}" … /></template>`) is reconciled the normal way, because the parent is responsible for refreshing that boundary's bound props. Prefer plain markup in the row when the list is large and its rows rarely change.
 - Keep values that feed a row stable. A row whose markup is regenerated identically is free; a row whose markup differs by even one character is full work.
 
-### Diagnose the owner before the runtime
+### A mounted child boundary is reconciled by its attributes, not by its markup
 
-Classify the symptom before editing `public/js/pp-reactive-v2.js`:
+The same idea applies to composition, which is the shape most pages actually have: a shell that assembles many `x-*` components rather than one component owning a wall of markup.
+
+A child component's internals belong to the child, so the parent never reconciles into them — it only reconciles the child's root, whose attributes carry the props. Once the child is mounted, the parent therefore emits that root **with an empty body** instead of re-emitting the child's markup, which means a parent render no longer re-serializes and re-parses subtrees it was going to ignore. In a real browser, a shell of 30 small children went from 0.82 ms to about 0.30 ms per parent update, and the cost stopped scaling with how much markup the children contain.
+
+This is automatic and needs no authoring change, but the shape still matters:
+
+- **The first render of a boundary always emits its full markup**, because the child bootstraps from what the parent emitted. A boundary that a conditional removes and later restores starts that cycle again.
+- **A boundary is excluded when the parent is responsible for its content**: owned/slot content (`pp-owner`), a context provider inside it, or a parent-owned `pp-ref` capture inside it. Those keep re-emitting in full.
+- **Props stay live.** Attributes on the boundary root are emitted and reconciled on every render exactly as before, so a child whose props changed still re-renders.
+- **Prefer passing data as props over projecting large slot content** into a frequently re-rendering shell — projected content is re-rendered by its owner, so it does not get this treatment.
+
+If a reused boundary is ever found not to be mounted, the runtime logs `[PP-WARN] Nested boundary content reuse was abandoned…`, permanently disables the reuse for that component, and re-renders it from full markup. Seeing that warning means the cache and the DOM disagreed — report it rather than working around it.
+
+Two related properties follow from the same idea, and they are worth knowing when you reason about what a parent render costs:
+
+- **A bound prop is committed to the child's root only when its value changes.** `active="{selected === 3}"` is evaluated every render, but the attribute is written only on the render where the answer actually flips. The live attribute holds the evaluated value the whole time — it no longer flickers back to the authored `{expr}` text mid-render, so a `MutationObserver` or a CSS transition watching a component root sees only real changes.
+- **A child whose props did not change is not re-walked.** A leaf child costs its parent one prop comparison, not a traversal of its subtree.
+
+Together with the elided body, a mounted child that nothing changed about costs its parent: one prop evaluation per bound attribute, one shallow comparison, and no DOM writes.
+
+### Prop identity decides whether a child re-renders
+
+A child re-renders when its props changed, and props are compared **shallowly, by identity**. Every brace expression on a boundary root is re-evaluated on each parent render, so an expression that *builds* a value returns a new identity every time and the child re-renders even when the data is identical.
+
+This is the single most common cause of "my whole page re-renders when I type one character":
+
+```html
+<!-- Every parent render creates a new array and a new function, so this child
+     re-renders on every parent render even when `products` never changed. -->
+<x-product-table
+  rows="{products.filter((p) => p.active)}"
+  on-select="{(row) => setSelected(row.id)}"
+/>
+```
+
+Give each of them a stable identity, and the child is skipped entirely when nothing it depends on changed:
+
+```html
+<x-product-table
+  rows="{activeProducts}"
+  options="{tableOptions}"
+  on-select="{selectRow}"
+/>
+
+<script>
+  const [products, setProducts] = pp.state([]);
+  const [selected, setSelected] = pp.state(null);
+
+  const activeProducts = pp.memo(
+    () => products.filter((p) => p.active),
+    [products]
+  );
+
+  // Constant for the life of the component.
+  const tableOptions = pp.memo(() => ({ dense: true }), []);
+
+  const selectRow = pp.callback((row) => setSelected(row.id), []);
+</script>
+```
+
+Rules of thumb:
+
+- **Primitives are free.** `label="Total"`, `count="{items.length}"` and `active="{selected === row.id}"` compare by value, so they only "change" when the value really changes. Prefer passing primitives over passing an object the child immediately destructures.
+- **Build object props in the script, never inline in the attribute.** An attribute value that starts with `{{` is read as a server template block, not a PulsePoint binding, so an inline object literal is not valid there — assign it to a name in `<script>` (memoized) and pass that name.
+- **`pp.memo` for derived arrays/objects, `pp.callback` for handlers** passed as props. Both need a dependency array; without one they rebuild every render and nothing is gained.
+- **Do not memoize primitives.** `pp.memo(() => a + b, [a, b])` costs more than the addition.
+- This only matters for values crossing a component boundary. Inside one component's own markup, an inline object or arrow function is harmless.
+
+### Give a provider a stable context value
+
+Context values are compared by identity too, and a provider's consumers are refreshed whenever that identity changes. Providing a freshly built object makes **every consumer in the subtree** re-render on **every** provider render — the widest-blast-radius version of the problem above:
+
+```html
+<!-- Wrong: a new object every render, so all consumers refresh every render. -->
+<script>
+  const [theme, setTheme] = pp.state("light");
+  ThemeContext.Provider({ value: { theme, setTheme } });
+</script>
+```
+
+```html
+<!-- Right: identity changes only when `theme` does. -->
+<script>
+  const [theme, setTheme] = pp.state("light");
+
+  const themeValue = pp.memo(() => ({ theme, setTheme }), [theme]);
+  ThemeContext.Provider({ value: themeValue });
+</script>
+```
+
+Split unrelated values into separate contexts when they change at different rates. A context carrying both a rarely-changing `user` and a per-keystroke `query` forces every `user` consumer to re-render on each keystroke; two contexts keep each consumer tied to what it actually reads.
+
+### Keep effects from doing work nobody asked for
+
+An effect with no dependency array runs after **every** render of its component:
+
+```html
+<script>
+  // Runs on every render, refetching on unrelated state changes.
+  pp.effect(() => { loadRows(page); });
+
+  // Runs only when `page` changes.
+  pp.effect(() => { loadRows(page); }, [page]);
+
+  // Runs once on mount.
+  pp.effect(() => { subscribe(); return () => unsubscribe(); }, []);
+</script>
+```
+
+Dependencies are compared by identity as well, so an object or function rebuilt each render belongs in `pp.memo`/`pp.callback` before it is used as a dependency — otherwise the array never matches and the effect runs every render anyway.
+
+### Diagnose the owner before blaming the runtime
+
+Nearly every "PulsePoint is slow" report is an authoring or ownership problem, and the fix is in the template or the component split — not in the runtime. Classify the symptom first:
 
 | Evidence | Likely classification | First action |
 | --- | --- | --- |
@@ -935,9 +1048,11 @@ Classify the symptom before editing `public/js/pp-reactive-v2.js`:
 | A debounce fires just before typing stalls | Component/request ownership issue | Debounce the RPC or expensive action, not an unnecessary broad-owner setter |
 | Loading and result setters produce two large commits | Component authoring issue | Remove invisible loading commits or isolate the visible indicator |
 | A high-frequency control owns a large list/provider/dialog subtree | Component-boundary issue | Move the state to a smaller focused component |
-| Rendered HTML is byte-identical but a large stable subtree is still reconciled | Possible runtime issue | Profile runtime phases and verify the stable-DOM case |
-| One small necessary binding change spends disproportionate time in DOM diffing or nested bootstrap | Possible runtime issue | Build a focused reproduction and benchmark before changing reconciliation |
-| Changing one row of a large list costs about as much as changing every row | Component authoring issue first | Check the row is keyed, single-rooted, and not a component boundary, so per-row reuse can engage |
+| A child re-renders on every parent render although its visible props look unchanged | Component authoring issue | A prop is a new object/array/function identity each render — see "Prop identity decides whether a child re-renders" |
+| Every context consumer re-renders whenever the provider renders | Component authoring issue | The provided `value` is a fresh object each render — memoize it |
+| Changing one row of a large list costs about as much as changing every row | Component authoring issue | Check the row is keyed, single-rooted, and not a component boundary, so per-row reuse can engage |
+| Rendered HTML is byte-identical but a large stable subtree is still reconciled | Possible runtime issue | Capture `pp.getPerfStats()` for the interaction and report it with the component shape |
+| One small necessary binding change spends disproportionate time in `domDiff` or `bootstrapNested` | Possible runtime issue | Reduce it to the smallest reproducing template, then report it with the phase numbers |
 
 Enable measurements only while profiling:
 
@@ -978,7 +1093,7 @@ Important:
 - Context is component-level, not directive-based. There is no `pp-context` attribute.
 - `pp.context(token)` resolves from ancestors. A component does not consume the value it provides in the same render.
 - If provider and consumer live in different component script scopes, pass the token through props or store it in shared outer or global state.
-- The preferred authoring style is a lowercase provider tag in the template. The TypeScript runtime's `TemplateCompiler.transformContextProviderTags(...)` recognizes `*.provider` tags case-insensitively and rewrites them to runtime-owned `<pp-context-provider>` boundaries. The runtime context lookup is also case-insensitive, so `<themecontext.provider>` can resolve a script binding named `ThemeContext`.
+- The preferred authoring style is a lowercase provider tag in the template. The runtime recognizes `*.provider` tags case-insensitively and rewrites them to runtime-owned `<pp-context-provider>` boundaries. The context lookup is also case-insensitive, so `<themecontext.provider>` can resolve a script binding named `ThemeContext`.
 - The runtime also supports imperative `ThemeContext.Provider({ value })` calls during render, but that form provides from the component boundary rather than documenting the HTML subtree shape. Use it only when component-wide provision is intended.
 - Do not invent or document `pp.provideContext`. The current runtime explicitly does not expose it.
 
