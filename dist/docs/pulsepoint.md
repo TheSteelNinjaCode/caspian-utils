@@ -905,6 +905,26 @@ Each setter that changes a value requests a render, even when the eventual UI ch
 - Memoize only genuinely expensive derivations or values whose identity matters. `pp.memo` does not make an unnecessary owner render free.
 - Use keyed `pp-for` rows so reconciliation can preserve row identity.
 
+### Keyed rows are reconciled per row, not per list
+
+A render rebuilds the whole component as one HTML string and reconciles it against the live DOM. For a list, that used to mean changing one row cost the same as rebuilding every row: the entire list was re-serialized, re-parsed and re-walked.
+
+The runtime now remembers the markup each keyed row produced. A row that renders byte-identically again is not re-parsed and not re-diffed — its live node is kept, along with its attributes, text and bound handlers. Reconciliation work scales with the number of rows that actually changed.
+
+This is automatic, but it only engages for rows the runtime can safely stand in for. A row participates when:
+
+- the loop body renders **exactly one root element** per row,
+- that element carries a non-empty, unique `key`,
+- the loop is not nested inside another `pp-for`, and
+- the row's markup contains no nested component boundary, owned slot content, or context provider.
+
+Practical consequences when authoring a large list:
+
+- **Always key rows.** An unkeyed row can never be reused, so an unkeyed list still reconciles in full.
+- **Keep the row body single-rooted.** A loop body with two sibling elements, or with bare text next to the element, opts the whole loop out. Wrap the row in one element.
+- **A row built entirely from a child component** (`<template pp-for="row in rows"><x-row key="{row.id}" … /></template>`) is reconciled the normal way, because the parent is responsible for refreshing that boundary's bound props. Prefer plain markup in the row when the list is large and its rows rarely change.
+- Keep values that feed a row stable. A row whose markup is regenerated identically is free; a row whose markup differs by even one character is full work.
+
 ### Diagnose the owner before the runtime
 
 Classify the symptom before editing `public/js/pp-reactive-v2.js`:
@@ -917,6 +937,7 @@ Classify the symptom before editing `public/js/pp-reactive-v2.js`:
 | A high-frequency control owns a large list/provider/dialog subtree | Component-boundary issue | Move the state to a smaller focused component |
 | Rendered HTML is byte-identical but a large stable subtree is still reconciled | Possible runtime issue | Profile runtime phases and verify the stable-DOM case |
 | One small necessary binding change spends disproportionate time in DOM diffing or nested bootstrap | Possible runtime issue | Build a focused reproduction and benchmark before changing reconciliation |
+| Changing one row of a large list costs about as much as changing every row | Component authoring issue first | Check the row is keyed, single-rooted, and not a component boundary, so per-row reuse can engage |
 
 Enable measurements only while profiling:
 
