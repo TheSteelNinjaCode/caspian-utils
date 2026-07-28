@@ -336,6 +336,8 @@ Client side, append each chunk to reactive state so the UI grows token by token:
 </script>
 ```
 
+When a streaming call uses `abortPrevious: true`, it remains the active cancellable RPC until the stream's final chunk. A later RPC call with `abortPrevious: true` can therefore cancel a response even after its headers and early chunks have arrived. Cancellation resolves to `{ cancelled: true }`; use a request generation as well when the UI must state explicitly which response is authoritative.
+
 In the current runtime, generator and async-generator RPC results are wrapped with `SSE(...)` inside `casp.rpc.py`, and route-level generator results are also wrapped by `main.py` before the response is returned.
 
 ## File Uploads
@@ -381,7 +383,7 @@ Client example:
     for (const file of Array.from(fileList ?? [])) {
       const response = await pp.rpc("upload_file", { file, collection }, {
         onUploadProgress: (progress) => {
-          console.log(progress.percentage ?? 0);
+          console.log(progress.percent ?? 0);
         },
       });
 
@@ -392,6 +394,8 @@ Client example:
   }
 </script>
 ```
+
+`onUploadProgress` receives `{ loaded, total, percent }`; there is no `percentage` field. A payload containing a `File` or non-empty `FileList` becomes multipart. PulsePoint emits all non-file fields before file parts so companion values are available to a server that starts handling a streamed file before the browser has finished sending the body. Object values are JSON-stringified, nullish values are omitted, and every file in a `FileList` is appended under the original field name.
 
 Use this pattern for real file managers:
 

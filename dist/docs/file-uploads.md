@@ -131,7 +131,7 @@ Keep route-specific auth checks, input validation, and final response shape here
       for (const file of Array.from(fileList ?? [])) {
         const response = await pp.rpc("upload_asset", { file }, {
           onUploadProgress: (progress) => {
-            console.log(progress.percentage ?? 0);
+            console.log(progress.percent ?? 0);
           },
         });
 
@@ -143,6 +143,8 @@ Keep route-specific auth checks, input validation, and final response shape here
   </script>
 </section>
 ```
+
+`onUploadProgress` receives `{ loaded, total, percent }`; `total` and `percent` may be `null` when the browser cannot compute the upload length. A multipart RPC writes companion non-file values before all `File`/`FileList` parts, so route parameters are available even when the server begins processing a streamed upload before the full request body arrives. A `FileList` is sent as repeated parts under one field name.
 
 Prefer this state-driven shape over manual `innerHTML` list painting. In Caspian pages, manual DOM writes are easy to lose when PulsePoint rerenders the owner template.
 

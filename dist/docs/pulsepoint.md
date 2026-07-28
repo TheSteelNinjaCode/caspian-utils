@@ -93,9 +93,8 @@ Before writing a template, ask: *"Would this file be valid HTML if I deleted eve
 | `pp-ref="name"` / `pp-ref="{expr}"` | Native elements and `x-*` component tags | Imperative element access |
 | `pp-style="{cssText}"` | Any element | Dynamic inline style, as a **CSS string** |
 | `pp-spread="{...obj}"` | Any element | Spread an object into attributes |
-| `pp-ref-forward` | *Server-set* on component roots — see note below | Ref forwarding through layout-neutral hosts |
 | `<token.provider value="{v}">` (lowercase) | Anywhere in markup | Context provider |
-| `pp-spa="true"` / `pp-spa="false"` | `<body>` enables SPA navigation; `pp-spa="false"` on an `<a>` opts that link out | SPA navigation interception |
+| `pp-spa="false"` | An `<a>` that must use normal browser navigation | Opt one link out of the SPA interception enabled automatically by `pp.mount()` |
 | `pp-reset-scroll="true"` | A scroll container, or `<body>` | Reset that container's scroll on navigation |
 | `pp-scroll-key="stable-name"` | A scroll container | Stable scroll-restoration identity |
 | `pp-loading-content="true"` | The region swapped during navigation | Marks the navigation content region |
@@ -106,11 +105,11 @@ There is **no** `pp-if`, `pp-show`, `pp-else`, `pp-model`, `pp-bind`, `pp-class`
 
 ### Runtime-managed — never author these
 
-The render pipeline or the browser runtime writes these. Handwriting them corrupts instance tracking:
+The render pipeline or the browser runtime writes these. Handwriting them corrupts instance tracking or reconciliation:
 
-`pp-component`, `pp-owner`, `pp-event-owner`, `pp-ref-owner`, `pp-ref-forward`, `pp-context-provider` (the generated tag), `pp-context-token`, `pp-context-value`, `pp-root-layout`, `pp-fragment-root`, `data-pp-ref`, `data-pp-input-value`, `data-pp-default-value`, `data-pp-checked-value`, `data-pp-default-checked`, `data-pp-select-value`, `pp-dynamic-script`, `pp-dynamic-meta`, `pp-dynamic-link`.
+`pp-component`, `pp-owner`, `pp-event-owner`, `pp-ref-owner`, `pp-ref-forward`, `<pp-context-provider>` (the generated tag), `data-pp-context-token`, `data-pp-context-value`, `data-pp-fragment-root`, `data-pp-script-source`, `data-pp-ref`, `data-pp-input-value`, `data-pp-default-value`, `data-pp-checked-value`, `data-pp-default-checked`, `data-pp-select-value`, `pp-keep`, `pp-keep-run`, and `pp-keep-content`.
 
-`pp-ref-forward` appears in the author-facing table only because you will see it in rendered HTML and in composition components; the server component compiler sets it on a root whose own root is another `x-*` component. Do not write it yourself.
+The server also emits `meta[name="pp-root-layout"]` for SPA compatibility checks. These names may appear in rendered or transient runtime HTML, but none belongs in authored route or component templates.
 
 ### Component-script hooks (the whole list)
 
@@ -448,12 +447,10 @@ Bindings exported to the template:
 
 - Top-level function declarations.
 - Top-level identifier declarations such as `const title = "Pulse"`.
-- Top-level object destructuring identifiers such as `const { title, subtitle } = pp.props`.
-- Top-level array destructuring identifiers when the initializer is `pp.state(...)`, such as `const [count, setCount] = pp.state(0)`.
+- Every identifier in a top-level destructuring pattern, regardless of initializer: arrays, objects, nested patterns, defaults, rest elements, and holes. This includes `const { title, subtitle } = pp.props`, `const [count, setCount] = pp.state(0)`, and tuples returned by any other hook or helper.
 
 Bindings that should not be assumed:
 
-- Generic top-level array destructuring is not auto-exported unless it comes from `pp.state(...)`.
 - Nested declarations inside functions, conditions, loops, and callbacks are not auto-exported.
 - There is no standalone `props` variable injected by the runtime. Use `pp.props`.
 
@@ -1213,7 +1210,7 @@ The render pipeline wraps each top-level `pp-component` root in an inert `<templ
 - Plain `pp-ref` bindings are preserved across rerenders, including no-op rerenders that skip DOM diffing.
 - Ref callbacks may be called with `null` during cleanup.
 - The runtime generates `data-pp-ref` internally. Do not author it.
-- Do not author `pp-event-owner`, `pp-owner`, or `pp-dynamic-*` attributes by hand.
+- Do not author `pp-event-owner`, `pp-owner`, or the other runtime-managed names listed above.
 
 Example:
 
@@ -1345,7 +1342,7 @@ Example:
 
 ## SPA, loading, and navigation helpers
 
-- `body[pp-spa="true"]` enables client-side navigation interception.
+- `pp.mount()` enables client-side navigation interception automatically; no `<body pp-spa="true">` opt-in is required.
 - `a[pp-spa="false"]` disables interception for that link.
 - External links, downloads, `_blank`, and modifier-key clicks bypass SPA interception.
 - `pp-loading-content="true"` marks the page region that gets swapped or faded during navigation.
@@ -1364,16 +1361,20 @@ RPC notes:
 
 - `pp.rpc(name, data?, optionsOrAbort?)` posts to the current route.
 - Passing `true` as the third argument means `abortPrevious: true`.
-- The options object supports `abortPrevious`, `onStream`, `onStreamError`, `onStreamComplete`, `onUploadProgress`, and `onUploadComplete`.
+- The complete options object supports `abortPrevious`, `url`, `csrfUrl`, `credentials`, `onStream`, `onStreamError`, `onStreamComplete`, `onUploadProgress`, and `onUploadComplete`.
+- `url` overrides the current-route RPC URL. `csrfUrl` overrides the URL used for the preliminary CSRF-cookie bootstrap GET. `credentials` is a standard Fetch `RequestCredentials` value; same-origin calls default to `"same-origin"` and cross-origin overrides default to `"include"`.
+- When `abortPrevious` is enabled, a later aborting call cancels the active request and the cancelled promise resolves to `{ cancelled: true }`. A streamed response remains the active request until its final chunk, so it can still be cancelled after the response headers and early chunks have arrived.
 - File uploads switch to the XHR path when upload progress callbacks are needed.
+- A payload containing a `File` or non-empty `FileList` becomes multipart. The runtime writes every non-file field before the first file so a streaming server upload handler can read companion arguments even when the caller's object listed a file first. Objects are JSON-stringified, nullish fields are omitted, and a `FileList` becomes repeated parts under its original field name.
 - The `onUploadProgress` callback receives `{ loaded, total, percent }`. `percent` is a 0-100 number, and both `total` and `percent` are `null` when the browser cannot compute the upload length. Do not document or generate `event.percentage`.
+- `onUploadComplete` belongs to the same XHR progress path and runs only after a successful upload response (and any accepted redirect).
 - For file managers, use upload callbacks for progress UI but replace the asset list from returned RPC state with `pp.state(...)` and `pp-for` instead of manual DOM repainting. See [file-uploads.md](./file-uploads.md).
 - Streamed `text/event-stream` responses are supported when a stream handler is provided. Each `onStream` chunk is JSON-parsed when the event data looks like JSON; otherwise the raw string is passed through. If the response streams but no `onStream` handler was given, the runtime warns and discards the stream.
-- Redirect headers are honored through `pp.redirect()`.
+- Same-origin `X-PP-Redirect` headers (and redirect-status `Location` headers) are honored through `pp.redirect()`. Invalid or cross-origin server redirect targets are ignored.
 
 Notes:
 
-- `pp.redirect()` uses SPA navigation for same-origin URLs when SPA mode is enabled. Otherwise it falls back to normal navigation.
+- After the runtime mounts, `pp.redirect()` uses SPA navigation for same-origin URLs. Cross-origin targets use normal browser navigation.
 - Root-layout mismatches during SPA navigation trigger a hard reload.
 - `pp.mount()` bootstraps every `[pp-component]` it finds, so generated code should call it only through the global runtime if you are manually mounting at all.
 
@@ -1497,13 +1498,7 @@ Also avoid:
 - standard DOM scripting as the default first-party interaction model, including id/data-attribute driven `querySelector(...)`, `addEventListener(...)`, or manual `innerHTML` rendering for normal buttons, forms, filters, toggles, uploads, and reactive lists
 - `pp-context`
 - `pp-key`
-- `data-pp-ref`
-- `pp-context-provider`
-- `pp-owner`
-- `pp-event-owner`
-- `pp-dynamic-script`
-- `pp-dynamic-meta`
-- `pp-dynamic-link`
+- any runtime-managed name listed in [Runtime-managed — never author these](#runtime-managed--never-author-these)
 - handwritten `pp-component="..."` in authored route, layout, or component templates
 - `pp.fetchFunction()` as the current raw runtime helper name
 - made-up hooks, directives, or globals not present in the current bundled runtime
