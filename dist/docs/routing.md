@@ -185,7 +185,7 @@ Place those import comments at the top of the file, above the authored root elem
 
 Keep route templates as composition, not as the place where all section markup accumulates. A route with tabs, dashboard panels, forms, tables, or repeated cards should import focused components for those responsibilities and assemble them with `x-*` tags. For example, a dashboard route can import `<x-dashboard-header />`, `<x-metric-strip />`, `<x-activity-tab />`, and `<x-settings-tab />` rather than placing every tab panel's full markup in `index.html` or one giant Python component.
 
-Route templates follow the same authored-vs-runtime contract documented in [pulsepoint.md](./pulsepoint.md) and the same single-root discipline documented in [components.md](./components.md): keep one authored parent node, keep any `<!-- @import ... -->` directives above that root, use a plain `<script>` inside that root when needed, and do not handwrite `pp-component` or `type="text/pp"`. That root may be a native HTML element or a single imported `x-*` component tag, but after expansion it must resolve to one final HTML root.
+Route templates follow the same authored-vs-runtime contract documented in [pulsepoint.md](./pulsepoint.md) and the same single-root discipline documented in [components.md](./components.md): keep one authored parent node, keep any `<!-- @import ... -->` directives above that root, use a plain `<script>` inside that root when needed, and do not handwrite `pp-component`. That root may be a native HTML element or a single imported `x-*` component tag, but after expansion it must resolve to one final HTML root.
 
 When a route needs button clicks, form submits, input changes, filters, tabs, menus, uploads, polling, or reactive list updates, author those interactions as PulsePoint behavior in `index.html`. Use `onclick`, `oninput`, `onchange`, `onsubmit`, `pp.state(...)`, `pp-for`, refs, effects, and `pp.rpc(...)` instead of starting with `id` attributes plus `document.querySelector(...)` or `addEventListener(...)`. For simple form submits, prefer `onsubmit="{submitForm(event)}"` and `Object.fromEntries(new FormData(event.currentTarget).entries())` over per-input `pp-ref` payload collection.
 
@@ -389,7 +389,7 @@ Resolved SEO fields are exposed to layouts as `{{ metadata.* }}`, while values r
 
 Use `layout.html` for the shared wrapper markup of a subtree. Keep the visible shell here, not in `layout.py`.
 
-Follow the same authoring contract used by route templates: one authored parent node, top-of-file `<!-- @import ... -->` directives above that root, plain `<script>` inside the root when needed, and no handwritten `pp-component` or `type="text/pp"`. See [pulsepoint.md](./pulsepoint.md) for the canonical authored-vs-runtime explanation.
+Follow the same authoring contract used by route templates: one authored parent node, top-of-file `<!-- @import ... -->` directives above that root, a plain `<script>` inside the root when needed, and no handwritten `pp-component`. See [pulsepoint.md](./pulsepoint.md) for the canonical authored-vs-runtime explanation.
 
 Place child routes with a plain HTML `<slot />` tag. Caspian replaces that layout slot with the current child route or nested layout while rendering.
 

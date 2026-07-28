@@ -117,7 +117,7 @@ When a folder represents a section with child routes, such as `dashboard`, `acco
 
 If the shared wrapper should not add a URL segment, use a parenthesized route-group folder such as `(marketing)/layout.html` instead of a normal folder name. Use a normal folder such as `dashboard/` only when that segment should be part of the public URL.
 
-When authoring route or layout HTML, follow the authoring contract documented in [routing.md](./routing.md) and [pulsepoint.md](./pulsepoint.md): keep one authored root, keep `<!-- @import ... -->` directives above that root, use a plain `<script>` inside the root when needed, and do not handwrite `pp-component` or `type="text/pp"`.
+When authoring route or layout HTML, follow the authoring contract documented in [routing.md](./routing.md) and [pulsepoint.md](./pulsepoint.md): keep one authored root, keep `<!-- @import ... -->` directives above that root, use a plain `<script>` inside the root when needed, and do not handwrite `pp-component`.
 
 See `routing.md` for the full App Router-style rules for dynamic segments, route groups, and nested layouts.
 
@@ -133,7 +133,7 @@ The common Caspian pattern is a Python file such as `Button.py` with `@component
 
 One Python file can also export multiple related `@component` functions. When that happens, import those tags from that exact file path in HTML, for example `<!-- @import { Breadcrumb, BreadcrumbItem, BreadcrumbList } from "../components/Breadcrumb.py" -->`, and render them as `<x-breadcrumb />`, `<x-breadcrumb-item />`, and `<x-breadcrumb-list />` instead of assuming each tag has its own sibling `.py` file.
 
-For component HTML files, follow the component authoring rules in [components.md](./components.md): one top-level parent node, no sibling roots, plain `<script>` inside that root when needed, and no handwritten `pp-component` or `type="text/pp"`.
+For component HTML files, follow the component authoring rules in [components.md](./components.md): one top-level parent node, no sibling roots, a plain `<script>` inside that root when needed, and no handwritten `pp-component`.
 
 The directories listed in `componentScanDirs` determine where component tooling scans. When that list includes `src/`, `src/components/` is a conventionally clean location, not a hard-coded runtime requirement.
 
@@ -332,7 +332,7 @@ Notable internal files include:
 - `.venv/Lib/site-packages/casp/state_manager.py` for request-scoped server state and persistence caveats
 - `.venv/Lib/site-packages/casp/component_decorator.py` for `@component`, `render_html(...)`, and component loading
 - `.venv/Lib/site-packages/casp/components_compiler.py` for `@import` parsing, `x-*` resolution, root validation, and `pp-component` injection
-- `.venv/Lib/site-packages/casp/scripts_type.py` for converting authored `<script>` tags to `type="text/pp"`
+- `main.py` for final inert-template deferral and `public/js/pp-reactive-v2.js` for safe plain-script capture and component-scope evaluation
 - `.venv/Lib/site-packages/casp/caspian_config.py` for config loading and route inventory parsing
 - `.venv/Lib/site-packages/casp/streaming.py` for `SSE` and streamed response helpers
 
@@ -361,7 +361,7 @@ If an AI agent is deciding where to make changes, use these rules first.
 - When deciding between `src/components/` and `src/lib/`, use `src/components/` for anything rendered as reusable UI and `src/lib/` for helpers, services, validators, adapters, and shared business logic.
 - Use [mcp.md](./mcp.md) only when `caspian.config.json` enables MCP and the task involves FastMCP tool definitions, nested config discovery, or local MCP commands.
 - Keep `<!-- @import ... -->` comments above the single authored root element in route, layout, and component HTML files. Do not nest them inside `<html>`, `<body>`, `<section>`, or any other parent wrapper.
-- Follow the single-root authoring contract in [routing.md](./routing.md), [components.md](./components.md), and [pulsepoint.md](./pulsepoint.md): one authored root, any owned `<script>` inside that root, and no handwritten `pp-component` or `type="text/pp"` in source templates.
+- Follow the single-root authoring contract in [routing.md](./routing.md), [components.md](./components.md), and [pulsepoint.md](./pulsepoint.md): one authored root, any owned plain `<script>` inside that root, and no handwritten `pp-component` in source templates.
 - Put shared helpers and reusable libraries in `src/lib/`.
 - Use `settings/bs-config.ts` when uploaded public assets should not trigger BrowserSync reloads during the local stack.
 - Put app-owned FastMCP code in `src/lib/mcp/` only when `caspian.config.json` enables MCP.

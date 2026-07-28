@@ -37,7 +37,7 @@ Important current `main.py` behaviors AI should keep in mind:
 
 - In development, `_scoped_cookie_name(...)` appends the active BrowserSync or dev port to both the session cookie name and the CSRF cookie name. The scope is resolved from `CASPIAN_BROWSER_SYNC_PORT`, then `settings/bs-config.json`, then `PORT`.
 - `register_single_route(...)` passes path params to `page()` as one positional dict, injects matching query params by name, and injects `request` by keyword when declared.
-- The render pipeline is `transform_components(...)`, then `render_with_nested_layouts(...)`, then `transform_scripts(...)`.
+- The render pipeline transforms components, renders nested layouts, and finally defers outermost component roots inside inert templates.
 - Route-level generators returned from `page()` are wrapped in `SSE(...)` before the response is sent.
 - Safe public-file helpers live in `casp.runtime_security`. `PublicFilesMiddleware` maps every existing nested file under `public/**` to the same root-relative URL without per-directory routes, rejects traversal and symlink escape, handles only `GET`/`HEAD`, and falls through when no file exists so page and mounted-app routing still works. User-upload directories must retain their restricted inline-media policy.
 - Session middleware secrets may be resolved through `casp.runtime_security` so production can fail fast when `AUTH_SECRET` is missing or still on a default placeholder.
@@ -100,7 +100,6 @@ Interactive CRUD page:
 | [.venv/Lib/site-packages/casp/validate.py](../../../../.venv/Lib/site-packages/casp/validate.py) | `Validate`, `Rule`, sanitization, and file-validation internals | [validation.md](./validation.md) |
 | [.venv/Lib/site-packages/casp/component_decorator.py](../../../../.venv/Lib/site-packages/casp/component_decorator.py) | `@component`, `render_html(...)`, the inline `html(...)` single-file helper (with direct-call scope capture), component loading, and prop normalization before component calls | [components.md](./components.md) |
 | [.venv/Lib/site-packages/casp/components_compiler.py](../../../../.venv/Lib/site-packages/casp/components_compiler.py) | `@import` parsing, `x-*` component resolution (including resolving a component's own tags from its Python module imports and the scope captured by directly-called components), parent-scope expansion of slot content, single-root validation, and `pp-component` injection | [components.md](./components.md), [routing.md](./routing.md), [pulsepoint.md](./pulsepoint.md) |
-| [.venv/Lib/site-packages/casp/scripts_type.py](../../../../.venv/Lib/site-packages/casp/scripts_type.py) | rewriting authored body `<script>` tags to `type="text/pp"` in rendered HTML | [pulsepoint.md](./pulsepoint.md), [routing.md](./routing.md), [components.md](./components.md) |
 | [.venv/Lib/site-packages/casp/html_attrs.py](../../../../.venv/Lib/site-packages/casp/html_attrs.py) | `get_attributes(...)`, alias normalization, and the Python-side `merge_classes(...)` contract | [components.md](./components.md) |
 | [.venv/Lib/site-packages/casp/caspian_config.py](../../../../.venv/Lib/site-packages/casp/caspian_config.py) | typed config loading, feature-flag reads, `settings/files-list.json` parsing, and route rule derivation | [project-structure.md](./project-structure.md), [commands.md](./commands.md), [routing.md](./routing.md) |
 
@@ -118,7 +117,7 @@ Use these behavior checkpoints when AI needs the fastest verification path for a
 | `casp.auth` | auth settings, signin and signout flow, provider wiring, and page protection behavior |
 | `casp.rpc` and streamed RPC responses | middleware interception, CSRF and session expectations, registry behavior, and helper-level RPC contracts |
 | `casp.layout` | layout discovery, metadata merge, root handling, and layout rendering rules |
-| `casp.components_compiler`, `casp.component_decorator`, `casp.scripts_type`, and template-root injection | `@import` parsing, `x-*` expansion, Python-module-import tag resolution, parent-scope slot resolution, inline `html(...)` rendering and children-safe handling, deterministic root keys, `pp-component` injection, and authored-script rewriting to `type="text/pp"` |
+| `casp.components_compiler`, `casp.component_decorator`, `main.py` template-root deferral, and the browser runtime | `@import` parsing, `x-*` expansion, Python-module-import tag resolution, parent-scope slot resolution, inline `html(...)` rendering and children-safe handling, deterministic root keys, `pp-component` injection, plain component-script preservation, and safe script capture during materialization |
 | `casp.state_manager` | wire vs non-wire reset behavior, request-state persistence assumptions, and AttributeDict access |
 | `casp.cache_handler` | filename generation, manifest writes, TTL handling, and invalidation behavior |
 | `casp.caspian_config` | config parsing, files index building, and Next.js-style route inventory behavior |

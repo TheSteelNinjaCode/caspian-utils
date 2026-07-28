@@ -258,7 +258,7 @@ def UserCard(user, **props):
     """, attrs=attrs, user=user)
 ```
 
-The returned value is `Markup`, so the normal pipeline still injects `pp-component` on the single root and `transform_scripts(...)` rewrites the plain `<script>` to `type="text/pp"`. A single-file component renders identically to the two-file `render_html(...)` form; the choice is purely about readability.
+The returned value is `Markup`, so the normal pipeline still injects `pp-component` on the single root and defers that root inside an inert template. The plain component `<script>` remains plain; PulsePoint captures its source before materialization and evaluates it in component scope. A single-file component renders identically to the two-file `render_html(...)` form; the choice is purely about readability.
 
 ### Receiving Props In A Python Component
 
@@ -608,16 +608,16 @@ For ref purposes, a component's root is the single native element that receives 
 
 The default takes precedence over catch-all `**props`: `pp-ref` is reserved for root ref forwarding and is not delivered in that dictionary. A component that intentionally wants `pp-ref` as ordinary data can opt out by declaring an explicit camel-case `ppRef` parameter, for example `def Inspector(ppRef="", **props)`. That explicit declaration consumes the prop, disables automatic root forwarding for that component invocation, and makes the component responsible for how the value is used. Use this escape hatch sparingly; ordinary UI primitives should keep the standard root-ref contract.
 
-## Auto-Injected `pp-component` And PulsePoint Script Type
+## Auto-Injected `pp-component` And Plain Component Scripts
 
-Treat `pp-component="componentName"` and `type="text/pp"` as framework output, not authored source. The canonical authored-vs-runtime explanation lives in [pulsepoint.md](./pulsepoint.md).
+Treat `pp-component="componentName"` as framework output, not authored source. The canonical authored-vs-runtime explanation lives in [pulsepoint.md](./pulsepoint.md).
 
 - Do not manually add `pp-component="..."` to route templates, layout templates, or component HTML files.
-- Do not manually add `type="text/pp"` to authored PulsePoint scripts.
 - The Python render pipeline injects `pp-component` onto the single root element during render.
-- `main.py` runs `transform_scripts(...)`, which rewrites authored body `<script>` tags to `<script type="text/pp">` before the browser runtime mounts.
-- Add a plain `<script>` only when the route or component actually needs PulsePoint logic, and keep it inside that single root element.
-- If a runtime example already shows `pp-component` and `type="text/pp"`, treat it as rendered output rather than authored source.
+- Add a plain, untyped `<script>` only when the route or component actually needs PulsePoint logic, and keep it inside that single root element.
+- `main.py` preserves that plain script while deferring the root inside an inert template.
+- Before materialization or morph insertion, PulsePoint captures and empties the script so the browser cannot execute it natively, then evaluates the captured source in component scope.
+- If a runtime example shows `pp-component`, treat that attribute as rendered output rather than authored source.
 
 ## Single-Root Rule
 
@@ -754,5 +754,5 @@ Keep synchronous components as the default. Switch to `async def` only when the 
 
 - Read [project-structure.md](./project-structure.md) for where reusable components should live.
 - Read [routing.md](./routing.md) when importing components into route templates.
-- Read [pulsepoint.md](./pulsepoint.md) for the runtime contract of `pp-component`, `script[type="text/pp"]`, props, and browser-side reactivity.
+- Read [pulsepoint.md](./pulsepoint.md) for the runtime contract of `pp-component`, plain owned scripts, props, and browser-side reactivity.
 - Read [fetch-data.md](./fetch-data.md) when a component needs browser-triggered `pp.rpc()` calls or component-owned server actions.

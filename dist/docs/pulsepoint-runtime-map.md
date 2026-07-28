@@ -20,9 +20,8 @@ Use [pulsepoint.md](./pulsepoint.md) for the full authoring contract. Use this f
 ## Source Of Truth
 
 - `public/js/pp-reactive-v2.js` is the shipped browser runtime.
-- `main.py` owns the final render pipeline that calls `transform_components(...)` and `transform_scripts(...)`.
+- `main.py` owns component transformation and final inert-template deferral.
 - `.venv/Lib/site-packages/casp/components_compiler.py` injects `pp-component` after component expansion and validates the single-root contract.
-- `.venv/Lib/site-packages/casp/scripts_type.py` rewrites authored body `<script>` tags to `type="text/pp"`.
 - `.venv/Lib/site-packages/casp/html_attrs.py` owns Python-side class and attribute helpers such as `merge_classes(...)`.
 
 If an inspected browser DOM disagrees with authored template source, remember that the runtime DOM includes framework-managed output. Do not copy runtime-only attributes back into authored templates.
@@ -32,7 +31,7 @@ If an inspected browser DOM disagrees with authored template source, remember th
 | PulsePoint feature | Authoring surface | Runtime owner | Verify before changing |
 | --- | --- | --- | --- |
 | Component roots | `src/app/**/index.html`, `layout.html`, component `.html` files | `components_compiler.py`, `public/js/pp-reactive-v2.js` | one authored root, final expanded root receives one `pp-component`, no sibling scripts |
-| Component scripts | plain `<script>` inside the authored root | `scripts_type.py`, `public/js/pp-reactive-v2.js` | authored scripts are plain, runtime scripts become `type="text/pp"`, one owned script per root |
+| Component scripts | plain, untyped `<script>` inside the authored root | `main.py`, `public/js/pp-reactive-v2.js` | the server preserves the plain script inside an inert component template; before materialization or morph insertion, PulsePoint captures and empties its source to prevent native execution, then evaluates it in component scope; one owned script per root |
 | Template expressions | text and attributes with `{...}` | `public/js/pp-reactive-v2.js` | top-level script bindings are exported, nested bindings are not; every destructuring shape is supported at the top level (array, object, nested, defaults, rest, holes), so any tuple-returning hook reaches template scope |
 | State | `pp.state(initial)` | `public/js/pp-reactive-v2.js` | setters accept values or updater functions, state belongs to the component instance |
 | Effects | `pp.effect(...)`, `pp.layoutEffect(...)` | `public/js/pp-reactive-v2.js` | callbacks may return cleanup functions, promises are not awaited |
@@ -76,7 +75,7 @@ If an inspected browser DOM disagrees with authored template source, remember th
 - **Templates are plain HTML, not JSX.** PulsePoint borrows React's *hook API* and *component decomposition*, never its markup syntax. Quote every brace attribute (`class="{…}"`, never `class={…}` — the unquoted form is invalid HTML and blanks the page with no console error), use `hidden="{…}"` instead of `{cond && <div/>}`, and `<template pp-for="…">` instead of `{list.map(...)}`. See [pulsepoint.md](./pulsepoint.md) "PulsePoint Is Not JSX".
 - Author one root element or one imported `x-*` root per route, layout, or component template.
 - Keep any owned plain `<script>` inside that same root.
-- Do not handwrite `pp-component`, `type="text/pp"`, `data-pp-ref`, `pp-owner`, `pp-event-owner`, or other runtime-managed attributes.
+- Do not handwrite `pp-component`, `data-pp-ref`, `pp-owner`, `pp-event-owner`, or other runtime-managed attributes.
 - Use `pp.rpc(...)` for current browser-to-server calls.
 - Use native `on*` attributes for button clicks, form submits, input changes, filters, toggles, and menus instead of adding ids and manual listeners.
 - For ordinary form submits, bind `onsubmit` on the form and read named fields with `Object.fromEntries(new FormData(event.currentTarget).entries())`; reserve `pp-ref` for imperative access rather than routine payload collection.
@@ -182,7 +181,7 @@ Grouped shell scroll reset:
 Use these prompts after docs or runtime changes to confirm AI can route correctly:
 
 - "Create an interactive filter in a Caspian route template."
-- "Explain why authored scripts are plain `<script>` but browser output shows `type=\"text/pp\"`."
+- "Explain how a plain component `<script>` stays inert while its deferred root is materialized."
 - "Debug a dashboard sidebar losing scroll during child-route navigation."
 - "Add an upload widget with progress and a reactive file list."
 - "Use context to share theme state between parent and child components."

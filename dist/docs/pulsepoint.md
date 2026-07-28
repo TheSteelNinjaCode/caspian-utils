@@ -31,7 +31,7 @@ Do not assume React, Vue, Svelte, JSX, Alpine, HTMX, or older PulsePoint docs un
 Apply these before generating any template, even without reading the rest of this page:
 
 1. One authored top-level root per route, layout, or component template; the owned plain `<script>` lives inside that root, never as a sibling.
-2. Never handwrite `pp-component`, `type="text/pp"`, `data-pp-ref`, or other runtime-managed attributes; the render pipeline injects them.
+2. Never handwrite `pp-component`, `data-pp-ref`, or other runtime-managed attributes; the render pipeline injects them. Keep owned component logic in a plain, untyped `<script>` inside the root.
 3. Bind first-party events with native `on*` attributes in the HTML; never wire normal UI with ids, `querySelector`, `addEventListener`, or manual `innerHTML`.
 4. For ordinary form submits, use `onsubmit="{handler(event)}"` plus `Object.fromEntries(new FormData(event.currentTarget).entries())`; refs are for imperative access only.
 5. Keep reactive values in `pp.state(...)`; keep template-facing bindings at the top level of the script.
@@ -108,7 +108,7 @@ There is **no** `pp-if`, `pp-show`, `pp-else`, `pp-model`, `pp-bind`, `pp-class`
 
 The render pipeline or the browser runtime writes these. Handwriting them corrupts instance tracking:
 
-`pp-component`, `type="text/pp"`, `pp-owner`, `pp-event-owner`, `pp-ref-owner`, `pp-ref-forward`, `pp-context-provider` (the generated tag), `pp-context-token`, `pp-context-value`, `pp-root-layout`, `pp-fragment-root`, `data-pp-ref`, `data-pp-input-value`, `data-pp-default-value`, `data-pp-checked-value`, `data-pp-default-checked`, `data-pp-select-value`, `pp-dynamic-script`, `pp-dynamic-meta`, `pp-dynamic-link`.
+`pp-component`, `pp-owner`, `pp-event-owner`, `pp-ref-owner`, `pp-ref-forward`, `pp-context-provider` (the generated tag), `pp-context-token`, `pp-context-value`, `pp-root-layout`, `pp-fragment-root`, `data-pp-ref`, `data-pp-input-value`, `data-pp-default-value`, `data-pp-checked-value`, `data-pp-default-checked`, `data-pp-select-value`, `pp-dynamic-script`, `pp-dynamic-meta`, `pp-dynamic-link`.
 
 `pp-ref-forward` appears in the author-facing table only because you will see it in rendered HTML and in composition components; the server component compiler sets it on a root whose own root is another `x-*` component. Do not write it yourself.
 
@@ -131,15 +131,15 @@ Inside an `on*` attribute the runtime provides `event`, plus the aliases `e`, `$
 When documenting or generating PulsePoint code, follow this order:
 
 - `public/js/pp-reactive-v2.js` is the shipped browser runtime contract AI should follow.
-- `main.py` is the render-pipeline source of truth for how Caspian injects runtime attributes and rewrites scripts before the browser sees the HTML.
+- `main.py` is the render-pipeline source of truth for component transformation, runtime-attribute injection, and final inert-template deferral.
 - If you are working inside PulsePoint or Caspian runtime development code and there is an authoring source tree behind the shipped files, use it only as an implementation detail. Do not assume that source tree exists in generated apps or shipped framework output.
 
 Important current facts:
 
 - `public/js/pp-reactive-v2.js` exposes the global `pp` runtime and auto-mounts on DOM ready.
-- `main.py` renders the final HTML, runs `transform_components(...)`, then runs `transform_scripts(...)` before returning the response.
+- `main.py` renders the final HTML, transforms components, and defers outermost component roots inside inert templates before returning the response.
 - `.venv/Lib/site-packages/casp/components_compiler.py` injects `pp-component` on the final resolved root after component expansion.
-- `.venv/Lib/site-packages/casp/scripts_type.py` rewrites authored body `<script>` tags to `type="text/pp"`.
+- `public/js/pp-reactive-v2.js` captures and empties plain component scripts before materialization or morph insertion, then evaluates their source in component scope.
 - Authored route and component templates compose reusable server components as HTML-first `x-*` tags before the browser runtime mounts.
 
 If docs, generated examples, or older notes disagree with `public/js/pp-reactive-v2.js` plus `main.py`, follow the code that actually runs.
@@ -359,7 +359,7 @@ Treat this section as the canonical authored-vs-runtime contract for Caspian tem
 PulsePoint authoring is split into two layers:
 
 - The authored layer: route, layout, and component templates under `src/` with plain HTML plus a plain `<script>`.
-- The runtime layer: the browser sees `pp-component` roots and `script[type="text/pp"]` after Caspian transforms the HTML.
+- The runtime layer: the browser sees `pp-component` roots with plain owned scripts whose source PulsePoint captures before the roots become live.
 
 For authored Caspian templates:
 
@@ -367,7 +367,6 @@ For authored Caspian templates:
 - In source, that parent may be a native HTML element or a single imported `x-*` component tag, but after component expansion it must resolve to one final HTML root.
 - Put the component logic inside a plain `<script>` inside that same root.
 - Do not handwrite `pp-component="..."`.
-- Do not handwrite `type="text/pp"`.
 
 Treat that single-root rule as a hard invariant for AI-generated templates. A sibling `<script>` after the root or any second top-level element will break Caspian's `pp-component` injection and fail the render.
 
@@ -398,7 +397,7 @@ Authored example:
 </section>
 ```
 
-When that template reaches the browser, Caspian will already have injected the component id and rewritten the owned script to `type="text/pp"`. Those runtime attributes are for the rendered output, not for authored source examples.
+When that template reaches the browser, Caspian has injected the component id and deferred the root inside an inert template. PulsePoint captures the plain script source before materialization so native execution cannot occur, then evaluates that source in component scope.
 
 Invalid authored shape:
 
@@ -429,7 +428,8 @@ Important:
 ## Component roots and scripts
 
 - Each runtime component root should have at most one owned script.
-- At runtime, the owned script is `script[type="text/pp"]`.
+- The owned script remains a plain, untyped `<script>`.
+- Before a deferred root or later morph becomes live, PulsePoint captures and empties that script; the captured source is evaluated only through the component runtime.
 - The script lookup walks the current root and skips nested `pp-component` boundaries, so a parent does not consume a child component's script.
 - If multiple matching runtime scripts exist in the same root, the first matching owned script wins. Generate one script per root.
 - Authored route, layout, and component templates still need one top-level parent node so Caspian can inject the component boundary correctly after component expansion.
@@ -476,7 +476,7 @@ Example:
 </div>
 ```
 
-That is the authored form. In browser-inspected runtime HTML, Caspian will already have added the component id and the owned script type.
+That is the authored form. In browser-inspected runtime HTML, Caspian will already have added the component id; the owned script remains plain and is removed after PulsePoint captures its source.
 
 ## Hooks and runtime API
 
@@ -1195,6 +1195,7 @@ Example:
 The render pipeline wraps each top-level `pp-component` root in an inert `<template pp-component="…">`, and the runtime materializes it back into live DOM on `mount()` (and on every SPA navigation) before it scans for roots. The browser never parses, validates, or fetches the contents of a `<template>`, so raw `{...}` placeholders never reach live DOM at first paint.
 
 - Because of this, `{...}` is safe in **any** attribute or position — including slots the browser would otherwise validate eagerly: SVG geometry (`d`, `viewBox`, `points`, `transform`), URL attributes (`src`, `srcset`, `href`, `poster`), form `value` on `date`/`number`/`color` inputs, and text placed directly inside `<table>` or `<select>`.
+- Before materialization, PulsePoint captures and empties each plain component script so inserting the fragment cannot trigger native browser execution; scripts introduced by later morphs receive the same treatment.
 - Do not add per-tag workarounds to dodge first-paint validation (static-path `hidden` toggles instead of binding `d`, `data-*` URL holders, `hidden`-gated `<img src>`, or an SSR-resolved initial value). The deferral removes the whole class at once.
 - `pp-style` and the `<input>`/`<select>`/`checked`/`defaultvalue`/`<textarea>` value rewrites still apply — but for different reasons that deferral does not replace: authoring-source tooling (`style="{...}"` breaks HTML/CSS linters) and attribute-vs-property correctness for controlled form fields.
 
@@ -1430,7 +1431,7 @@ When you inspect rendered HTML in the browser, you should expect to see runtime-
 Normal runtime output includes:
 
 - `pp-component="..."` on mounted roots.
-- `script[type="text/pp"]` for owned component scripts.
+- plain owned component `<script>` elements during deferred bootstrap; the runtime removes them from the rendered component template after capturing their source.
 - internal attributes such as captured ref tokens and event-owner bookkeeping.
 
 These are runtime details.
@@ -1449,9 +1450,9 @@ Use these rules when generating or editing PulsePoint runtime code:
 - For simple forms, bind `onsubmit` in the authored HTML and read named fields with `Object.fromEntries(new FormData(event.currentTarget).entries())`; do not generate per-input refs or effect-managed submit listeners just to gather values.
 - Treat `pp.rpc()` as the default browser-to-server path for CRUD operations and interactive backend reads.
 - Use `public/js/pp-reactive-v2.js` as the shipped runtime contract AI should follow.
-- Keep `main.py` in view because it injects the runtime-facing attributes and rewrites authored scripts before the browser sees them.
+- Keep `main.py` in view because it injects runtime-facing component attributes and defers roots before the browser sees live component DOM.
 - If a development-only source tree exists behind the shipped runtime, treat it as optional implementation detail rather than something generated apps are guaranteed to contain.
-- In authored Caspian templates, do not handwrite `pp-component` or `type="text/pp"`; let the render pipeline inject them.
+- In authored Caspian templates, do not handwrite `pp-component`; let the render pipeline inject it, and keep owned logic in a plain `<script>`.
 - For grouped subtrees, follow the section layout pattern in [routing.md](./routing.md), keep the shared interactive shell in the parent folder's `layout.html`, and keep route-specific PulsePoint code in each child `index.html`.
 - For grouped shells with independent shell and content scrolling, put `pp-reset-scroll="true"` on the content pane rather than the whole shell when only the page content should reset between child-route navigations.
 - Prefer PulsePoint state and template directives over manual DOM mutation for reactive updates.
@@ -1462,7 +1463,7 @@ Use these rules when generating or editing PulsePoint runtime code:
 - Avoid generating ids, `data-*` state, `querySelector`, `getElementById`, `addEventListener`, manual `innerHTML`, or custom event buses for normal Caspian UI behavior.
 - Avoid data-attribute click wiring such as `data-action="save"` plus a delegated listener. Use `onclick="save()"` or `onsubmit="{save(event)}"` in authored HTML and keep reactive state in `pp.state(...)`.
 - If you are explicitly editing raw runtime HTML or internals, keep `pp-component` unique per live instance.
-- In authored templates, use a plain `<script>` inside the root. In runtime HTML, the owned script appears as `script[type="text/pp"]`.
+- In authored templates, use a plain, untyped `<script>` inside the root. PulsePoint safely captures it during deferred bootstrap and morph insertion.
 - Keep template-facing variables at top level.
 - Follow the HTML-first context pattern: `pp.createContext(...)`, a lowercase provider tag such as `<themecontext.provider value="{...}">`, and `pp.context(token)`.
 - Do not invent `pp.provideContext`, `pp-context`, or other legacy context helpers.
@@ -1503,7 +1504,7 @@ Also avoid:
 - `pp-dynamic-script`
 - `pp-dynamic-meta`
 - `pp-dynamic-link`
-- handwritten `pp-component="..."` or `type="text/pp"` in authored route, layout, or component templates
+- handwritten `pp-component="..."` in authored route, layout, or component templates
 - `pp.fetchFunction()` as the current raw runtime helper name
 - made-up hooks, directives, or globals not present in the current bundled runtime
 
@@ -1513,8 +1514,9 @@ These are current runtime caveats that matter for authors and AI tools:
 
 - `pp-component` is the registry key for instances, state, parent tracking, and templates. Treat it as unique per mounted root.
 - `public/js/pp-reactive-v2.js` is the runtime surface that ships and should be assumed to exist.
-- Caspian already injects `pp-component` and rewrites owned scripts to `type="text/pp"` during render.
-- Nested roots without their own `script[type="text/pp"]` block are not fully isolated during parent template compilation.
+- Caspian injects `pp-component` and preserves owned scripts as plain elements inside deferred roots.
+- PulsePoint captures and empties plain scripts before a deferred root or later morph becomes live, preventing native browser execution while preserving component-scope evaluation.
+- Nested roots without their own plain owned `<script>` block are not fully isolated during parent template compilation.
 - The global `pp` singleton auto-mounts on DOM ready, and `pp.mount()` is idempotent.
 - `pp.effect` and `pp.layoutEffect` are cleanup-style hooks. Their callbacks are not promise-aware.
 - Callback refs may return synchronous cleanup functions, which run instead of a later `callback(null)` detach call.

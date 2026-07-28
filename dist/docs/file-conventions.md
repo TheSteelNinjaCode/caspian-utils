@@ -44,7 +44,7 @@ For authored route, layout, loading, not-found, and error HTML files, keep exact
 
 - Keep any `<!-- @import ... -->` directives above that root. They are header directives for the file, not children of the root element.
 - Keep any owned plain `<script>` inside that root, not after it.
-- Do not handwrite `pp-component` or `type="text/pp"`.
+- Do not handwrite `pp-component`; keep owned component logic in a plain `<script>` inside the single root.
 
 This is a runtime requirement, not a style preference.
 

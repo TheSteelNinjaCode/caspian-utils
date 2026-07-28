@@ -109,7 +109,7 @@ Preferred lookup order:
 
 1. Read `node_modules/caspian-utils/dist/docs/index.md` to discover available local docs.
 2. Read `./caspian.config.json` before making any feature assumption. A doc existing in the package does not mean that feature is enabled in the current project.
-3. Before authoring or editing any `src/app/**` or component HTML template, apply the single-root invariant: one authored root only, any owned `<script>` inside that root, and no handwritten `pp-component` or `type="text/pp"`.
+3. Before authoring or editing any `src/app/**` or component HTML template, apply the single-root invariant: one authored root only, any owned plain `<script>` inside that root, and no handwritten `pp-component`.
 4. Before inventing browser JavaScript, check whether the interaction is first-party UI behavior. If it is, use PulsePoint `on*` attributes, `pp.state`, refs, effects, directives, and `pp.rpc()` rather than id-driven DOM scripting.
 5. When Prisma is enabled, route all Python database work through the generated Prisma Python ORM. Use `database.md` before schema, migration, seed, or ORM decisions, and use `fetch-data.md` before wiring route data or RPC flows.
 6. If the task asks for WebSockets, live bidirectional channels, socket origin checks, or native browser `WebSocket` clients, confirm `caspian.config.json` has `websocket: true`, read `websockets.md`, then inspect `main.py`, `src/lib/**`, the owning `src/app/**` route, and `settings/bs-config.json`. If `websocket` is false and the user wants it, ask first, then enable the config flag and follow the update workflow.
