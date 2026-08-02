@@ -118,7 +118,7 @@ The server also emits `meta[name="pp-root-layout"]` for SPA compatibility checks
 Two boundary *shapes* are also runtime-owned and appear only in rendered DOM:
 
 - `<div pp-component="…" style="display: contents">` — the **boundary host**. The render pipeline emits it when a template has no single element of its own to carry `pp-component`: a multi-root page or layout, and a component whose authored root is another `x-*` tag. It is layout-neutral, so it changes identity and scope, never geometry. See "Multi-root pages and layouts" below.
-- `<pp-fragment style="display: contents">`, materialized at mount from a `<!--pp:id-->…<!--/pp-->` comment pair — the **range boundary**, a boundary around a run of siblings rather than around one element. Comment markers are legal inside `<tbody>`, `<ul>` and `<select>` where a wrapper element would be foster-parented out by the HTML parser, so this is the wire used where an element host cannot go; the runtime skips materialization under those parents and leaves the markers in place. The browser runtime accepts this shape today, but **no Caspian render path emits it yet** — never hand-write `<!--pp:…-->` markers or a `<pp-fragment>` tag. Multi-root authoring goes through the boundary host above.
+- `<pp-fragment style="display: contents">`, materialized at mount from a `<!--pp:id-->…<!--/pp-->` comment pair — the **range boundary**, a boundary around a run of siblings rather than around one element. Comment markers are legal inside `<tbody>`, `<ul>` and `<select>` where a wrapper element would be foster-parented out by the HTML parser, so this is the wire used where an element host cannot go; the runtime skips materialization under those parents and leaves the markers in place. The compiler emits this pair for a **component** whose template has sibling top-level nodes — the fragment shape — so never hand-write `<!--pp:…-->` markers or a `<pp-fragment>` tag; write the siblings and let the compiler frame them. A multi-root *page or layout* still uses the boundary host above. See "Fragment components" below.
 
 ### Component-script hooks (the whole list)
 
@@ -402,12 +402,47 @@ renders as:
 What this does and does not change:
 
 - **It applies to `.py` sources only** — the fragment host is gated on the template coming from `index.py` / `layout.py`. A `.html` template still requires a single root.
-- **It does not apply to components.** A component's `html(...)` must still resolve to one root, because the parent splices that root into its own tree and reconciles it by identity. Wrap sibling-looking sections in one element, or promote the group to its own page/layout.
+- **A component takes a different shape.** A multi-root component is a *fragment* and gets the comment-pair range boundary instead of this host — see "Fragment components" below.
 - **`display: contents` means the host is not in layout**, so it does not break a flex/grid parent, and margins, gaps and selectors behave as if the children were direct siblings. It is still a real element in the DOM and in `querySelector` results.
 - **The owned `<script>` still belongs inside the template**, and is still one script for the whole boundary — the host is the boundary, so the script's `pp.state`, refs and handlers cover every root.
 - **`pp.props` still reads from the host.** A layout or page host carries no `x-*` attributes, so this matters mainly for the component case below.
 
 Prefer a real wrapper element when you have a natural one; the host exists so that a page whose sections are genuinely siblings does not need a meaningless `<div>`.
+
+### Fragment components
+
+A **component** whose `html(...)` has sibling top-level nodes is a fragment — the equivalent of React's `<>…</>`. There is nothing to type: write the siblings.
+
+```python
+# src/app/demo/Tally.py — legal
+@component
+def Tally(**props):
+    return html(r"""
+      <button onclick="{setN(n + 1)}">{n}</button>
+      <p>{n}</p>
+      <script>const [n, setN] = pp.state(0);</script>
+    """)
+```
+
+renders as:
+
+```html
+<!--pp:tally_7efd1e81--><button onclick="{setN(n + 1)}">{n}</button><p>{n}</p>…<!--/pp-->
+```
+
+The comment pair is the boundary. At mount the runtime replaces it with a live `<pp-fragment style="display: contents" pp-component="tally_7efd1e81">`, which behaves as an ordinary boundary from then on: state, events, refs, context and re-renders all work, and sibling instances stay independent.
+
+Why comments rather than the `display: contents` host a page gets:
+
+- **A fragment adds no element to the served markup.** The host is a real `<div>` in the response; the fragment is not.
+- **Comments are legal in every content context.** A wrapper element written inside `<tbody>`, `<tr>`, `<select>` or `<optgroup>` is foster-parented out by the HTML parser, taking its children with it. This makes a component that returns two `<tr>` rows expressible for the first time.
+
+Two rules:
+
+- **A fragment cannot receive props.** Props arrive as attributes on a component's rendered root, and a fragment has no root — `pp.props` would be silently empty. Passing any attribute (including `pp-ref`) on the `<x-*>` tag of a fragment component raises `FragmentPropsError` at render time, naming the attributes. Give the component a single native root when it takes props.
+- **Inside `<tbody>`/`<tr>`/`<select>`/`<optgroup>` a fragment is grouping only.** The runtime deliberately leaves markers under those parents as comments rather than inserting a wrapper the next re-render would hoist, so the content renders but the fragment owns no identity there. A fragment that needs its own `<script>`, state or events must sit somewhere an element could also live.
+
+Never hand-write `<!--pp:…-->` or `<pp-fragment>`. They are compiler and runtime output; an authored marker is refused by the render cache and will not behave like a boundary.
 
 ### The composition host
 

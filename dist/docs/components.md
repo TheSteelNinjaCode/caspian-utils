@@ -430,9 +430,9 @@ def Counter(label: str = "Clicks", **props):
     """, label=label)
 ```
 
-The fix is always the same: move the `<script>` above the root's closing tag so the whole return value is one element. Caspian has no fragment tag, and a **component** gets no multi-root relaxation — the single root must be a real native element or one `x-*` tag — so if a component genuinely needs sibling-looking sections, wrap them all in one outer element (a `<div>` or `<section>`) and keep the script inside that wrapper.
+The fix is usually the same: move the `<script>` above the root's closing tag so the whole return value is one element. If the component genuinely needs sibling sections, leaving them as siblings is also legal — that makes it a *fragment*, and the compiler frames it with a comment-pair boundary instead of injecting `pp-component` onto a root. A fragment cannot receive props, so wrap in one outer element whenever the component takes any.
 
-Pages and layouts are the exception: `index.py` and `layout.py` may return sibling top-level nodes, and the compiler wraps them in a `display: contents` boundary host instead of raising. See [pulsepoint.md](./pulsepoint.md) "Multi-root pages and layouts". Do not read that as permission to leave a component multi-rooted.
+Pages and layouts take a different shape: `index.py` and `layout.py` return sibling top-level nodes inside a `display: contents` boundary host, not a comment pair. See [pulsepoint.md](./pulsepoint.md) "Multi-root pages and layouts" and "Fragment components".
 
 ## Component Imports Are Python Imports
 
@@ -560,17 +560,17 @@ Treat `pp-component="componentName"` as framework output, not authored source. T
 
 ## Single-Root Rule
 
-Every component template must render exactly one authored top-level parent node.
+A component template should normally render exactly one authored top-level parent node. Sibling top-level nodes are legal and make the component a *fragment* (see [pulsepoint.md](./pulsepoint.md) "Fragment components"), but only a single-root component can receive props.
 
 In source, that parent may be a native HTML element or a single imported `x-*` component tag. After component expansion, the template must still resolve to one final native HTML root so Caspian has exactly one place to inject `pp-component`.
 
-This is not just style guidance. The installed compiler injects `pp-component` onto the final root element, and it raises `TemplateRootError` when a component template has no root, multiple sibling roots, a sibling script after the root, or stray top-level text.
+This is not just style guidance. The installed compiler injects `pp-component` onto the final root element, and it raises `TemplateRootError` when a component template has no root at all, or when its only root is an unresolvable tag. Sibling roots (including a sibling script after the root, or stray top-level text) no longer raise — they produce a fragment boundary, and the component then cannot take props: any attribute on its `<x-*>` tag raises `FragmentPropsError`.
 
 Route and layout templates — the markup returned from `page()` via `html(...)` and the template string returned from `layout()` — follow the same shape by default but are **not** held to it: when a `.py` page or layout has sibling top-level nodes, the compiler wraps them in a `display: contents` boundary host rather than raising. See [routing.md](./routing.md) and [pulsepoint.md](./pulsepoint.md) "Multi-root pages and layouts".
 
 When a component's authored root *is* another `x-*` tag, the compiler gives it the same layout-neutral host so it owns a boundary of its own, and forwards the parent's `x-*` attributes onto that host so they resolve as this component's `pp.props`. That extra `display: contents` div in rendered DOM is expected output.
 
-For AI-generated templates, treat this as a hard authoring rule: write the HTML the same way a React component returns one parent node — one parent, script inside it. The analogy covers the *number of roots*, nothing about the syntax inside them: the body is plain HTML, not JSX.
+For AI-generated templates, default to one parent node with the script inside it, exactly as a React component usually returns one parent — and reach for the fragment shape only when the siblings are genuinely siblings (most often `<tr>` rows or `<option>`s that cannot take a wrapper). The React analogy covers the *number of roots*, nothing about the syntax inside them: the body is plain HTML, not JSX.
 
 Failure shape to avoid:
 
