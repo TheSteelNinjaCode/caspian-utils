@@ -335,7 +335,13 @@ Resolved SEO fields are exposed to layout templates as `{{ metadata.* }}`, while
 
 ### `layout.py`
 
-`layout()` returns the shared wrapper markup for its subtree as a **raw template string**. The runtime compiles that string later — with `children`, `{{ layout.* }}`, and `{{ metadata.* }}` in scope — so `layout()` must not pre-render it through `html(...)`.
+`layout()` returns the shared wrapper markup for its subtree through `html(...)`, the same single markup entrypoint pages and components use.
+
+A layout is the one caller whose markup cannot be rendered when the function runs: `children` is the page beneath it, which has not been composed yet. So `html(...)` called from a `layout()` does **not** render — it hands the template back unrendered, and the runtime renders it once later with `children`, `{{ layout.* }}` and `{{ metadata.* }}` merged into whatever context you passed. Those three names are engine-owned and win over your context, so a layout cannot accidentally shadow its own `children`.
+
+The deferral is keyed on the `layout()` function itself, not on "anything that runs during a layout": a component the layout calls, or a helper in the same file, still renders eagerly and immediately.
+
+A layout must place its children somewhere — `<slot />` or `{{ children }}`. One that does neither raises `LayoutChildrenError` instead of silently serving a shell with no page in it.
 
 Follow the same authoring contract used by route templates: one authored parent node, a plain `<script>` inside the root when needed, and no handwritten `pp-component`. `<x-*>` tags in the returned template resolve from the Components imported at the top of `layout.py`. See [pulsepoint.md](./pulsepoint.md) for the canonical authored-vs-runtime explanation.
 
@@ -347,7 +353,7 @@ Example root layout (`src/app/layout.py`):
 
 ```python
 def layout():
-    return r"""
+    return html(r"""
 <!DOCTYPE html>
 <html>
   <head>
@@ -358,15 +364,16 @@ def layout():
     <slot />
   </body>
 </html>
-"""
+""")
 ```
 
 `layout()` currently supports these result shapes:
 
-- `str`: the layout template for the subtree
-- `(template_string, props_dict)`: the template plus `{{ layout.* }}` props
+- `html(...)`: the layout template for the subtree, plus any context you pass — **the form to write**
+- `(html(...), props_dict)`: the template plus `{{ layout.* }}` props
 - `dict`: a passthrough `<slot />` shell plus `{{ layout.* }}` props
 - `None`: a passthrough `<slot />` shell with no extra layout props
+- `str`: the legacy raw-template form, still supported — `html(...)` in a layout produces exactly this string plus its context
 
 Example with shared props:
 

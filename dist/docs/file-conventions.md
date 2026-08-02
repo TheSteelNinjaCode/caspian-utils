@@ -119,6 +119,7 @@ Any `<x-*>` tags in the returned template resolve from the Components imported a
 Example:
 
 ```python
+from casp.component_decorator import html
 from casp.layout import Metadata
 from src.components.DocsNav import DocsNav
 
@@ -129,7 +130,7 @@ metadata = Metadata(
 
 
 def layout():
-    return r"""
+    return html(r"""
 <div class="docs-shell">
   <aside class="docs-nav"><x-docs-nav /></aside>
 
@@ -137,7 +138,7 @@ def layout():
     <slot />
   </main>
 </div>
-""", {
+"""), {
         "shell_class": "docs-shell",
     }
 ```
