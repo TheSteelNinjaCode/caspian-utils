@@ -30,7 +30,7 @@ Do not assume React, Vue, Svelte, JSX, Alpine, HTMX, or older PulsePoint docs un
 
 Apply these before generating any template, even without reading the rest of this page:
 
-1. One authored top-level root per route, layout, or component template; the owned plain `<script>` lives inside that root, never as a sibling.
+1. One authored top-level root per route, layout, or component template; the owned plain `<script>` lives inside that root, never as a sibling. A **component** must satisfy this or the render fails; a `.py` page or layout may have sibling top-level nodes and gets a `display: contents` boundary host. Either way there is no fragment tag to write.
 2. Never handwrite `pp-component`, `data-pp-ref`, or other runtime-managed attributes; the render pipeline injects them. Keep owned component logic in a plain, untyped `<script>` inside the root.
 3. Bind first-party events with native `on*` attributes in the HTML; never wire normal UI with ids, `querySelector`, `addEventListener`, or manual `innerHTML`.
 4. For ordinary form submits, use `onsubmit="{handler(event)}"` plus `Object.fromEntries(new FormData(event.currentTarget).entries())`; refs are for imperative access only.
@@ -66,7 +66,7 @@ Each row is a real failure, not a style preference.
 | `className=` | Not an HTML attribute. Ignored. | `class=` |
 | `onClick={fn}` | Not a DOM event attribute in HTML (attributes are case-insensitive, so this lands as `onclick` with a JSX value). | `onclick="{fn()}"` |
 | `htmlFor=`, `key={x}` in JSX braces | `htmlFor` is not HTML; `key` is a plain attribute here. | `for=`, `key="{x}"` |
-| `<>…</>` fragments | Parsed as an unknown tag. Also breaks the single-root rule. | One real root element. |
+| `<>…</>` fragments | Parsed as an unknown tag. | One real root element — or, in a page/layout only, plain sibling nodes with no wrapper at all. |
 | `style={{color:'red'}}` | Double-brace object literal is not CSS text. | `pp-style="{'color:red'}"` — a **string**, not an object. |
 | `dangerouslySetInnerHTML` | Does not exist. | Server-render trusted HTML, or use `pp-for` over real data. |
 
@@ -91,6 +91,8 @@ Before writing a template, ask: *"Would this file be valid HTML if I deleted eve
 | `pp-for="item in items"` / `"(item, index) in items"` | **`<template>` only** | Keyed list rendering |
 | `key="{expr}"` | Repeated sibling inside a `pp-for` template | Keyed diffing identity |
 | `pp-ref="name"` / `pp-ref="{expr}"` | Native elements and `x-*` component tags | Imperative element access |
+| `defaultvalue="{expr}"` (lowercase) | `<input>`, `<textarea>`, `<select>` | Seed an **uncontrolled** field once, without binding it to state |
+| `defaultchecked="{expr}"` (lowercase) | `<input type="checkbox">`, `<input type="radio">` | Seed an **uncontrolled** checkbox/radio once |
 | `pp-style="{cssText}"` | Any element | Dynamic inline style, as a **CSS string** |
 | `pp-spread="{...obj}"` | Any element | Spread an object into attributes |
 | `<token.provider value="{v}">` (lowercase) | Anywhere in markup | Context provider |
@@ -103,6 +105,8 @@ Before writing a template, ask: *"Would this file be valid HTML if I deleted eve
 
 There is **no** `pp-if`, `pp-show`, `pp-else`, `pp-model`, `pp-bind`, `pp-class`, `pp-text`, `pp-html`, `pp-on`, or `pp-key`. Conditionals are `hidden="{...}"`; two-way binding is `value="{state}"` plus an `oninput` handler.
 
+**A form control is controlled or uncontrolled for its lifetime, not both.** `value="{state}"` / `checked="{state}"` is the controlled form; `defaultvalue` / `defaultchecked` is the uncontrolled form, applied once and then left alone so the user's typing is never overwritten. Switching an element between the two — usually by binding `value` to state that starts `undefined` — makes the runtime log `[PP-WARN] <input#email> changed from uncontrolled to controlled.` once per element. Fix it by giving the state a defined initial value, not by adding both attributes. These are lowercase HTML attributes; the React spellings `defaultValue` and `defaultChecked` are not props here and do nothing.
+
 ### Runtime-managed — never author these
 
 The render pipeline or the browser runtime writes these. Handwriting them corrupts instance tracking or reconciliation:
@@ -110,6 +114,11 @@ The render pipeline or the browser runtime writes these. Handwriting them corrup
 `pp-component`, `pp-owner`, `pp-event-owner`, `pp-ref-owner`, `pp-ref-forward`, `<pp-context-provider>` (the generated tag), `data-pp-context-token`, `data-pp-context-value`, `data-pp-fragment-root`, `data-pp-script-source`, `data-pp-ref`, `data-pp-input-value`, `data-pp-default-value`, `data-pp-checked-value`, `data-pp-default-checked`, `data-pp-select-value`, `pp-keep`, `pp-keep-run`, and `pp-keep-content`.
 
 The server also emits `meta[name="pp-root-layout"]` for SPA compatibility checks. These names may appear in rendered or transient runtime HTML, but none belongs in authored route or component templates.
+
+Two boundary *shapes* are also runtime-owned and appear only in rendered DOM:
+
+- `<div pp-component="…" style="display: contents">` — the **boundary host**. The render pipeline emits it when a template has no single element of its own to carry `pp-component`: a multi-root page or layout, and a component whose authored root is another `x-*` tag. It is layout-neutral, so it changes identity and scope, never geometry. See "Multi-root pages and layouts" below.
+- `<pp-fragment style="display: contents">`, materialized at mount from a `<!--pp:id-->…<!--/pp-->` comment pair — the **range boundary**, a boundary around a run of siblings rather than around one element. Comment markers are legal inside `<tbody>`, `<ul>` and `<select>` where a wrapper element would be foster-parented out by the HTML parser, so this is the wire used where an element host cannot go; the runtime skips materialization under those parents and leaves the markers in place. The browser runtime accepts this shape today, but **no Caspian render path emits it yet** — never hand-write `<!--pp:…-->` markers or a `<pp-fragment>` tag. Multi-root authoring goes through the boundary host above.
 
 ### Component-script hooks (the whole list)
 
@@ -367,7 +376,50 @@ For authored Caspian templates:
 - Put the component logic inside a plain `<script>` inside that same root.
 - Do not handwrite `pp-component="..."`.
 
-Treat that single-root rule as a hard invariant for AI-generated templates. A sibling `<script>` after the root or any second top-level element will break Caspian's `pp-component` injection and fail the render.
+Single-root is the shape to write by default, and for a **component** it is still a hard invariant: a component template with a sibling `<script>` after the root, a second top-level element, or stray top-level text raises `TemplateRootError` and fails the render.
+
+### Multi-root pages and layouts
+
+A **page** (`page()` → `html(...)` in `index.py`) and a **layout** (`layout()` in `layout.py`) may return more than one top-level node. When the compiler finds no single root there, it wraps the whole template in a layout-neutral boundary host instead of raising:
+
+```python
+# src/app/demo/index.py — legal
+return html(r"""
+  <h1>Title</h1>
+  <p>Body</p>
+  <script>
+    const [count, setCount] = pp.state(0);
+  </script>
+""")
+```
+
+renders as:
+
+```html
+<div pp-component="page_…" style="display: contents"><h1>Title</h1><p>Body</p>…</div>
+```
+
+What this does and does not change:
+
+- **It applies to `.py` sources only** — the fragment host is gated on the template coming from `index.py` / `layout.py`. A `.html` template still requires a single root.
+- **It does not apply to components.** A component's `html(...)` must still resolve to one root, because the parent splices that root into its own tree and reconciles it by identity. Wrap sibling-looking sections in one element, or promote the group to its own page/layout.
+- **`display: contents` means the host is not in layout**, so it does not break a flex/grid parent, and margins, gaps and selectors behave as if the children were direct siblings. It is still a real element in the DOM and in `querySelector` results.
+- **The owned `<script>` still belongs inside the template**, and is still one script for the whole boundary — the host is the boundary, so the script's `pp.state`, refs and handlers cover every root.
+- **`pp.props` still reads from the host.** A layout or page host carries no `x-*` attributes, so this matters mainly for the component case below.
+
+Prefer a real wrapper element when you have a natural one; the host exists so that a page whose sections are genuinely siblings does not need a meaningless `<div>`.
+
+### The composition host
+
+The same layout-neutral host appears in a second case: a component whose authored root is *itself* another component tag.
+
+```python
+return html(r"""<x-card title="{label}">…</x-card>""", label=label)
+```
+
+The inner `<x-card>` root already owns a `pp-component`, so this component is given its own host to own — and the props the parent passed on *its* `x-*` tag are forwarded onto that host, which is what makes them resolve as `pp.props` in this component's script, evaluated in the parent's scope. The runtime also stamps `pp-ref-forward` on the host so a parent's `pp-ref` on this component still lands on the concrete DOM root inside, matching ref forwarding through a wrapper.
+
+Practical consequence when reading rendered DOM: an extra `display: contents` div between two component roots is expected output, not a bug and not something to author around.
 
 Keep visible route, layout, and component markup in the HTML templates. Treat `index.py` and `layout.py` as backend companions for data, metadata, props, RPC actions, auth, caching, redirects, and other server-side preparation, not as template bodies.
 
@@ -1548,9 +1600,9 @@ JSX constructs in markup — these are the highest-frequency generation failure,
 - `{cond && (<element/>)}` or `{cond ? <A/> : <B/>}` element-returning branches — use `hidden="{...}"`
 - `{list.map(item => (<element/>))}` — use `<template pp-for="item in list">`
 - unquoted brace attributes: `class={…}`, `selected={…}`, `value={…}`, `disabled={…}` — always quote: `class="{…}"`
-- `className`, `htmlFor`, `onClick`/`onChange`/`onSubmit` camelCase event props, `defaultValue` as a React prop, `dangerouslySetInnerHTML`
+- `className`, `htmlFor`, `onClick`/`onChange`/`onSubmit` camelCase event props, camelCase `defaultValue`/`defaultChecked` (the lowercase HTML attributes are real — see the directive table), `dangerouslySetInnerHTML`
 - `style={{ color: "red" }}` object literals — `pp-style` takes a CSS **string**
-- `<>…</>` fragments, or any second top-level node
+- `<>…</>` fragments — there is no fragment tag; a page or layout may simply have sibling top-level nodes, and a component may not
 - `key` written as a JSX brace prop outside a quoted attribute
 - imported/returned components as JavaScript values — components are server-side `x-*` tags
 

@@ -32,18 +32,20 @@ Start with these rules:
 - When a folder owns child routes, add `layout.py` whose `layout()` returns the shared wrapper template. This is the default pattern for dashboards, admin sections, account areas, settings trees, and route groups.
 - In grouped shells with separate shell and content scrolling, put `pp-reset-scroll="true"` on the content pane in the layout template when that pane should reset on child-route navigation while the shell sidebar or rail keeps its own scroll.
 - Components used as `<x-*>` tags in a page or layout template resolve from the Python imports at the top of that module.
-- Treat every authored route and layout template like a React component body **for root counting only**: exactly one top-level parent HTML element or one imported `x-*` root, with any owned plain `<script>` inside that same root. The markup itself is plain HTML, never JSX — see [pulsepoint.md](./pulsepoint.md) "PulsePoint Is Not JSX".
+- Treat every authored route and layout template like a React component body **for root counting only**: normally one top-level parent HTML element or one imported `x-*` root, with any owned plain `<script>` inside that same root. Sibling top-level nodes are permitted in a `.py` route or layout and get a compiler-supplied boundary host — see "Template Root Shape" below. The markup itself is plain HTML, never JSX — see [pulsepoint.md](./pulsepoint.md) "PulsePoint Is Not JSX".
 - For route and layout interactivity, use PulsePoint in the authored markup first: native `on*` event attributes, `pp.state(...)`, refs, effects, directives, and `pp.rpc()`. Do not create standard JavaScript event systems with ids, `data-*` state, `querySelector`, `addEventListener`, or manual `innerHTML` for normal first-party UI.
 
-## Hard Template Invariant
+## Template Root Shape
 
-For authored route and layout templates, the single-root rule is a hard runtime requirement.
+Single-root is the shape to write for a route or layout by default.
 
 - Use exactly one authored parent node.
 - Keep any owned plain `<script>` inside that root, not after it.
 - Do not leave sibling top-level HTML tags, sibling component tags, or stray top-level text.
 
-If AI generates this incorrectly, Caspian fails render with errors like `must have exactly one top-level HTML element so Caspian can inject pp-component`.
+A `.py` route or layout that does end up with sibling top-level nodes is **not** a render failure: the compiler wraps the whole template in a layout-neutral `<div pp-component style="display: contents">` boundary host. Use that when a page's sections are genuinely siblings and a wrapper `<div>` would be meaningless; keep the single owned `<script>` inside the template as usual. See [pulsepoint.md](./pulsepoint.md) "Multi-root pages and layouts".
+
+The relaxation stops at routes and layouts. A **component** template is still held to one root and fails render with `must have exactly one top-level HTML element so Caspian can inject pp-component` — see [components.md](./components.md) "Single-Root Rule". A `.html` template is also still held to one root; the host applies to `.py` sources.
 
 Use [cache.md](./cache.md) when an `index.py` route also needs declarative page caching via `Cache(...)`.
 

@@ -41,13 +41,13 @@ Treat `caspian.config.json` and the actual project tree as the source of truth f
 
 ## Authored Markup Rule
 
-For route markup, layout templates, and the special HTML files, keep exactly one top-level parent HTML element or one imported `x-*` component root.
+For route markup, layout templates, and the special files, keep one top-level parent HTML element or one imported `x-*` component root.
 
 - Keep any owned plain `<script>` inside that root, not after it.
 - Do not handwrite `pp-component`; keep owned component logic in a plain `<script>` inside the single root.
 - Components used as `<x-*>` tags resolve from the Python imports at the top of the owning module.
 
-This is a runtime requirement, not a style preference.
+This is a runtime requirement for **components**, which fail render when multi-rooted. For a `.py` route or layout it is the recommended shape rather than a hard limit: sibling top-level nodes are wrapped in a layout-neutral boundary host instead of raising. See [pulsepoint.md](./pulsepoint.md) "Multi-root pages and layouts".
 
 ## `index.py`
 
