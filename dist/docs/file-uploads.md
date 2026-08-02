@@ -18,11 +18,11 @@ This page documents the recommended file upload and file manager pattern for Cas
 
 Treat uploads as normal route behavior. Keep the owning browser UI in the route template, keep upload and delete `@rpc()` actions in the owning route `index.py`, and move reusable storage or persistence helpers into `src/lib/`.
 
-If the file manager lives inside a grouped subtree such as a dashboard, account area, or admin area, apply the section layout pattern from [routing.md](./routing.md): keep the shared shell in the parent folder's `layout.html` and keep the file-manager route itself in a child folder.
+If the file manager lives inside a grouped subtree such as a dashboard, account area, or admin area, apply the section layout pattern from [routing.md](./routing.md): keep the shared shell in the parent folder's `layout.py` and keep the file-manager route itself in a child folder.
 
 ## Source Of Truth
 
-- File picker UI and upload progress state belong in `src/app/**/index.html`.
+- File picker UI and upload progress state belong in the route's page template inside `src/app/**/index.py`.
 - Upload, delete, and list refresh actions belong in the owning `src/app/**/index.py` as `@rpc()` actions.
 - Reusable storage, naming, and persistence helpers belong in `src/lib/**`.
 - Durable metadata belongs in Prisma when `caspian.config.json` enables Prisma.
@@ -45,7 +45,7 @@ If the file manager lives inside a grouped subtree such as a dashboard, account 
 
 | Concern | Preferred location | Notes |
 | --- | --- | --- |
-| File picker UI, tabs, filters, progress state | `src/app/**/index.html` | Use PulsePoint state and template rendering. |
+| File picker UI, tabs, filters, progress state | the page template in `src/app/**/index.py` | Use PulsePoint state and template rendering. |
 | Upload and delete `@rpc()` actions | `src/app/**/index.py` | Keep these route-local so they stay close to the owning page. |
 | Shared storage, normalization, and persistence helpers | `src/lib/**` | Reuse helpers across routes without pushing route behavior into app bootstrap. |
 | Upload metadata model | `prisma/schema.prisma` | Persist owner, file name, MIME type, path, size, collection, and timestamps in Prisma. |
@@ -70,13 +70,13 @@ Section example:
 src/
   app/
     dashboard/
-      layout.html
+      layout.py
       files/
         index.py
-        index.html
+        index.py
 ```
 
-In that pattern, `dashboard/layout.html` owns the shared dashboard shell, while `dashboard/files/index.py` owns the initial file-manager payload and the upload or delete `@rpc()` actions.
+In that pattern, `dashboard/layout.py` owns the shared dashboard shell, while `dashboard/files/index.py` owns the initial file-manager payload and the upload or delete `@rpc()` actions.
 
 ## Example Route-Local RPC
 

@@ -41,7 +41,7 @@ Metadata is typically defined in one of two files:
 
 For dashboard sections, account areas, docs sections, and route groups, apply the section layout pattern from [routing.md](./routing.md): put shared metadata defaults in the section's `layout.py`, then override them in child `index.py` files only when a leaf page needs different SEO.
 
-On routes that render UI, keep the page markup in the sibling `index.html` and keep shared wrapper markup in `layout.html`. `index.py` and `layout.py` are metadata and backend companions, not the places to store visible route or layout HTML. If a route needs no metadata or backend behavior, omit `index.py` and keep the page as `index.html` only.
+A route's markup, metadata, and backend behavior all live in its `index.py`; shared wrapper markup and subtree metadata defaults live in `layout.py`.
 
 The current `Metadata` implementation supports three fields:
 
@@ -56,7 +56,8 @@ For metadata that does not depend on route params or fetched data, define a modu
 Example:
 
 ```python
-from casp.layout import Metadata, render_page
+from casp.component_decorator import html
+from casp.layout import Metadata
 
 metadata = Metadata(
     title="About Us | My App",
@@ -70,7 +71,11 @@ metadata = Metadata(
 )
 
 async def page():
-    return render_page(__file__)
+    return html(r"""
+<section class="page">
+  <!-- page markup -->
+</section>
+""")
 ```
 
 Use static metadata for:
@@ -94,7 +99,8 @@ For metadata that depends on a dynamic segment or fetched content, instantiate `
 Example:
 
 ```python
-from casp.layout import Metadata, render_page
+from casp.component_decorator import html
+from casp.layout import Metadata
 
 async def page(params: dict):
     slug = params["slug"]
@@ -109,12 +115,16 @@ async def page(params: dict):
         },
     )
 
-    return render_page(__file__, {"name": product_name})
+    return html(r"""
+<section class="page">
+  <!-- page markup -->
+</section>
+""", **{"name": product_name})
 ```
 
 In the current router, dynamic path params arrive as a single `params` dict passed to `page()`.
 
-Set dynamic metadata before calling `render_page(...)` so the route renders with the correct head values.
+Set dynamic metadata inside `page()` before returning `html(...)` so the route renders with the correct head values.
 
 Inside the same module, runtime `Metadata(...)` overrides matching keys from the module-level static `metadata` object.
 
@@ -206,7 +216,7 @@ Keep visual layout data and SEO metadata separate.
 
 - Put site-wide defaults in `src/app/layout.py`.
 - Put section defaults in nested `layout.py` files such as `src/app/blog/layout.py`.
-- For dashboard, admin, account, docs, or grouped sections with child routes, put the shared defaults in that section folder's `layout.py` and keep the shared wrapper in the sibling `layout.html`.
+- For dashboard, admin, account, docs, or grouped sections with child routes, put the shared defaults and the shared wrapper template in that section folder's `layout.py`.
 - Use a route-group `layout.py` such as `src/app/(marketing)/layout.py` only when the grouping folder should not appear in the final URL.
 - Put page-specific static metadata in `index.py`.
 - Put dynamic metadata inside `page()` after you have route params or fetched data.
@@ -220,7 +230,7 @@ If an AI agent is deciding where to put SEO fields, apply these rules first.
 - Instantiate `Metadata(...)` inside `page()` when metadata depends on params, fetched records, or generated content.
 - Put shared defaults in `layout.py` and let leaf pages override only what they need.
 - For grouped subtrees, follow the section layout pattern in [routing.md](./routing.md) and keep shared metadata defaults in the parent folder's `layout.py`.
-- If a single route only needs to tweak a wrapping layout, return `(render_page(__file__, ...), {"dashboard_body_class": ...})` from `page()` instead of moving that prop into metadata.
+- If a single route only needs to tweak a wrapping layout, return `(html(...), {"dashboard_body_class": ...})` from `page()` instead of moving that prop into metadata.
 - Use `extra` for Open Graph and Twitter card tags.
 - Access `extra` values in templates with bracket syntax such as `metadata['og:image']`.
 - Keep `layout()` return data in `{{ layout.* }}` and keep SEO fields in `Metadata(...)`.

@@ -1,6 +1,6 @@
 ---
 title: File Conventions
-description: Use this page when deciding what belongs in `index.html`, `index.py`, `layout.html`, `layout.py`, `loading.html`, `not-found.html`, or `error.html` in a Caspian app.
+description: Use this page when deciding what belongs in `index.py`, `layout.py`, `loading.html`, `not-found.html`, or `error.html` in a Caspian app.
 related:
   title: Related docs
   description: Use the routing guide for URL and subtree behavior, the structure guide for placement, the metadata guide for SEO fields, the cache guide for route-level caching, and the runtime maps when the task crosses into framework internals.
@@ -17,55 +17,68 @@ related:
 
 This page is the quick decision guide for the special file conventions under `src/app`.
 
-Use it when a task names `index.html`, `index.py`, `layout.html`, `layout.py`, `loading.html`, `not-found.html`, or `error.html`, or when the question is where a page shell, route logic, loading UI, 404 page, or 500 page should live.
+Use it when a task names `index.py`, `layout.py`, `loading.html`, `not-found.html`, or `error.html`, or when the question is where a page, route logic, shared shell, loading UI, 404 page, or 500 page should live.
+
+**Authoring is Python-only.** A route is one `index.py` whose `page()` returns markup through `html(...)`; a subtree shell is one `layout.py` whose `layout()` returns its template string. The only authored `.html` files are the special app-level templates: `loading.html`, `not-found.html`, and `error.html`.
 
 Treat `caspian.config.json` and the actual project tree as the source of truth for which features exist in the current workspace. For runtime ownership, verify these rules against:
 
-- `main.py` for global `not-found.html` and `error.html` handling
-- `.venv/Lib/site-packages/casp/layout.py` for `render_page(...)`, `render_layout(...)`, and nested layout behavior
-- `.venv/Lib/site-packages/casp/loading.py` plus `public/js/pp-reactive-v2.js` for `loading.html` collection and SPA loading behavior
-- `.venv/Lib/site-packages/casp/caspian_config.py` for how `index.*`, `layout.html`, and `loading.html` are indexed under `src/app`
+- `main.py` for route registration and the global `not-found.html` / `error.html` handling
+- `.venv/Lib/site-packages/casp/component_decorator.py` for `html(...)`
+- `.venv/Lib/site-packages/casp/layout.py` for `layout()` resolution and nested layout behavior
+- `.venv/Lib/site-packages/casp/loading.py` plus `public/js/pp-reactive-v2.min.js` for `loading.html` collection and SPA loading behavior
+- `.venv/Lib/site-packages/casp/caspian_config.py` for how `index.py`, `layout.py`, and `loading.html` are indexed under `src/app`
 
 ## Quick Map
 
 | File | Purpose | Add it when | Verify against |
 | --- | --- | --- | --- |
-| `index.html` | Authored visible page template for a route | The route renders UI | `src/app/**`, `routing.md`, `pulsepoint.md` |
-| `index.py` | Backend companion for route logic and metadata | The route needs `page()`, metadata, auth checks, redirects, caching, or route-owned `@rpc()` actions | `main.py`, `.venv/Lib/site-packages/casp/layout.py` |
-| `layout.html` | Shared shell for a route subtree | Multiple child routes share wrapper markup | `.venv/Lib/site-packages/casp/layout.py`, `routing.md` |
-| `layout.py` | Shared props and metadata defaults for a subtree | The shared shell needs Python-provided values or metadata | `.venv/Lib/site-packages/casp/layout.py`, `metadata.md` |
-| `loading.html` | Route-scope loading UI used during SPA navigation | A section or page needs an immediate loading state before the next route finishes rendering | `.venv/Lib/site-packages/casp/loading.py`, `public/js/pp-reactive-v2.js` |
+| `index.py` | The route: `page()` returns the page markup via `html(...)`, plus metadata, auth checks, redirects, caching, and route-owned `@rpc()` actions | The route exists | `main.py`, `.venv/Lib/site-packages/casp/layout.py` |
+| `layout.py` | Shared shell for a route subtree: `layout()` returns the wrapper template (and optionally props/metadata) | Multiple child routes share wrapper markup, props, or metadata defaults | `.venv/Lib/site-packages/casp/layout.py`, `routing.md`, `metadata.md` |
+| `loading.html` | Route-scope loading UI used during SPA navigation | A section or page needs an immediate loading state before the next route finishes rendering | `.venv/Lib/site-packages/casp/loading.py`, `public/js/pp-reactive-v2.min.js` |
 | `not-found.html` | Global 404 page | The app needs a branded fallback for unmatched URLs | `main.py` |
 | `error.html` | Global 500 page | The app needs a safe fallback for unhandled exceptions | `main.py` |
 
-## Authored HTML Rule
+## Authored Markup Rule
 
-For authored route, layout, loading, not-found, and error HTML files, keep exactly one top-level parent HTML element or one imported `x-*` component root.
+For route markup, layout templates, and the special HTML files, keep exactly one top-level parent HTML element or one imported `x-*` component root.
 
-- Keep any `<!-- @import ... -->` directives above that root. They are header directives for the file, not children of the root element.
 - Keep any owned plain `<script>` inside that root, not after it.
 - Do not handwrite `pp-component`; keep owned component logic in a plain `<script>` inside the single root.
+- Components used as `<x-*>` tags resolve from the Python imports at the top of the owning module.
 
 This is a runtime requirement, not a style preference.
 
-## `index.html`
+## `index.py`
 
-`index.html` is the authored page template for a route.
+`index.py` is the route. Its `page()` function returns the page markup, and the same module owns everything else the route needs:
 
-Use it for:
+- `page()` returning `html(r"""...""", **context)`
+- metadata
+- auth checks or redirects
+- route-level `Cache(...)`
+- route-owned `@rpc()` actions
+- server-side context computed before rendering
 
-- visible page markup
-- HTML-first `x-*` component usage
-- PulsePoint state, refs, effects, and directives that belong to that route
-- route-local plain `<script>` blocks that stay inside the same root
+Keep logic here when it belongs only to this route. That includes route-specific first-render queries, `@rpc()` actions, auth checks, redirects, filters, validation, upload orchestration, and response shaping. Move logic to `src/lib/**` only when it is shared across routes, components, integrations, or features. Do not extract one-route logic into a library just because it is written in Python.
 
-For any route that renders UI, keep the visible markup here even when the route also has an `index.py` companion.
+When `caspian.config.json` has `prisma: true`, route-specific database access in `index.py` should use the generated Prisma Python ORM from `src/lib/prisma/**`. Shared database helpers may live in `src/lib/**`, but they should still call the generated Prisma Python ORM rather than a separate fetch or driver layer.
 
 Example:
 
-```html
-<!-- @import Button from "../../components/Button.py" -->
+```python
+from casp.component_decorator import html
+from casp.layout import Metadata
+from src.components.Button import Button
 
+metadata = Metadata(
+    title="Dashboard | Caspian",
+    description="Overview page for the dashboard.",
+)
+
+
+async def page(params: dict, request=None):
+    return html(r"""
 <section class="space-y-4 p-6">
   <h1 class="text-2xl font-semibold">Dashboard</h1>
 
@@ -77,46 +90,10 @@ Example:
     const [filter, setFilter] = pp.state("all");
   </script>
 </section>
+""")
 ```
 
-Use `index.html` by itself when the route is UI-only.
-
-## `index.py`
-
-`index.py` is the backend companion for a route.
-
-Add it when the route needs:
-
-- `page()`
-- metadata
-- auth checks or redirects
-- route-level `Cache(...)`
-- route-owned `@rpc()` actions
-- server-side context before rendering the sibling template
-
-For UI routes, `index.py` does not replace `index.html`. It prepares data and calls `render_page(__file__, ...)` so Caspian renders the sibling template.
-
-Keep logic here when it belongs only to this route. That includes route-specific first-render queries, `@rpc()` actions, auth checks, redirects, filters, validation, upload orchestration, and response shaping. Move logic to `src/lib/**` only when it is shared across routes, components, integrations, or features. Do not extract one-route logic into a library just because it is written in Python.
-
-When `caspian.config.json` has `prisma: true`, route-specific database access in `index.py` should use the generated Prisma Python ORM from `src/lib/prisma/**`. Shared database helpers may live in `src/lib/**`, but they should still call the generated Prisma Python ORM rather than a separate fetch or driver layer.
-
-Example:
-
-```python
-from casp.layout import Metadata, render_page
-
-metadata = Metadata(
-    title="Dashboard | Caspian",
-    description="Overview page for the dashboard.",
-)
-
-
-async def page(params: dict, request=None):
-    return render_page(__file__, {
-        "slug": params.get("slug"),
-        "has_request": request is not None,
-    })
-```
+Inside `html(...)`, `{{ ... }}` is server-side Jinja and `{ ... }` stays live for PulsePoint. Prefer a raw string (`r"""..."""`) whenever the markup contains a `<script>` with backslashes.
 
 Current route-parameter behavior:
 
@@ -126,51 +103,24 @@ Current route-parameter behavior:
 
 When one page needs to influence a wrapping layout, `page()` can return `(page_html, layout_props_dict)`.
 
-## `layout.html`
-
-`layout.html` is the shared wrapper for a route subtree.
-
-Use it for:
-
-- shared shell markup such as sidebars, headers, docs rails, or dashboard frames
-- the `<slot />` insertion point for child routes
-- shared layout props consumed as `{{ layout.* }}`
-- shared metadata fields consumed as `{{ metadata.* }}`
-
-Example:
-
-```html
-<div class="docs-shell">
-  <aside class="docs-nav">Docs navigation</aside>
-
-  <main class="docs-content" pp-reset-scroll="true">
-    <slot />
-  </main>
-</div>
-```
-
-Use nested `layout.html` files for sections like `dashboard/`, `docs/`, `account/`, or route groups such as `(marketing)/`.
-
-The child outlet must be a real authored `<slot />` element in `layout.html`. The runtime parses layout HTML and replaces real slot elements during nested rendering; it does not invent an implicit slot from `layout.py` or replace escaped documentation text such as `&lt;slot /&gt;`.
-
-In grouped shells with separate shell and content scrolling, put `pp-reset-scroll="true"` on the content pane that should reset on child-route navigation. Leave persistent shell scrollers such as sidebars unmarked when they should keep their own scroll position.
-
 ## `layout.py`
 
-`layout.py` is the Python companion for `layout.html`.
+`layout.py` is the shared wrapper for a route subtree. Its `layout()` function returns the wrapper template as a **raw string** — the runtime compiles it later with `children`, `{{ layout.* }}`, and `{{ metadata.* }}` in scope, so do not render it through `html(...)` yourself.
 
-Use it for:
+`layout()` may return:
 
-- shared props
-- metadata defaults for everything below that folder
-- small shared layout decisions that belong to the subtree rather than one page
+- a template string — the shared shell markup with a `<slot />` insertion point
+- `(template_string, props_dict)` — shell plus `{{ layout.* }}` props
+- a props dict alone — the subtree gets a passthrough `<slot />` shell
+- `None` — passthrough shell only
 
-Return `render_layout(__file__), props` so the sibling `layout.html` stays the authored wrapper.
+Any `<x-*>` tags in the returned template resolve from the Components imported at the top of `layout.py`, exactly like components resolve for a page.
 
 Example:
 
 ```python
-from casp.layout import Metadata, render_layout
+from casp.layout import Metadata
+from src.components.DocsNav import DocsNav
 
 metadata = Metadata(
     title="Docs Section | Caspian",
@@ -179,11 +129,24 @@ metadata = Metadata(
 
 
 def layout():
-    return render_layout(__file__), {
+    return r"""
+<div class="docs-shell">
+  <aside class="docs-nav"><x-docs-nav /></aside>
+
+  <main class="docs-content" pp-reset-scroll="true">
+    <slot />
+  </main>
+</div>
+""", {
         "shell_class": "docs-shell",
-        "content_class": "docs-shell__content",
     }
 ```
+
+Use nested `layout.py` files for sections like `dashboard/`, `docs/`, `account/`, or route groups such as `(marketing)/`.
+
+The child outlet must be a real authored `<slot />` element in the returned template. The runtime parses the layout markup and replaces real slot elements during nested rendering; it does not invent an implicit slot or replace escaped documentation text such as `&lt;slot /&gt;`.
+
+In grouped shells with separate shell and content scrolling, put `pp-reset-scroll="true"` on the content pane that should reset on child-route navigation. Leave persistent shell scrollers such as sidebars unmarked when they should keep their own scroll position.
 
 Important runtime detail: `layout()` may be synchronous or async in the installed runtime. Keep async layout work focused on shared subtree props or metadata; put route-specific first-render data in `page()` and browser-triggered work in route-owned `@rpc()` actions.
 
@@ -254,13 +217,11 @@ If rendering `error.html` fails, the runtime falls back to a minimal plain HTML 
 
 Use this order when deciding where a concern belongs:
 
-1. Put visible route markup in `index.html`.
-2. Add `index.py` only when the same route needs backend work.
-3. Keep route-specific logic in `index.py`; move logic into `src/lib/**` only when it is actually shared.
-4. Put shared subtree wrapper markup in `layout.html`.
-5. Add `layout.py` only when that shared shell needs synchronous Python props or metadata.
-6. Add `loading.html` when SPA navigation needs an immediate scoped loading state.
-7. Use root `not-found.html` for unmatched URLs.
-8. Use root `error.html` for unhandled exceptions.
+1. Every route is one `index.py` with `page()` returning `html(...)` markup.
+2. Keep route-specific logic in that same `index.py`; move logic into `src/lib/**` only when it is actually shared.
+3. Put shared subtree wrapper markup, props, and metadata defaults in `layout.py`.
+4. Add `loading.html` when SPA navigation needs an immediate scoped loading state.
+5. Use root `not-found.html` for unmatched URLs.
+6. Use root `error.html` for unhandled exceptions.
 
 Use [routing.md](./routing.md) for the broader file-based routing model, [metadata.md](./metadata.md) for page and layout metadata, [cache.md](./cache.md) for route caching in `index.py`, and [pulsepoint.md](./pulsepoint.md) for the authored template contract and browser runtime behavior.

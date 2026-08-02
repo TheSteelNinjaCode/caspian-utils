@@ -367,7 +367,7 @@ Sign-in example:
 
 ```python
 from casp.auth import auth, guest_only
-from casp.layout import render_page
+from casp.component_decorator import html
 from casp.rpc import rpc
 from casp.validate import Rule, Validate
 from src.lib.prisma import prisma
@@ -376,7 +376,11 @@ from werkzeug.security import check_password_hash
 
 @guest_only()
 def page():
-    return render_page(__file__)
+    return html(r"""
+<section class="page">
+  <!-- page markup -->
+</section>
+""")
 
 
 @rpc()
@@ -441,36 +445,48 @@ Authenticated-only page:
 
 ```python
 from casp.auth import require_auth
-from casp.layout import render_page
+from casp.component_decorator import html
 
 
 @require_auth()
 def page():
-    return render_page(__file__)
+    return html(r"""
+<section class="page">
+  <!-- page markup -->
+</section>
+""")
 ```
 
 Role-protected page:
 
 ```python
 from casp.auth import require_role
-from casp.layout import render_page
+from casp.component_decorator import html
 
 
 @require_role("admin", "superadmin")
 def page():
-    return render_page(__file__)
+    return html(r"""
+<section class="page">
+  <!-- page markup -->
+</section>
+""")
 ```
 
 Guest-only page:
 
 ```python
 from casp.auth import guest_only
-from casp.layout import render_page
+from casp.component_decorator import html
 
 
 @guest_only()
 def page():
-    return render_page(__file__)
+    return html(r"""
+<section class="page">
+  <!-- page markup -->
+</section>
+""")
 ```
 
 Current decorator behavior from the installed `auth.py`:
@@ -498,26 +514,26 @@ A typical credential-based auth setup often uses this route shape:
 src/
     app/
         (auth)/
-            layout.html
+            layout.py
             signin/
                 index.py
-                index.html
+                index.py
             signup/
                 index.py
-                index.html
+                index.py
             signout/
                 index.py
         dashboard/
-            index.html
-            layout.html
+            index.py
+            layout.py
             settings/
                 index.py
-                index.html
+                index.py
 ```
 
 Use `guest_only()` on signin and signup routes, use `auth.sign_in(...)` inside the owning RPC action after validation and credential checks, prefer RPC for signout UI actions, and protect private destinations with `require_auth()` or central route policy.
 
-When auth pages share a wrapper without adding a URL segment, use a route group such as `(auth)/layout.html`. When a protected area such as `dashboard` owns multiple child routes, apply the section layout pattern from [routing.md](./routing.md): put the shared shell in `dashboard/layout.html` and place child routes such as `dashboard/settings/index.html` beneath it.
+When auth pages share a wrapper without adding a URL segment, use a route group such as `(auth)/layout.py`. When a protected area such as `dashboard` owns multiple child routes, apply the section layout pattern from [routing.md](./routing.md): put the shared shell in `dashboard/layout.py` and place child routes such as `dashboard/settings/index.py` beneath it.
 
 Preferred signout pattern: auth-protected RPC from a page or component.
 
@@ -576,12 +592,16 @@ Simple protected dashboard example:
 
 ```python
 from casp.auth import auth, require_auth
-from casp.layout import render_page
+from casp.component_decorator import html
 
 
 @require_auth()
 def page():
-    return render_page(__file__, {
+    return html(r"""
+<section class="page">
+  <!-- page markup -->
+</section>
+""", **{
         "user": auth.get_payload(),
     })
 ```
@@ -592,17 +612,17 @@ If the protected destination is a section rather than a single page, prefer a fo
 src/
     app/
         dashboard/
-            layout.html
-            index.html
+            layout.py
+            index.py
             settings/
                 index.py
-                index.html
+                index.py
             billing/
                 index.py
-                index.html
+                index.py
 ```
 
-In that pattern, `dashboard/layout.html` owns the shared sidebar, header, and frame, while each child route decides whether it needs its own `index.py` for auth checks, metadata, RPC actions, or server-side data.
+In that pattern, `dashboard/layout.py` owns the shared sidebar, header, and frame, while each child route decides whether it needs its own `index.py` for auth checks, metadata, RPC actions, or server-side data.
 
 For signup flows, use the same route ownership pattern as signin: validate the input, create the user, build a safe payload without password fields, and then call `auth.sign_in(...)` with the redirect target you want.
 
@@ -610,7 +630,7 @@ Signup example:
 
 ```python
 from casp.auth import auth, guest_only
-from casp.layout import render_page
+from casp.component_decorator import html
 from casp.rpc import rpc
 from casp.validate import Rule, Validate
 from src.lib.prisma import prisma
@@ -619,7 +639,11 @@ from werkzeug.security import generate_password_hash
 
 @guest_only()
 def page():
-    return render_page(__file__)
+    return html(r"""
+<section class="page">
+  <!-- page markup -->
+</section>
+""")
 
 
 @rpc()
@@ -685,15 +709,15 @@ src/
     (auth)/
       forgot-password/
         index.py
-        index.html
+        index.py
       reset-password/
         [token]/
           index.py
-          index.html
+          index.py
       verify-email/
         [token]/
           index.py
-          index.html
+          index.py
 ```
 
 Recommended workflow:
@@ -785,7 +809,7 @@ Minimal example:
 
 ```python
 from casp.auth import GoogleProvider, GithubProvider, auth
-from casp.layout import render_page
+from casp.component_decorator import html
 
 
 google = GoogleProvider()
@@ -797,7 +821,11 @@ def page():
     if response:
         return response
 
-    return render_page(__file__)
+    return html(r"""
+<section class="page">
+  <!-- page markup -->
+</section>
+""")
 ```
 
 Use this only when the route is actually handling an auth-provider signin or callback flow.

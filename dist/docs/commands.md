@@ -210,7 +210,7 @@ In skip-prompt mode, the default feature values are:
 - `prisma: false`
 - `websocket: false`
 
-If a project needs WebSockets after creation, set `websocket: true` in `caspian.config.json`, then run the project update workflow so framework-managed files and any scaffolded socket surfaces stay aligned before assuming `@app.websocket(...)` routes or `src/lib/websocket/**` exist.
+If a project needs WebSockets after creation, set `websocket: true` in `caspian.config.json`, then run the project update workflow so framework-managed files and any scaffolded socket surfaces stay aligned before assuming `src/lib/websocket/**` and its named-socket layer exist. Once it does, add live channels as `@socket()` functions consumed by `pp.socket(...)`, not as hand-written `@app.websocket(...)` routes.
 
 ### 4.2 Backend-only combinations
 

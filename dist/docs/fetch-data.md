@@ -41,17 +41,17 @@ Caspian has two main data-loading paths:
 In practice, most pages use both:
 
 1. Load the first screen of data in `index.py`.
-2. Render that data into `index.html`.
+2. Render that data into the page template returned by `page()` via `html(...)`.
 3. Call `pp.rpc()` for refreshes, form submits, toggles, infinite scroll, or streamed updates.
 
-If a route only needs UI and does not need first-render data, metadata, or other backend behavior, skip `index.py` and keep the page in `index.html` alone.
+If a route only needs UI and no first-render data, its `page()` simply returns the markup with no extra context.
 
-When a page belongs to a grouped subtree such as a dashboard, account area, admin section, or docs section, apply the section layout pattern from [routing.md](./routing.md): keep the shared shell in the parent folder's `layout.html` and let each child route own only its route-specific `index.html` and optional `index.py`.
+When a page belongs to a grouped subtree such as a dashboard, account area, admin section, or docs section, apply the section layout pattern from [routing.md](./routing.md): keep the shared shell in the parent folder's `layout.py` and let each child route own only its route-specific `index.py`.
 
 ## Default Data Rule
 
 - Use `page()` for route-level data required before HTML renders, and use `layout()` only for shared subtree props or metadata.
-- When a route renders UI and also needs backend work, keep the HTML in the sibling `index.html`; `index.py` should prepare data and call `render_page(__file__, ...)`, not inline the route markup.
+- When a route renders UI and also needs backend work, `page()` prepares the data and passes it into `html(...)` as context.
 - Use `@rpc()` on the server and `pp.rpc()` in PulsePoint code for all browser-triggered data work after first render, including CRUD operations and follow-up reads.
 - When Prisma is enabled, route all Python database I/O inside `page()`, `layout()` when truly shared, `@rpc()` actions, and reusable helpers through the generated Prisma Python ORM.
 - Trigger those browser actions through PulsePoint event attributes in the HTML, not through a separate DOM listener layer.
@@ -60,18 +60,22 @@ When a page belongs to a grouped subtree such as a dashboard, account area, admi
 
 ## Initial Data In `index.py`
 
-Use the route's backend file for data that should exist before the template is rendered. Keep the rendered page markup in the sibling `index.html`; if no backend data or logic is needed, omit `index.py` entirely.
+Use `page()` for data that should exist before the template is rendered, and pass it into `html(...)` as context.
 
 Example:
 
 ```python
-from casp.layout import render_page
+from casp.component_decorator import html
 from src.lib.prisma import prisma
 
 async def page():
     todos = await prisma.todo.find_many()
 
-    return render_page(__file__, {
+    return html(r"""
+<section class="page">
+  <!-- page markup -->
+</section>
+""", **{
         "todos": [todo.to_dict() for todo in todos],
     })
 ```
@@ -462,7 +466,7 @@ For RPC responses, Caspian can automatically serialize common Python return type
 - dataclasses
 - Prisma objects
 
-For initial route rendering with `render_page(...)`, prefer passing plain template-ready dictionaries or lists so the HTML layer gets explicit data shapes.
+For initial route rendering with `html(...)`, prefer passing plain template-ready dictionaries or lists so the template gets explicit data shapes.
 
 ## Recommended Decision Rule
 
@@ -480,16 +484,16 @@ For section-based apps, that pattern usually lives inside a parent layout:
 src/
   app/
     dashboard/
-      layout.html
+      layout.py
       reports/
         index.py
-        index.html
+        index.py
       users/
         index.py
-        index.html
+        index.py
 ```
 
-In that pattern, `dashboard/layout.html` owns the shared frame while each child route handles its own first-render data in `index.py` and its own interactive updates through `@rpc()`.
+In that pattern, `dashboard/layout.py` owns the shared frame while each child route handles its own first-render data in `page()` and its own interactive updates through `@rpc()`.
 
 If the first-render HTML is expensive to produce and safe to share between visitors, add route-level caching with [cache.md](./cache.md) and invalidate affected URIs after successful mutations.
 

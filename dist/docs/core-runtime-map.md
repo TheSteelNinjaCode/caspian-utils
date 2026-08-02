@@ -31,7 +31,7 @@ Use it when you already know a behavior is controlled by `main.py` or `.venv/Lib
 | Concern | Core file | Read first | Why it matters |
 | --- | --- | --- | --- |
 | App bootstrap and request flow | [main.py](../../../../main.py) plus imported runtime helpers such as `casp.runtime_security` | [project-structure.md](./project-structure.md), [routing.md](./routing.md), [auth.md](./auth.md) | FastAPI app creation, middleware wiring, route registration, cache check and save, exception handlers, and final HTML transforms live here. Package-owned helpers imported by `main.py` may own safe public-file serving, baseline response headers including the Content-Security-Policy, production-safe error messages, fail-closed environment resolution, or production session-secret enforcement. |
-| Browser runtime, SPA navigation, and scroll restoration | [public/js/pp-reactive-v2.js](../../../../public/js/pp-reactive-v2.js) | [pulsepoint.md](./pulsepoint.md), [fetch-data.md](./fetch-data.md) | The shipped `pp` runtime, same-origin SPA interception, per-history-entry scroll state, `pp-reset-scroll` behavior, and browser RPC helpers live here. |
+| Browser runtime, SPA navigation, and scroll restoration | [public/js/pp-reactive-v2.min.js](../../../../public/js/pp-reactive-v2.min.js) | [pulsepoint.md](./pulsepoint.md), [fetch-data.md](./fetch-data.md) | The shipped `pp` runtime, same-origin SPA interception, per-history-entry scroll state, `pp-reset-scroll` behavior, and browser RPC helpers live here. |
 
 Important current `main.py` behaviors AI should keep in mind:
 
@@ -43,7 +43,7 @@ Important current `main.py` behaviors AI should keep in mind:
 - Session middleware secrets may be resolved through `casp.runtime_security` so production can fail fast when `AUTH_SECRET` is missing or still on a default placeholder.
 - Baseline response headers are built by `casp.runtime_security` and attached through `SecurityHeadersMiddleware`. That set now includes a Content-Security-Policy from `build_content_security_policy()`, which the `CONTENT_SECURITY_POLICY` environment variable replaces wholesale. The policy must keep `'unsafe-eval'` and `'unsafe-inline'` in `script-src`, because the PulsePoint runtime compiles templates with `new Function`; read the current helper before tightening it. Outside production the helper also adds loopback origins to `connect-src` so the BrowserSync live-reload client, which polls a different port than the proxied page, is not blocked; an environment override replaces that too.
 - Middleware is added in source order as `RPCMiddleware`, `AuthMiddleware`, `CSRFMiddleware`, `SessionMiddleware`, `BodySizeLimitMiddleware`, `RateLimitMiddleware`, `PublicFilesMiddleware`, `SecurityHeadersMiddleware`, plus `RequestDiagnosticsMiddleware` outside production. The effective production request order is reversed: security headers, public files, rate limit, body limit, session, CSRF, auth, then RPC and routing. Development diagnostics are outermost. Existing public-file `GET`/`HEAD` requests stop at `PublicFilesMiddleware`; missing paths fall through. Verify the current list in `main.py` rather than trusting an older order.
-- `public/js/pp-reactive-v2.js` saves scroll positions per history entry, resets window scroll on push navigation, and uses `pp-reset-scroll="true"` to opt specific containers or the whole body into reset behavior.
+- `public/js/pp-reactive-v2.min.js` saves scroll positions per history entry, resets window scroll on push navigation, and uses `pp-reset-scroll="true"` to opt specific containers or the whole body into reset behavior.
 
 ## Caspian Core Feature Map
 
@@ -52,15 +52,15 @@ Use this table when the task names a framework feature but the owning file is no
 | Core feature | App-owned entry points | Runtime owner | Packaged docs |
 | --- | --- | --- | --- |
 | Feature flags and generated surface area | `caspian.config.json` | `casp.caspian_config` | [commands.md](./commands.md), [project-structure.md](./project-structure.md) |
-| File-based routing | `src/app/**/index.html`, `src/app/**/index.py` | `main.py`, `casp.layout`, `casp.caspian_config` | [routing.md](./routing.md) |
-| Nested layouts | `src/app/**/layout.html`, `src/app/**/layout.py` | `casp.layout`, `main.py` | [routing.md](./routing.md), [metadata.md](./metadata.md) |
+| File-based routing | `src/app/**/index.py` | `main.py`, `casp.layout`, `casp.caspian_config` | [routing.md](./routing.md) |
+| Nested layouts | `src/app/**/layout.py` | `casp.layout`, `main.py` | [routing.md](./routing.md), [metadata.md](./metadata.md) |
 | Metadata | route or layout `metadata`, runtime metadata helpers | `casp.layout`, `main.py` | [metadata.md](./metadata.md), [routing.md](./routing.md) |
 | Component imports and `x-*` tags | `src/components/**`, `src/app/**/*.html` | `casp.components_compiler`, `casp.component_decorator` | [components.md](./components.md), [routing.md](./routing.md) |
 | Auth and route protection | `src/lib/auth/auth_config.py`, `main.py`, route decorators | `casp.auth`, `main.py` middleware | [auth.md](./auth.md) |
 | Baseline response headers and safe public-file serving | `main.py` imports from `casp.runtime_security` | `.venv/Lib/site-packages/casp/runtime_security.py` | [auth.md](./auth.md), [project-structure.md](./project-structure.md) |
 | RPC and server actions | route or component Python modules with `@rpc()` | `casp.rpc`, `main.py` middleware | [fetch-data.md](./fetch-data.md), [file-uploads.md](./file-uploads.md) |
 | Streaming | route `page()` generators, RPC generators | `casp.streaming`, `casp.rpc`, `main.py` | [fetch-data.md](./fetch-data.md) |
-| WebSockets | `main.py` `@app.websocket(...)` endpoints when `caspian.config.json` has `websocket: true`, `src/lib/**` socket helpers, route-owned browser clients in `src/app/**` | FastAPI app-owned ASGI endpoints in `main.py` | [websockets.md](./websockets.md), [auth.md](./auth.md), [pulsepoint.md](./pulsepoint.md) |
+| WebSockets (named sockets) | `src/lib/websocket/sockets.py` when `caspian.config.json` has `websocket: true`, route- or lib-owned `@socket()` functions, `pp.socket(...)` clients in `src/app/**` component scripts | `src/lib/websocket/sockets.py` owns the whole surface — the `@socket()` registry, `Socket`/`SocketSender`/`SocketPool`, origin allow-list, connection cap, auth delegation to `casp/auth.py`, and per-connection size/rate/idle limits; `main.py` wires the single `@app.websocket(SOCKET_PATH)` endpoint; browser half is `public/js/pp-reactive-v2.min.js` | [websockets.md](./websockets.md), [auth.md](./auth.md), [pulsepoint.md](./pulsepoint.md) |
 | Server state | request handlers and RPC actions | `casp.state_manager`, `main.py` middleware | [state.md](./state.md) |
 | Page caching | route-level `Cache(...)` declarations | `casp.cache_handler`, `main.py` cache check/save | [cache.md](./cache.md) |
 | Validation | route and RPC input boundaries | `casp.validate` | [validation.md](./validation.md) |
@@ -77,20 +77,20 @@ Protected dashboard route:
 1. Check `caspian.config.json` for enabled features such as Prisma and Tailwind.
 2. Read [routing.md](./routing.md) for the section layout shape.
 3. Read [auth.md](./auth.md) for route privacy and decorators.
-4. Update `src/app/dashboard/layout.html` for the shared shell and child `index.html` or `index.py` files for page-specific behavior.
+4. Update `src/app/dashboard/layout.py` for the shared shell and child `index.py` files for page-specific behavior.
 5. Verify auth bootstrap and middleware ownership in `main.py` only if route protection behaves unexpectedly.
 
 Interactive CRUD page:
 
 1. Read [fetch-data.md](./fetch-data.md) for the `page()` plus `@rpc()` split.
 2. Read [pulsepoint-runtime-map.md](./pulsepoint-runtime-map.md) for browser-side `pp.rpc(...)` behavior.
-3. Keep first-render data in `src/app/**/index.py`, visible markup in `src/app/**/index.html`, reusable helpers in `src/lib/**`, and database schema changes in `prisma/**`.
+3. Keep first-render data and the page markup in `src/app/**/index.py`, reusable helpers in `src/lib/**`, and database schema changes in `prisma/**`.
 
 ## Installed Runtime Map
 
 | Runtime file | Primary responsibility | Read these docs |
 | --- | --- | --- |
-| [.venv/Lib/site-packages/casp/layout.py](../../../../.venv/Lib/site-packages/casp/layout.py) | `render_page(...)`, `render_layout(...)`, nested layout discovery, metadata merge, sync or async `layout()` results, and parser-based `<slot />` replacement | [routing.md](./routing.md), [metadata.md](./metadata.md) |
+| [.venv/Lib/site-packages/casp/layout.py](../../../../.venv/Lib/site-packages/casp/layout.py) | nested layout discovery, `layout()` result resolution (string / tuple / dict, sync or async), metadata merge, layout-module component scope stashing, and parser-based `<slot />` replacement | [routing.md](./routing.md), [metadata.md](./metadata.md) |
 | [.venv/Lib/site-packages/casp/auth.py](../../../../.venv/Lib/site-packages/casp/auth.py) | `AuthSettings`, route privacy checks, session payloads, OAuth providers, CSRF helper behavior, and redirect logic | [auth.md](./auth.md) |
 | [.venv/Lib/site-packages/casp/runtime_security.py](../../../../.venv/Lib/site-packages/casp/runtime_security.py) | safe public-file serving (with optional attachment mode for user uploads), baseline response headers including the CSP, production-safe error messages, fail-closed `APP_ENV` resolution via `is_production_environment()`, and production session-secret enforcement used by `main.py` | [project-structure.md](./project-structure.md), [auth.md](./auth.md) |
 | [.venv/Lib/site-packages/casp/rpc.py](../../../../.venv/Lib/site-packages/casp/rpc.py) | `@rpc()` registration, rate limits, request handling, auth-aware action checks, and streamed RPC responses | [fetch-data.md](./fetch-data.md) |
@@ -98,8 +98,8 @@ Interactive CRUD page:
 | [.venv/Lib/site-packages/casp/state_manager.py](../../../../.venv/Lib/site-packages/casp/state_manager.py) | request-scoped state, session bucket persistence, listener lifecycle, and wire-request reset behavior | [state.md](./state.md) |
 | [.venv/Lib/site-packages/casp/cache_handler.py](../../../../.venv/Lib/site-packages/casp/cache_handler.py) | `Cache`, cache manifest handling, filename generation, disk-backed HTML storage, and invalidation | [cache.md](./cache.md) |
 | [.venv/Lib/site-packages/casp/validate.py](../../../../.venv/Lib/site-packages/casp/validate.py) | `Validate`, `Rule`, sanitization, and file-validation internals | [validation.md](./validation.md) |
-| [.venv/Lib/site-packages/casp/component_decorator.py](../../../../.venv/Lib/site-packages/casp/component_decorator.py) | `@component`, `render_html(...)`, the inline `html(...)` single-file helper (with direct-call scope capture), component loading, and prop normalization before component calls | [components.md](./components.md) |
-| [.venv/Lib/site-packages/casp/components_compiler.py](../../../../.venv/Lib/site-packages/casp/components_compiler.py) | `@import` parsing, `x-*` component resolution (including resolving a component's own tags from its Python module imports and the scope captured by directly-called components), parent-scope expansion of slot content, single-root validation, and `pp-component` injection | [components.md](./components.md), [routing.md](./routing.md), [pulsepoint.md](./pulsepoint.md) |
+| [.venv/Lib/site-packages/casp/component_decorator.py](../../../../.venv/Lib/site-packages/casp/component_decorator.py) | `@component`, the `html(...)` markup entrypoint (with module-scope capture for `x-*` resolution, Jinja-callable imported components, and direct-call composition), and prop normalization before component calls | [components.md](./components.md) |
+| [.venv/Lib/site-packages/casp/components_compiler.py](../../../../.venv/Lib/site-packages/casp/components_compiler.py) | `x-*` component resolution (from a component's Python module imports and the scope captured by `html(...)` and layout modules), parent-scope expansion of slot content, single-root validation, and `pp-component` injection | [components.md](./components.md), [routing.md](./routing.md), [pulsepoint.md](./pulsepoint.md) |
 | [.venv/Lib/site-packages/casp/html_attrs.py](../../../../.venv/Lib/site-packages/casp/html_attrs.py) | `get_attributes(...)`, alias normalization, and the Python-side `merge_classes(...)` contract | [components.md](./components.md) |
 | [.venv/Lib/site-packages/casp/caspian_config.py](../../../../.venv/Lib/site-packages/casp/caspian_config.py) | typed config loading, feature-flag reads, `settings/files-list.json` parsing, and route rule derivation | [project-structure.md](./project-structure.md), [commands.md](./commands.md), [routing.md](./routing.md) |
 
@@ -112,12 +112,12 @@ Use these behavior checkpoints when AI needs the fastest verification path for a
 | Runtime area | Verify these behaviors |
 | --- | --- |
 | `main.py` routing and request flow | route registration, path and query injection, generic public-root file handling and middleware placement, session-middleware wiring, response-header middleware, and exception rendering |
-| `main.py` WebSockets | `cfg.websocket` route-registration gate, `@app.websocket(...)` paths, and the shared transport loop (message-size, idle-timeout, close codes, connection cleanup). Authorization is a single guard in `src/lib/websocket/websocket_security.py` (`authorize_websocket`) that runs the origin check before `accept()` and delegates auth to `Auth`. The HTTP middleware stack skips `scope["type"] == "websocket"`, so socket auth is enforced by that guard, not by `AuthMiddleware` |
-| `public/js/pp-reactive-v2.js` browser runtime | SPA interception, history-vs-push scroll behavior, `pp-reset-scroll` semantics, and browser-side `pp.rpc()` behavior |
+| `main.py` WebSockets | `cfg.websocket` gates one route: the named-socket endpoint at `SOCKET_PATH` (`/__pulsepoint/ws`), a pure wiring point into `src/lib/websocket/sockets.py`. That module owns the whole layer: the `@socket()` registry, the origin check run before `accept()`, the connection ceiling, per-socket auth (`require_auth`/`allowed_roles` delegated to `Auth`), and the per-connection limits (message size, rate, idle timeout). The HTTP middleware stack skips `scope["type"] == "websocket"`, so socket auth is enforced by the socket layer, not by `AuthMiddleware`. There are no separate public/private channel endpoints |
+| `public/js/pp-reactive-v2.min.js` browser runtime | SPA interception, history-vs-push scroll behavior, `pp-reset-scroll` semantics, and browser-side `pp.rpc()` behavior |
 | `casp.auth` | auth settings, signin and signout flow, provider wiring, and page protection behavior |
 | `casp.rpc` and streamed RPC responses | middleware interception, CSRF and session expectations, registry behavior, and helper-level RPC contracts |
 | `casp.layout` | layout discovery, metadata merge, root handling, and layout rendering rules |
-| `casp.components_compiler`, `casp.component_decorator`, `main.py` template-root deferral, and the browser runtime | `@import` parsing, `x-*` expansion, Python-module-import tag resolution, parent-scope slot resolution, inline `html(...)` rendering and children-safe handling, deterministic root keys, `pp-component` injection, plain component-script preservation, and safe script capture during materialization |
+| `casp.components_compiler`, `casp.component_decorator`, `main.py` template-root deferral, and the browser runtime | `x-*` expansion, Python-module-import tag resolution, parent-scope slot resolution, `html(...)` rendering and children-safe handling, deterministic root keys, `pp-component` injection, plain component-script preservation, and safe script capture during materialization |
 | `casp.state_manager` | wire vs non-wire reset behavior, request-state persistence assumptions, and AttributeDict access |
 | `casp.cache_handler` | filename generation, manifest writes, TTL handling, and invalidation behavior |
 | `casp.caspian_config` | config parsing, files index building, and Next.js-style route inventory behavior |

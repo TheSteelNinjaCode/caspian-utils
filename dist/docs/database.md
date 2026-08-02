@@ -178,7 +178,6 @@ If the project ships an app-owned Python Prisma-style layer under `src/lib/prism
 Example:
 
 ```python
-from casp.layout import render_page
 from src.lib.prisma import prisma
 
 async def page():
@@ -236,6 +235,21 @@ user = await prisma.user.find_unique(
 )
 ```
 
+Null filtering follows Prisma semantics: `{"name": None}` or `{"name": {"equals": None}}` compiles to `IS NULL`, and `{"name": {"not": None}}` to `IS NOT NULL`. String filters `contains`, `startsWith`, and `endsWith` match the user's value literally (`%` and `_` are escaped, not treated as wildcards). `mode: "insensitive"` is PostgreSQL-only; MySQL is usually case-insensitive already through its collation, and SQLite needs `COLLATE NOCASE` on the column.
+
+Pagination uses `take` and `skip` for offset windows, or `cursor` anchored at a unique row:
+
+```python
+page = await prisma.post.find_many(
+    order_by={"id": "asc"},
+    cursor={"id": last_seen_id},
+    skip=1,   # skip the cursor row itself
+    take=20,
+)
+```
+
+Always pass an `order_by` with `cursor`: with a plain scalar ordering the client pushes the cursor window into SQL and fetches only the requested page; without one it must scan the matching rows to locate the cursor position. A negative `take` returns the rows before the cursor. `distinct` and `select`/`omit` projections compose with all of the above.
+
 ### Update
 
 ```python
@@ -247,7 +261,14 @@ updated_user = await prisma.user.update(
 )
 ```
 
-If your schema includes numeric counters, Prisma also supports atomic update operators such as `increment` and `decrement`.
+Numeric fields support the atomic update operators `set`, `increment`, `decrement`, `multiply`, and `divide` — exactly one operator per field. The arithmetic runs inside the SQL `UPDATE` itself (`SET views = views + ?`), so concurrent updates cannot lose increments. Matching Prisma semantics: a `NULL` column stays `NULL`, `divide` on `Int` fields truncates, and dividing by zero raises a validation error.
+
+```python
+await prisma.post.update(
+    where={"id": "123"},
+    data={"views": {"increment": 1}},
+)
+```
 
 ### Delete
 
@@ -301,6 +322,28 @@ When a Caspian file manager needs durable metadata, keep the blob and the metada
 
 See [file-uploads.md](./file-uploads.md) for the route-local RPC plus public asset storage pattern.
 
+## Generated Client Surface
+
+The generated delegates expose the standard Prisma method set: `find_many`, `find_unique`, `find_first`, `find_unique_or_throw`, `find_first_or_throw`, `create`, `create_many`, `create_many_and_return`, `update`, `update_many`, `update_many_and_return`, `upsert`, `delete`, `delete_many`, `count`, `aggregate`, and `group_by`. Reads accept `where`, `select`, `omit`, `include`, `order_by`, `take`, `skip`, `cursor`, and `distinct`. Relation filters (`some`, `none`, `every`, `is`, `isNot`) work inside `where`, and write payloads accept nested relation operations (`create`, `connect`, `connectOrCreate`, `set`, `disconnect`, `update`, `updateMany`, `upsert`, `delete`, `deleteMany`).
+
+Relation loading is batched: including a relation for N parent rows issues one query per relation per nesting level, not one query per parent, so `include` does not create N+1 query patterns. Filters a provider cannot express in SQL fall back to a slower Python evaluation path with a logged warning instead of failing.
+
+## Error Handling
+
+The generated client raises Prisma-style errors, importable from the same package:
+
+- `RecordNotFoundError` (Prisma code `P2025`) when `update`, `delete`, `upsert`-related lookups, `find_unique_or_throw`, or `find_first_or_throw` target a record that does not exist.
+- `PrismaClientValidationError` for invalid query shapes, such as combining `select` with `include`, unsupported `order_by` shapes, or malformed atomic-update payloads.
+
+```python
+from src.lib.prisma import prisma, RecordNotFoundError
+
+try:
+    await prisma.user.update(where={"id": user_id}, data={"name": name})
+except RecordNotFoundError:
+    ...  # surface a 404-style response instead of a 500
+```
+
 ## Advanced Features
 
 ### Aggregations
@@ -332,6 +375,8 @@ async with prisma.transaction() as tx:
     )
 ```
 
+Transactions accept Prisma-style options — `isolation_level` (validated against what the provider supports), plus `max_wait` and `timeout` in milliseconds. `prisma.batch([...])` runs a list of operations inside a single transaction.
+
 ### Raw SQL Fallback
 
 Use this escape hatch sparingly. Raw SQL is not the default query style in a Prisma-enabled Caspian project.
@@ -353,6 +398,36 @@ users = await prisma.user.find_many(
 ```
 
 If raw SQL is still unavoidable, keep it tightly scoped, document why the ORM was insufficient, and verify it against the current datasource provider in `prisma/schema.prisma`.
+
+## Provider Portability And Switching
+
+The generated Python client is compiled for one datasource provider at a time; the SQL dialect is baked in at generation. Switching a project between SQLite, PostgreSQL, and MySQL is supported and designed to be smooth, but it is a regeneration, not a config flip:
+
+1. Change `provider` in the `datasource` block of `prisma/schema.prisma`.
+2. Point `DATABASE_URL` in `.env` at the new database.
+3. Recreate the database structure. Migration SQL under `prisma/migrations/` is dialect-specific and does not port across providers; re-baseline the migrations or use `npx prisma db push` against the new datasource.
+4. Run `npx ppy generate` to regenerate the Python client for the new provider.
+
+Guard rails to rely on:
+
+- The client fails fast at connect time when `DATABASE_URL` points at a different provider than the one it was generated for, with an error message that names the fix (regenerate).
+- On the MySQL family the client probes the live server once and adapts to MySQL versus MariaDB and to the server version automatically (RETURNING support, JSON functions, window functions).
+- Filters a provider cannot express in SQL degrade to Python evaluation with a logged warning instead of failing, so a switch tends to change performance before it changes behavior.
+
+Keep the schema inside the portable subset when a project may switch providers:
+
+- Scalar list fields (`String[]` and friends) are PostgreSQL-only; model list-like data as `Json` instead.
+- Enums are not supported by Prisma on SQLite.
+- Avoid `@db.*` native type attributes unless the project is committed to one provider.
+
+API differences that follow the real database engines (these match Prisma TypeScript behavior):
+
+- `mode: "insensitive"` string filtering is PostgreSQL-only.
+- `create_many_and_return` is unavailable on MySQL, and its `skip_duplicates` option is unavailable on SQLite.
+- String comparison case sensitivity differs: `equals` is case-insensitive under default MySQL collations; `contains`/`startsWith`/`endsWith` are case-insensitive on SQLite and MySQL but case-sensitive on PostgreSQL.
+- `update_many` reports matched rows on PostgreSQL and SQLite but changed rows on MySQL.
+
+After a switch, run the project's database-backed tests against the new provider before treating the migration as done.
 
 ## Recommended Project Rules
 
@@ -377,6 +452,7 @@ If an AI agent is working on a Caspian app with Prisma enabled, apply these rule
 - Run `npx ppy generate` after schema changes to refresh the Python ORM classes.
 - Never hand-edit generated Prisma or Python ORM classes.
 - Read `prisma.config.ts` and `prisma/seed.ts` when you need the current project's Prisma tooling examples.
+- Before changing the datasource provider, read the Provider Portability And Switching section above: a provider switch requires regeneration plus provider-aware review of the schema and any provider-gated query features.
 - Reuse the existing `src/lib/prisma/` package when the Python app needs database access.
 - Treat use of the Prisma Python ORM as mandatory for Python-side database reads and writes in Prisma-enabled projects.
 - For file managers and uploads, persist metadata in Prisma and keep blob storage separate. See [file-uploads.md](./file-uploads.md).

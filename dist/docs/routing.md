@@ -1,6 +1,6 @@
 ---
 title: Routing
-description: Use this page when the task mentions `src/app`, `index.py`, `index.html`, `layout.py`, dynamic routes, route groups, nested layouts, or file-based routing in Caspian.
+description: Use this page when the task mentions `src/app`, `index.py`, `layout.py`, dynamic routes, route groups, nested layouts, or file-based routing in Caspian.
 related:
   title: Related docs
   description: Read the structure guide first, then use the components guide for reusable UI, the metadata guide for SEO fields, the cache guide for route-level HTML reuse, and the PulsePoint runtime guide for interactive route templates.
@@ -18,7 +18,7 @@ related:
 
 Caspian follows the same mental model as the Next.js App Router: routes live under `src/app`, folders define URL segments, layouts nest automatically, and special folder names control grouping and dynamic matching.
 
-The main difference is the file types. Instead of `page.tsx` and `layout.tsx`, Caspian uses `index.html`, `index.py`, `layout.html`, and optional Python companions for server-side logic.
+The main difference is the file types. Instead of `page.tsx` and `layout.tsx`, Caspian uses exactly one Python file per concern: `index.py` for a route and `layout.py` for a subtree shell. The markup lives inside those files as a triple-quoted template handed to `html(...)` (routes) or returned raw from `layout()` (layouts).
 
 ## Overview
 
@@ -27,24 +27,19 @@ Caspian uses a high-performance file-system router built on top of FastAPI. Your
 Start with these rules:
 
 - Put application routes in `src/app/`.
-- For any route that renders a page, put the markup in `index.html`.
-- If a route is UI-only, `index.html` by itself is enough.
-- Add `index.py` only when the same route needs metadata, `page()`, `@rpc()` actions, auth checks, caching, redirects, or other server-side logic.
+- Every route is one `index.py` with a `page()` function. A UI route returns `html(r"""...""")` markup; a non-visual route (redirects, action-only handlers) returns a `Response`.
 - Keep route-specific server logic in that route's `index.py`. Move logic into `src/lib/**` only when it is shared across routes, components, integrations, or features.
-- Use a standalone `index.py` only for non-visual routes such as redirects or action-only handlers.
-- When a folder owns child routes, use `layout.html` to wrap them. This is the default pattern for dashboards, admin sections, account areas, settings trees, and route groups.
-- In grouped shells with separate shell and content scrolling, put `pp-reset-scroll="true"` on the content pane in `layout.html` when that pane should reset on child-route navigation while the shell sidebar or rail keeps its own scroll.
-- Use `layout.py` when a layout needs shared props or metadata before rendering. The `layout()` function may be synchronous or async.
-- Keep visible route and layout markup in `index.html` and `layout.html`. Treat `index.py` and `layout.py` as backend companions, not as places to author visible HTML.
+- When a folder owns child routes, add `layout.py` whose `layout()` returns the shared wrapper template. This is the default pattern for dashboards, admin sections, account areas, settings trees, and route groups.
+- In grouped shells with separate shell and content scrolling, put `pp-reset-scroll="true"` on the content pane in the layout template when that pane should reset on child-route navigation while the shell sidebar or rail keeps its own scroll.
+- Components used as `<x-*>` tags in a page or layout template resolve from the Python imports at the top of that module.
 - Treat every authored route and layout template like a React component body **for root counting only**: exactly one top-level parent HTML element or one imported `x-*` root, with any owned plain `<script>` inside that same root. The markup itself is plain HTML, never JSX — see [pulsepoint.md](./pulsepoint.md) "PulsePoint Is Not JSX".
-- For route and layout interactivity, use PulsePoint in the authored HTML first: native `on*` event attributes, `pp.state(...)`, refs, effects, directives, and `pp.rpc()`. Do not create standard JavaScript event systems with ids, `data-*` state, `querySelector`, `addEventListener`, or manual `innerHTML` for normal first-party UI.
+- For route and layout interactivity, use PulsePoint in the authored markup first: native `on*` event attributes, `pp.state(...)`, refs, effects, directives, and `pp.rpc()`. Do not create standard JavaScript event systems with ids, `data-*` state, `querySelector`, `addEventListener`, or manual `innerHTML` for normal first-party UI.
 
 ## Hard Template Invariant
 
 For authored route and layout templates, the single-root rule is a hard runtime requirement.
 
 - Use exactly one authored parent node.
-- Keep any `<!-- @import ... -->` directives above that root.
 - Keep any owned plain `<script>` inside that root, not after it.
 - Do not leave sibling top-level HTML tags, sibling component tags, or stray top-level text.
 
@@ -54,8 +49,8 @@ Use [cache.md](./cache.md) when an `index.py` route also needs declarative page 
 
 Framework internals note:
 
-- Caspian's layout and route-resolution internals live in `.venv/Lib/site-packages/casp/layout.py`.
-- Treat that file as framework code. Read it when the task is about routing internals, layout resolution, or metadata behavior inside Caspian itself.
+- Caspian's layout and route-resolution internals live in `.venv/Lib/site-packages/casp/layout.py`; `html(...)` lives in `.venv/Lib/site-packages/casp/component_decorator.py`.
+- Treat those files as framework code. Read them when the task is about routing internals, layout resolution, or metadata behavior inside Caspian itself.
 - Use [core-runtime-map.md](./core-runtime-map.md) when a routing task crosses `main.py` route registration, parameter injection, and installed layout internals.
 
 See [metadata.md](./metadata.md) when a page or layout needs SEO fields.
@@ -67,8 +62,8 @@ If you already know the Next.js App Router, use this translation layer:
 | Next.js concept | Caspian equivalent |
 | --- | --- |
 | `app/` | `src/app/` |
-| `page.tsx` | `index.html` plus optional `index.py` companion |
-| `layout.tsx` | `layout.html` and optional `layout.py` |
+| `page.tsx` | `index.py` with `page()` returning `html(...)` |
+| `layout.tsx` | `layout.py` with `layout()` returning the wrapper template |
 | `[id]` | `[id]` |
 | `[...slug]` | `[...slug]` |
 | `(group)` | `(group)` |
@@ -87,9 +82,8 @@ Treat this section as the canonical grouped-subtree structure rule for the packa
 When a user asks for a dashboard, admin area, account section, docs section, or any grouped set of child routes, model it exactly like a Next.js App Router subtree.
 
 - Create a parent folder for the section.
-- Add `layout.html` in that folder for the shared shell.
-- Add `layout.py` only when that shared shell needs shared props or metadata.
-- Put each child page in its own route folder with `index.html` and an optional `index.py` companion.
+- Add `layout.py` in that folder for the shared shell.
+- Put each child page in its own route folder with its `index.py`.
 - Use a normal folder name such as `dashboard/` when the section name should appear in the URL.
 - Use a route-group folder such as `(marketing)/` when the folder should organize code and own a layout without adding a URL segment.
 
@@ -99,99 +93,108 @@ Examples:
 src/
   app/
     dashboard/
-      layout.html
-      index.html
+      layout.py
+      index.py
       settings/
-        index.html
+        index.py
       users/
-        index.html
+        index.py
 ```
 
-This produces `/dashboard`, `/dashboard/settings`, and `/dashboard/users`, all wrapped by the `dashboard/layout.html` shell.
+This produces `/dashboard`, `/dashboard/settings`, and `/dashboard/users`, all wrapped by the `dashboard/layout.py` shell.
 
 ```text
 src/
   app/
     (marketing)/
-      layout.html
+      layout.py
       pricing/
-        index.html
+        index.py
       about/
-        index.html
+        index.py
 ```
 
-This produces `/pricing` and `/about`, both wrapped by the `(marketing)/layout.html` shell even though `(marketing)` does not appear in the URL.
+This produces `/pricing` and `/about`, both wrapped by the `(marketing)/layout.py` shell even though `(marketing)` does not appear in the URL.
 
 Canonical end-to-end example:
 
 ```text
 src/
   app/
-    layout.html
     layout.py
     (marketing)/
-      layout.html
-      pricing/
-        index.html
-      about/
-        index.html
-    dashboard/
-      layout.html
       layout.py
-      index.html
+      pricing/
+        index.py
+      about/
+        index.py
+    dashboard/
+      layout.py
+      index.py
       settings/
-        index.html
         index.py
       reports/
-        index.html
         index.py
 ```
 
-Use this pattern when the app has a public grouped section that should stay out of the URL and a private dashboard section that should appear in the URL. The root layout owns app-wide chrome, `(marketing)/layout.html` owns the shared public marketing shell, and `dashboard/layout.html` owns the shared dashboard shell for `/dashboard/*` child routes.
+Use this pattern when the app has a public grouped section that should stay out of the URL and a private dashboard section that should appear in the URL. The root layout owns app-wide chrome, `(marketing)/layout.py` owns the shared public marketing shell, and `dashboard/layout.py` owns the shared dashboard shell for `/dashboard/*` child routes.
 
-When a shared shell has its own scrollable sidebar or rail plus a separate page-content scroller, keep the persistent shell scrollers unmarked and put `pp-reset-scroll="true"` on the page-content scroller in `layout.html`. That gives grouped sections the common app-router behavior where the main pane resets on child-route navigation while the sidebar keeps its scroll position. Use `body[pp-reset-scroll="true"]` only when the target route should reset every scrollable surface.
+When a shared shell has its own scrollable sidebar or rail plus a separate page-content scroller, keep the persistent shell scrollers unmarked and put `pp-reset-scroll="true"` on the page-content scroller in the layout template. That gives grouped sections the common app-router behavior where the main pane resets on child-route navigation while the sidebar keeps its scroll position. Use `body[pp-reset-scroll="true"]` only when the target route should reset every scrollable surface.
 
 ## Core Concepts
 
-Every route lives inside `src/app`. For routes that render UI, `index.html` owns the markup and `index.py` is only an optional companion for server logic or metadata.
-
-Use this decision rule when creating routes:
-
-| Route shape | Files |
-| --- | --- |
-| UI only | `index.html` |
-| UI plus backend logic or metadata | `index.html` and `index.py` |
-| No rendered page, backend only | `index.py` |
+Every route lives inside `src/app` as one `index.py`.
 
 Examples:
 
 | Files | URL |
 | --- | --- |
-| `src/app/index.html` | `/` |
-| `src/app/about/index.html` | `/about` |
-| `src/app/dashboard/index.html` and `src/app/dashboard/index.py` | `/dashboard` |
-| `src/app/blog/posts/index.html` | `/blog/posts` |
+| `src/app/index.py` | `/` |
+| `src/app/about/index.py` | `/about` |
+| `src/app/dashboard/index.py` | `/dashboard` |
+| `src/app/blog/posts/index.py` | `/blog/posts` |
 | `src/app/(auth)/signout/index.py` | `/signout` |
 
-### `index.html`
+### `index.py`
 
-Use `index.html` for the route template. This is the route's view layer.
+`index.py` is the route: its `page()` returns the page markup through `html(...)`, and the same module owns metadata, auth checks, redirects, caching, and route-owned `@rpc()` actions.
 
-If a route renders visible page content, that content belongs here even when the route also has an `index.py` companion.
+Route templates import reusable Python components with normal Python imports and render them with HTML-first `x-*` tags such as `<x-button />`. Use [components.md](./components.md) for the component authoring rules.
 
-Route templates can import reusable Python components with `<!-- @import ... -->` comments and render them with HTML-first `x-*` tags such as `<x-button />`. Use [components.md](./components.md) for the component authoring rules.
+Keep route templates as composition, not as the place where all section markup accumulates. A route with tabs, dashboard panels, forms, tables, or repeated cards should import focused components for those responsibilities and assemble them with `x-*` tags. For example, a dashboard route can import `<x-dashboard-header />`, `<x-metric-strip />`, `<x-activity-tab />`, and `<x-settings-tab />` rather than placing every tab panel's full markup in one giant template.
 
-Place those import comments at the top of the file, above the authored root element. They are file-level directives, not children of the route root.
+Route templates follow the same authored-vs-runtime contract documented in [pulsepoint.md](./pulsepoint.md) and the same single-root discipline documented in [components.md](./components.md): keep one authored parent node, use a plain `<script>` inside that root when needed, and do not handwrite `pp-component`. That root may be a native HTML element or a single imported `x-*` component tag, but after expansion it must resolve to one final HTML root.
 
-Keep route templates as composition, not as the place where all section markup accumulates. A route with tabs, dashboard panels, forms, tables, or repeated cards should import focused components for those responsibilities and assemble them with `x-*` tags. For example, a dashboard route can import `<x-dashboard-header />`, `<x-metric-strip />`, `<x-activity-tab />`, and `<x-settings-tab />` rather than placing every tab panel's full markup in `index.html` or one giant Python component.
+When a route needs button clicks, form submits, input changes, filters, tabs, menus, uploads, polling, or reactive list updates, author those interactions as PulsePoint behavior in the template. Use `onclick`, `oninput`, `onchange`, `onsubmit`, `pp.state(...)`, `pp-for`, refs, effects, and `pp.rpc(...)` instead of starting with `id` attributes plus `document.querySelector(...)` or `addEventListener(...)`. For simple form submits, prefer `onsubmit="{submitForm(event)}"` and `Object.fromEntries(new FormData(event.currentTarget).entries())` over per-input `pp-ref` payload collection.
 
-Route templates follow the same authored-vs-runtime contract documented in [pulsepoint.md](./pulsepoint.md) and the same single-root discipline documented in [components.md](./components.md): keep one authored parent node, keep any `<!-- @import ... -->` directives above that root, use a plain `<script>` inside that root when needed, and do not handwrite `pp-component`. That root may be a native HTML element or a single imported `x-*` component tag, but after expansion it must resolve to one final HTML root.
+Example:
 
-When a route needs button clicks, form submits, input changes, filters, tabs, menus, uploads, polling, or reactive list updates, author those interactions as PulsePoint behavior in `index.html`. Use `onclick`, `oninput`, `onchange`, `onsubmit`, `pp.state(...)`, `pp-for`, refs, effects, and `pp.rpc(...)` instead of starting with `id` attributes plus `document.querySelector(...)` or `addEventListener(...)`. For simple form submits, prefer `onsubmit="{submitForm(event)}"` and `Object.fromEntries(new FormData(event.currentTarget).entries())` over per-input `pp-ref` payload collection.
+```python
+from casp.component_decorator import html
+from casp.layout import Metadata
+from src.components.StatsCard import StatsCard
 
-For AI-generated route templates, treat `src/app/**/index.html` the same way you would a React component body **in root count only**: one parent node containing the entire route markup, including any owned script. Inside that root, write plain HTML with PulsePoint directives — `hidden="{...}"` for conditionals, `<template pp-for="…">` for lists, and quoted brace attributes such as `class="{…}"`. JSX shapes (`{cond && <div/>}`, `{list.map(...)}`, `class={...}`) break the render.
+metadata = Metadata(
+    title="Dashboard | Caspian",
+    description="Overview page for the dashboard.",
+)
 
-Good:
+
+async def page():
+    return html(r"""
+<section class="dashboard-shell">
+  <h1>Dashboard</h1>
+
+  <x-stats-card title="Users" value="42" />
+
+  <script>
+    const [filter, setFilter] = pp.state("all");
+  </script>
+</section>
+""")
+```
+
+Good template shape (one root, script inside it):
 
 ```html
 <section class="dashboard-shell">
@@ -203,7 +206,7 @@ Good:
 </section>
 ```
 
-Bad:
+Bad (script outside the root, or sibling top-level tags):
 
 ```html
 <section class="dashboard-shell">
@@ -215,71 +218,16 @@ Bad:
 </script>
 ```
 
-Also bad:
-
-```html
-<section class="dashboard-shell">
-  <h1>Dashboard</h1>
-</section>
-
-<aside class="dashboard-help">Tips</aside>
-```
-
-Also bad:
-
-```html
-<section class="dashboard-shell">
-  <!-- @import StatsCard from "../components" -->
-  <x-stats-card title="Users" value="42" />
-</section>
-```
-
-Correct:
-
-```html
-<!-- @import StatsCard from "../components" -->
-
-<section class="dashboard-shell">
-  <x-stats-card title="Users" value="42" />
-</section>
-```
-
-Use [pulsepoint.md](./pulsepoint.md) when you need the full authored-vs-rendered example instead of this routing-focused reminder. Use [pulsepoint-runtime-map.md](./pulsepoint-runtime-map.md) when a route task names a specific PulsePoint directive or SPA behavior and you need the owning runtime file quickly.
-
-### `index.py`
-
-Use `index.py` as the backend companion when a route needs metadata or async server-side logic. For routes that render UI, keep the markup in the sibling `index.html` and let `page()` call `render_page(__file__, ...)`. Do not inline route HTML inside `index.py`.
-
-If the logic belongs only to this route, keep it here. Examples include this page's first-render query, route-owned RPC actions, redirect decisions, route-specific validation, route-specific filters, and route-specific response shaping. Move code into `src/lib/**` when the same logic is reused or intentionally shared; do not extract one-route orchestration into a library just because it is Python code.
-
-Use `index.py` by itself only for non-visual routes such as redirects or action-only handlers. Because Caspian runs on FastAPI, the page entry should be async when it performs async work.
-
-When `page()` calls `render_page(__file__, ...)`, root-validation errors are attributed to the sibling `index.html` because that file is the authored template. If `page()` returns a raw HTML string directly, Caspian treats that value as a runtime fragment instead of an authored template and wraps it in a runtime host root when needed.
-
-Example:
-
-```python
-from casp.layout import Metadata, render_page
-
-metadata = Metadata(
-    title="Caspian Documentation | The Native Python Web Framework",
-    description="Explore the comprehensive documentation for Caspian.",
-)
-
-async def page():
-    return render_page(__file__)
-```
-
-Use this pattern when the route needs to fetch data, compute metadata, or do other non-blocking server work before rendering the sibling `index.html`.
+If the logic belongs only to this route, keep it in the same `index.py`. Examples include this page's first-render query, route-owned RPC actions, redirect decisions, route-specific validation, route-specific filters, and route-specific response shaping. Move code into `src/lib/**` when the same logic is reused or intentionally shared; do not extract one-route orchestration into a library just because it is Python code.
 
 `page()` may also return a 2-item tuple: `(page_html, layout_props_dict)`.
 
-- The first item is the rendered page HTML, usually `render_page(__file__, page_context)`.
+- The first item is the rendered page markup, usually `html(r"""...""", **context)`.
 - The second item must be a dict. Its keys are merged into the wrapping layout context and become available to parent layouts as `{{ layout.* }}`.
 
 Use that tuple form when one route needs to influence a wrapper without turning that value into a section-wide default. A common example is a dashboard page that needs to lock the root body with `overflow-hidden` while the rest of the app keeps normal scrolling.
 
-Example root layout:
+Example root layout template fragment:
 
 ```html
 <body class="{{ layout.dashboard_body_class | default('') }}">
@@ -290,16 +238,16 @@ Example root layout:
 Example route:
 
 ```python
-from casp.layout import render_page
+from casp.component_decorator import html
 
 async def page():
-  return (
-    render_page(__file__),
-    {"dashboard_body_class": "w-screen h-screen overflow-hidden"},
-  )
+    return (
+        html(r"""<div class="dashboard">...</div>"""),
+        {"dashboard_body_class": "w-screen h-screen overflow-hidden"},
+    )
 ```
 
-The key name is arbitrary, but it must match exactly between the dict returned from `page()` and the `{{ layout.some_key }}` lookup in `layout.html`.
+The key name is arbitrary, but it must match exactly between the dict returned from `page()` and the `{{ layout.some_key }}` lookup in the layout template.
 
 Use distinct names for those layout props. In the current router, the second dict is merged into the full layout context after path params and `request`, so a key such as `slug` or `request` can shadow an existing value.
 
@@ -319,22 +267,24 @@ Wrap a folder name in brackets to make it variable.
 
 | File | Example URL |
 | --- | --- |
-| `src/app/users/[id]/index.html` | `/users/123` |
+| `src/app/users/[id]/index.py` | `/users/123` |
 
 These segments are compiled into FastAPI path parameters for efficient route matching.
-
-Add a sibling `index.py` when the dynamic route needs params during render, metadata, or other backend logic.
 
 In the current `main.py` router, path params are collected into a single dict and passed as the first positional argument to `page()`. Matching query params can still be injected by name, and `request` is passed by keyword when declared.
 
 Example:
 
 ```python
-from casp.layout import render_page
+from casp.component_decorator import html
 
 async def page(params: dict):
     user_id = params["id"]
-    return render_page(__file__, {"user_id": user_id})
+    return html(r"""
+<section>
+  <h1>User {{ user_id }}</h1>
+</section>
+""", user_id=user_id)
 ```
 
 ### Catch-all Segments
@@ -343,11 +293,9 @@ Use an ellipsis inside brackets to match multiple path parts.
 
 | File | Example URL |
 | --- | --- |
-| `src/app/docs/[...slug]/index.html` | `/docs/getting-started/setup` |
+| `src/app/docs/[...slug]/index.py` | `/docs/getting-started/setup` |
 
 Use catch-all routes when the number of path segments is not fixed ahead of time.
-
-Add a sibling `index.py` when that catch-all route also needs backend logic or metadata.
 
 If the project uses static export (SSG) and you want a dynamic or catch-all route pre-rendered into the static build, export a `static_paths` provider from that route's `index.py` (Caspian's `getStaticPaths` equivalent). Without it, the static exporter skips the route by design. See [static-export.md](./static-export.md).
 
@@ -359,8 +307,8 @@ Examples:
 
 | Files | URL |
 | --- | --- |
-| `src/app/(auth)/signin/index.html` and `src/app/(auth)/signin/index.py` | `/signin` |
-| `src/app/(auth)/signup/index.html` and `src/app/(auth)/signup/index.py` | `/signup` |
+| `src/app/(auth)/signin/index.py` | `/signin` |
+| `src/app/(auth)/signup/index.py` | `/signup` |
 
 Route groups are useful when you want to:
 
@@ -368,7 +316,7 @@ Route groups are useful when you want to:
 - Split routes under different layout boundaries.
 - Improve project organization without changing the public URL structure.
 
-If the group needs a shared wrapper, put `layout.html` inside the `(group)` folder. That layout applies to every child route in the group while the group name stays out of the URL.
+If the group needs a shared wrapper, put `layout.py` inside the `(group)` folder. That layout applies to every child route in the group while the group name stays out of the URL.
 
 Use this decision rule:
 
@@ -377,27 +325,27 @@ Use this decision rule:
 
 ## Layouts And Nesting
 
-Layouts work like the Next.js App Router layout system. A `layout.html` file wraps the routes beneath its folder, and nested layouts compose automatically.
+Layouts work like the Next.js App Router layout system. A `layout.py` file wraps the routes beneath its folder, and nested layouts compose automatically.
 
-In practice, this means a dashboard is usually a folder-level layout, not a single oversized page. Put the shared sidebar, header, and frame in `dashboard/layout.html`, then create child routes such as `dashboard/settings/index.html` and `dashboard/reports/index.html` beneath it.
+In practice, this means a dashboard is usually a folder-level layout, not a single oversized page. Put the shared sidebar, header, and frame in `dashboard/layout.py`, then create child routes such as `dashboard/settings/index.py` and `dashboard/reports/index.py` beneath it.
 
-When a layout imports components, keep each `<!-- @import ... -->` comment above the layout's authored wrapper element, such as the root `<section>` in a nested layout or the root `<html>` in the app layout.
+Resolved SEO fields are exposed to layout templates as `{{ metadata.* }}`, while props returned from `layout()` are exposed separately as `{{ layout.* }}`.
 
-Resolved SEO fields are exposed to layouts as `{{ metadata.* }}`, while values returned from `layout.py` are exposed separately as `{{ layout.* }}`.
+### `layout.py`
 
-### `layout.html`
+`layout()` returns the shared wrapper markup for its subtree as a **raw template string**. The runtime compiles that string later — with `children`, `{{ layout.* }}`, and `{{ metadata.* }}` in scope — so `layout()` must not pre-render it through `html(...)`.
 
-Use `layout.html` for the shared wrapper markup of a subtree. Keep the visible shell here, not in `layout.py`.
-
-Follow the same authoring contract used by route templates: one authored parent node, top-of-file `<!-- @import ... -->` directives above that root, a plain `<script>` inside the root when needed, and no handwritten `pp-component`. See [pulsepoint.md](./pulsepoint.md) for the canonical authored-vs-runtime explanation.
+Follow the same authoring contract used by route templates: one authored parent node, a plain `<script>` inside the root when needed, and no handwritten `pp-component`. `<x-*>` tags in the returned template resolve from the Components imported at the top of `layout.py`. See [pulsepoint.md](./pulsepoint.md) for the canonical authored-vs-runtime explanation.
 
 Place child routes with a plain HTML `<slot />` tag. Caspian replaces that layout slot with the current child route or nested layout while rendering.
 
 For example, a page inside `/dashboard/settings` is wrapped by the root layout first and then by the dashboard layout.
 
-Example root layout:
+Example root layout (`src/app/layout.py`):
 
-```html
+```python
+def layout():
+    return r"""
 <!DOCTYPE html>
 <html>
   <head>
@@ -405,19 +353,20 @@ Example root layout:
     <meta name="description" content="{{ metadata.description }}" />
   </head>
   <body>
-    <NavBar />
     <slot />
   </body>
 </html>
+"""
 ```
 
-### `layout.py`
+`layout()` currently supports these result shapes:
 
-If a layout needs shared props or metadata, add a `layout.py` file next to the HTML layout. Treat it as the backend companion for the layout, not as the place to author visible wrapper markup.
+- `str`: the layout template for the subtree
+- `(template_string, props_dict)`: the template plus `{{ layout.* }}` props
+- `dict`: a passthrough `<slot />` shell plus `{{ layout.* }}` props
+- `None`: a passthrough `<slot />` shell with no extra layout props
 
-When `layout()` calls `render_layout(__file__, ...)`, root-validation errors are attributed to the sibling `layout.html` because that file is the authored template. If `layout()` returns a raw HTML string directly, Caspian treats that value as a runtime fragment instead of an authored template and wraps it in a runtime host root when needed.
-
-Example:
+Example with shared props:
 
 ```python
 from casp.auth import auth
@@ -425,52 +374,22 @@ from casp.auth import auth
 def layout(context_data):
     user = auth.get_payload()
 
-    return {
+    return r"""
+<div class="dashboard-shell">
+  <aside>Signed in as {{ layout.user.name }}</aside>
+  <main pp-reset-scroll="true"><slot /></main>
+</div>
+""", {
         "user": user,
-        "dashboard_body_class": "w-screen h-screen overflow-hidden",
         "theme": "dark",
     }
 ```
 
 `context_data` includes URL parameters such as dynamic route values.
 
-In the common case, return a dict and let the sibling `layout.html` read those values through `{{ layout.* }}`.
-
-`layout()` currently supports these result shapes:
-
-- `dict`: load the sibling `layout.html` and expose the dict as `{{ layout.* }}`
-- `str`: use that string as the layout content
-- `(layout_html, props_dict)`: use the first item as the layout content and expose the second dict as `{{ layout.* }}`
-- `None`: fall back to the sibling `layout.html` with no extra layout props
-
-If you intentionally want to render `layout.html` immediately with direct local variables instead of the `layout.*` namespace, call `render_layout(__file__, {...})` and reference those keys directly in the template. `render_layout(...)` does not create a hidden child outlet; the layout template must still author the real `<slot />` element where child routes should render.
-
-Example:
-
-```python
-from casp.layout import render_layout
-
-def layout():
-  return render_layout(__file__, {"my_class": "size-8"})
-```
-
-In that pattern, the matching `layout.html` reads `{{ my_class }}`, not `{{ layout.my_class }}`, because the template string was already rendered before the nested layout pipeline continues.
-
-If you need both a custom layout string and standard `{{ layout.* }}` props, return a tuple:
-
-```python
-from casp.layout import render_layout
-
-def layout():
-  return (
-    render_layout(__file__),
-    {"dashboard_body_class": "w-screen h-screen overflow-hidden"},
-  )
-```
-
 `layout()` may be synchronous or async in the installed runtime. Keep async layout work focused on shared subtree props or metadata; use `page()` or `@rpc()` when the work belongs to one route or a browser-triggered user action.
 
-Use [metadata.md](./metadata.md) when a layout also needs SEO defaults. Return dictionaries from `layout()` for visual or template props, and use `Metadata(...)` for title, description, and social tags.
+Use [metadata.md](./metadata.md) when a layout also needs SEO defaults. Return template/props from `layout()` for visual concerns, and use `Metadata(...)` for title, description, and social tags.
 
 ## Recommended Structure
 
@@ -479,40 +398,34 @@ This example shows a typical nested routing setup:
 ```text
 src/
   app/
-    layout.html
-    index.html
+    layout.py
+    index.py
     about/
-      index.html
+      index.py
     (marketing)/
-      layout.html
+      layout.py
       pricing/
-        index.html
+        index.py
     users/
       [id]/
-        index.html
         index.py
     docs/
       [...slug]/
-        index.html
         index.py
     (auth)/
       login/
-        index.html
         index.py
       register/
-        index.html
         index.py
       signout/
         index.py
     dashboard/
-      layout.html
       layout.py
-      index.html
+      index.py
       settings/
-        index.html
         index.py
       reports/
-        index.html
+        index.py
 ```
 
 ## AI Retrieval Notes
@@ -521,20 +434,16 @@ If an AI agent is choosing where to add or update route code, apply these rules 
 
 - Treat `src/app/` as the routing source of truth.
 - Use folder names to model URL segments.
-- If a route renders UI, create or update `index.html` for the markup.
-- Add `index.py` only when the same route needs metadata or server behavior; do not place route HTML in `index.py`.
+- Every route is one `index.py`; `page()` returns `html(r"""...""")` markup for UI routes and a `Response` for non-visual routes.
 - Keep route-specific backend logic in the route's own `index.py`; extract to `src/lib/**` only for genuinely shared logic.
-- Keep visible page markup in `index.html` and shared subtree shells in `layout.html`; do not place route HTML in `index.py` or layout HTML in `layout.py`.
-- Keep `index.html` as a short assembly of focused `x-*` components. When a route area has its own responsibility, such as a tab panel, settings form, data table, toolbar, or metric section, create a component for that area and pass route data into it as props.
-- Use PulsePoint as the first-party interaction model for route and layout HTML. Avoid custom DOM wiring for normal events and reactivity.
-- When the user asks for a dashboard, admin area, account section, or any grouped subtree of child routes, create a parent folder with `layout.html` and place the child routes beneath it. Follow the same mental model as the Next.js App Router.
+- Keep the page template a short assembly of focused `x-*` components. When a route area has its own responsibility, such as a tab panel, settings form, data table, toolbar, or metric section, create a component for that area and pass route data into it as props.
+- Import every component used as an `<x-*>` tag at the top of the owning Python module.
+- Use PulsePoint as the first-party interaction model for route and layout markup. Avoid custom DOM wiring for normal events and reactivity.
+- When the user asks for a dashboard, admin area, account section, or any grouped subtree of child routes, create a parent folder with `layout.py` and place the child routes beneath it. Follow the same mental model as the Next.js App Router.
 - Use a normal folder such as `dashboard/` when the segment should appear in the URL. Use `(group)/` only when the folder should organize or wrap child routes without adding a path segment.
 - Use [cache.md](./cache.md) when an `index.py` route should opt into page-level HTML caching.
-- Use `layout.html` for shared wrappers and `layout.py` for layout-level props or metadata.
 - For grouped shells with separate shell and content scrolling, put `pp-reset-scroll="true"` on the content pane instead of the whole shell when only the page content should reset between child routes.
-- When one route needs to change a parent layout, return `(render_page(__file__, ...), {"dashboard_body_class": ...})` from `page()` and read that value as `{{ layout.dashboard_body_class }}` in the wrapping `layout.html`.
-- Use `layout.py` for layout props that should apply across an entire subtree. Use `render_layout(__file__, {...})` only when the layout should consume direct local variables such as `{{ my_class }}` instead of the standard `{{ layout.* }}` namespace.
-- Keep `<!-- @import ... -->` directives at the top of `index.html` and `layout.html`, above the single authored parent node.
+- When one route needs to change a parent layout, return `(html(...), {"dashboard_body_class": ...})` from `page()` and read that value as `{{ layout.dashboard_body_class }}` in the wrapping layout template.
 - Use [metadata.md](./metadata.md) when a route or layout needs SEO fields.
 - Use `[segment]` for single dynamic parameters.
 - Use `[...segment]` for catch-all route matching.

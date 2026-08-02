@@ -1,6 +1,6 @@
 ---
 title: PulsePoint Runtime Guide
-description: Use this page when the task mentions PulsePoint, performance, rerenders, slow inputs or searches, `pp.state`, `pp.ref`, `pp.effect`, `pp-ref`, `pp-style`, `pp-for`, portals, `pp-reset-scroll`, SPA navigation, or `public/js/pp-reactive-v2.js`. Read "PulsePoint Is Not JSX" before writing templates and "High-performance authoring" before changing runtime reconciliation.
+description: Use this page when the task mentions PulsePoint, performance, rerenders, slow inputs or searches, `pp.state`, `pp.ref`, `pp.effect`, `pp-ref`, `pp-style`, `pp-for`, portals, `pp-reset-scroll`, SPA navigation, or `public/js/pp-reactive-v2.min.js`. Read "PulsePoint Is Not JSX" before writing templates and "High-performance authoring" before changing runtime reconciliation.
 related:
   title: Related docs
   description: Read the components, routing, data-fetching, and project-structure docs alongside the PulsePoint runtime contract.
@@ -37,7 +37,7 @@ Apply these before generating any template, even without reading the rest of thi
 5. Keep reactive values in `pp.state(...)`; keep template-facing bindings at the top level of the script.
 6. Call the backend with `pp.rpc(...)` backed by Python `@rpc()` actions; do not invent fetch wrappers or `pp.fetchFunction()`.
 7. `pp-for` goes only on `<template>` with plain `key`; context uses `pp.createContext(...)`, a lowercase `<token.provider>` tag, and `pp.context(token)`.
-8. If an API is not in `public/js/pp-reactive-v2.js`, it does not exist; do not invent hooks, directives, or globals.
+8. If an API is not in `public/js/pp-reactive-v2.min.js`, it does not exist; do not invent hooks, directives, or globals.
 9. **Every brace expression in an attribute must be inside quotes**: `class="{expr}"`, never `class={expr}`. Unquoted braces are shredded by the HTML parser.
 10. **A `{...}` expression produces text, never elements.** There is no JSX. Conditionals use `hidden="{...}"`, lists use `<template pp-for="…">`.
 
@@ -80,7 +80,7 @@ Before writing a template, ask: *"Would this file be valid HTML if I deleted eve
 
 ## Complete Directive And API Surface
 
-**These lists are closed.** PulsePoint has no other directives, template syntax, or globals. If something is not listed here, it does not exist — do not infer it from React, Vue, Alpine, or another PulsePoint version. Verify against `public/js/pp-reactive-v2.js` when in doubt.
+**These lists are closed.** PulsePoint has no other directives, template syntax, or globals. If something is not listed here, it does not exist — do not infer it from React, Vue, Alpine, or another PulsePoint version. Verify against `public/js/pp-reactive-v2.min.js` when in doubt.
 
 ### Author-facing template syntax (the whole list)
 
@@ -117,7 +117,7 @@ The server also emits `meta[name="pp-root-layout"]` for SPA compatibility checks
 
 ### Runtime utilities (the whole list)
 
-`pp.createContext`, `pp.mount`, `pp.redirect`, `pp.rpc`, `pp.enablePerf`, `pp.disablePerf`, `pp.getPerfStats`, `pp.resetPerfStats`.
+`pp.createContext`, `pp.mount`, `pp.redirect`, `pp.rpc`, `pp.socket`, `pp.enablePerf`, `pp.disablePerf`, `pp.getPerfStats`, `pp.resetPerfStats`.
 
 React hooks with **no** PulsePoint equivalent: `useContext`-as-a-provider-call, `useInsertionEffect`, `useDebugValue`, `useActionState`, `useFormStatus`, `forwardRef`, `memo()` as a component wrapper, `lazy`, `Suspense`, `startTransition` as a free function. Do not generate them.
 
@@ -129,19 +129,19 @@ Inside an `on*` attribute the runtime provides `event`, plus the aliases `e`, `$
 
 When documenting or generating PulsePoint code, follow this order:
 
-- `public/js/pp-reactive-v2.js` is the shipped browser runtime contract AI should follow.
+- `public/js/pp-reactive-v2.min.js` is the shipped browser runtime contract AI should follow.
 - `main.py` is the render-pipeline source of truth for component transformation, runtime-attribute injection, and final inert-template deferral.
 - If you are working inside PulsePoint or Caspian runtime development code and there is an authoring source tree behind the shipped files, use it only as an implementation detail. Do not assume that source tree exists in generated apps or shipped framework output.
 
 Important current facts:
 
-- `public/js/pp-reactive-v2.js` exposes the global `pp` runtime and auto-mounts on DOM ready.
+- `public/js/pp-reactive-v2.min.js` exposes the global `pp` runtime and auto-mounts on DOM ready.
 - `main.py` renders the final HTML, transforms components, and defers outermost component roots inside inert templates before returning the response.
 - `.venv/Lib/site-packages/casp/components_compiler.py` injects `pp-component` on the final resolved root after component expansion.
-- `public/js/pp-reactive-v2.js` captures and empties plain component scripts before materialization or morph insertion, then evaluates their source in component scope.
+- `public/js/pp-reactive-v2.min.js` captures and empties plain component scripts before materialization or morph insertion, then evaluates their source in component scope.
 - Authored route and component templates compose reusable server components as HTML-first `x-*` tags before the browser runtime mounts.
 
-If docs, generated examples, or older notes disagree with `public/js/pp-reactive-v2.js` plus `main.py`, follow the code that actually runs.
+If docs, generated examples, or older notes disagree with `public/js/pp-reactive-v2.min.js` plus `main.py`, follow the code that actually runs.
 
 Use [core-runtime-map.md](./core-runtime-map.md) when the controlling runtime file is not obvious yet.
 
@@ -157,7 +157,7 @@ When a Caspian page needs reactive browser behavior, use PulsePoint.
 - For ordinary forms, bind the submit event in the `<form>` and collect named fields with `Object.fromEntries(new FormData(event.currentTarget).entries())`. Let input `name` attributes define the payload keys, then validate and normalize those values in Python. Do not use `pp.ref(...)` on every input or an effect-managed listener just to read submitted values.
 - When the browser needs CRUD operations or follow-up reads from the backend, call `pp.rpc()` from PulsePoint code and back it with route or backend `@rpc()` actions.
 - Keep server-rendered HTML plus PulsePoint enhancement as the baseline architecture.
-- For dashboards, admin areas, account sections, docs sections, and other grouped subtrees, keep shared shell markup and shared PulsePoint behavior in the parent folder's `layout.html`, then keep child-route PulsePoint state local to each `index.html`. Follow the same mental model as the Next.js App Router.
+- For dashboards, admin areas, account sections, docs sections, and other grouped subtrees, keep shared shell markup and shared PulsePoint behavior in the parent folder's `layout.py`, then keep child-route PulsePoint state local to each route's page template. Follow the same mental model as the Next.js App Router.
 - Only introduce another frontend runtime when the user explicitly asks for it or the project already depends on one.
 
 ## PulsePoint-First Events And Reactivity
@@ -505,6 +505,7 @@ Global helpers exposed through the `pp` singleton and also merged into the compo
 - `pp.mount()` bootstraps the runtime. It is idempotent.
 - `pp.redirect(url)` performs SPA-aware navigation when enabled.
 - `pp.rpc(name, data?, optionsOrAbort?)` performs the current route RPC bridge.
+- `pp.socket(name, args?, handlers?)` opens a named server socket: a bidirectional, long-lived channel to a server-side `@socket()` function. It connects to the framework's single socket endpoint with the function's name in the `name` query parameter, sends `args` as the connection's first frame (one JSON object — the same payload shape `pp.rpc` would post), and every later frame is one JSON value in either direction. `handlers` accepts `onOpen`, `onMessage(value)`, `onError(error)`, and `onClose({ code, reason, wasClean })`; a server frame shaped `{"error": "..."}` (that key alone) is reserved for failures and routed to `onError`. The returned handle exposes `send(value)` (returns `false` once closed; frames sent before the connection opens are buffered and flushed), `close(code?, reason?)`, and `readyState`. Open the socket inside `pp.effect(..., [])`, keep the handle in `pp.ref(...)`, and close it in the effect's cleanup. Use it only for genuinely bidirectional channels; ordinary reads/writes stay on `pp.rpc`, and one-way server push stays on RPC streaming.
 - `pp.enablePerf()` enables render timing collection.
 - `pp.disablePerf()` disables render timing collection.
 - `pp.getPerfStats()` returns collected render timings.
@@ -1148,7 +1149,7 @@ Nested components:
 
 - Use `{expression}` in text nodes and attribute values.
 - **Attribute brace expressions must be quoted.** Write `class="{expr}"`, `disabled="{isSaving}"`, `selected="{role === 'admin'}"`. The unquoted JSX form `class={expr}` is not a PulsePoint syntax variant — it is invalid HTML. An unquoted value ends at the first space, so everything after it is re-parsed as further attribute names, and the element (and usually the whole component root) is destroyed before the compiler ever runs. This is silent: no console error, just a blank page.
-- **An interpolation evaluates to a value, never to markup.** The compiler coerces the result with `String(...)` and HTML-escapes it. Elements cannot come out of an expression, so there is no JSX-style element-returning branch or `.map()`. Use `hidden="{...}"` for conditionals and `<template pp-for="…">` for lists.
+- **An interpolation evaluates to a value, never to markup.** The compiler serializes the result with the JSX-child rules in "Value serialization is the JSX child contract" below — it is *not* a plain `String(...)` coercion — and HTML-escapes it. Elements cannot come out of an expression, so there is no JSX-style element-returning branch or `.map()`. Use `hidden="{...}"` for conditionals and `<template pp-for="…">` for lists.
 - Objects, functions, and symbols in text position log `[PP-WARN] Invalid template child` and render nothing — that warning usually means JSX-shaped code was attempted.
 - Follow HTML-first attribute naming. Native event attributes are lowercase DOM event attributes (`onclick`, `oninput`, `onsubmit`). Every other attribute on a component boundary is a prop: kebab-case names become camel-cased only inside `pp.props` (`selected-value` becomes `selectedValue`, `open-change` becomes `openChange`, and `on-open-change` becomes `onOpenChange`). A function prop does not need an `on-` prefix; that prefix is only an API naming convention. Use `on-click` when a component intentionally exposes an `onClick` prop, because lowercase `onclick` is reserved for the native DOM event on the boundary element.
 - Pure bindings like `value="{count}"` are evaluated as expressions.
@@ -1186,6 +1187,67 @@ Example:
   </script>
 </div>
 ```
+
+### Value serialization is the JSX child contract
+
+"PulsePoint Is Not JSX" is a rule about **structure**: an expression cannot produce elements. It is not a rule about **values**. An interpolation serializes its result exactly the way React serializes a JSX child, deliberately and with runtime tests behind it. Read this before binding a value whose type is not a string or a number — nearly every "my binding is blank" report is one of these rows working as designed.
+
+**Text position.** `{expression}` between tags renders as:
+
+| Result | Rendered text | Note |
+| --- | --- | --- |
+| `"text"`, `42`, `12n` | the value, HTML-escaped | |
+| `true` / `false` | nothing | **both** booleans, not only `false` |
+| `null` / `undefined` | nothing | |
+| `""` | nothing | it is the empty string, not a blank |
+| `0` | `0` | falsy, but printed |
+| `NaN` | `NaN` | |
+| an array | each item by these same rules, concatenated with no separator | `[1, null, 2]` renders `12` |
+| an object, function, or symbol | nothing, plus `[PP-WARN] Invalid template child` | React throws here; PulsePoint omits and warns |
+
+**The blank-binding trap.** The boolean and nullish rows cost the most time, because the value is correct and the output is empty. A flag that is `false`, or an absent optional serialized as `null`, reaches the browser intact and then renders as an empty element:
+
+```html
+<p>Admin: <span>{admin}</span></p>
+<!-- admin === false -> renders nothing at all -->
+```
+
+Bind a *display expression*, never the raw value, whenever the value can be boolean or nullish:
+
+```html
+<p>Admin: <span>{admin ? 'yes' : 'no'}</span></p>
+<p>Role: <span>{role ? role : 'none'}</span></p>
+```
+
+The same rule is why the React `&&` idiom leaks a zero. `{items.length && 'has items'}` renders `0` on an empty list, because `0` prints and only booleans and nullish values vanish. Write `{items.length > 0 ? 'has items' : ''}`.
+
+There is no escape hatch from an interpolation to raw HTML. Text is always escaped, and an attribute value is escaped so it cannot close its quote or introduce an event handler. Trusted markup is the server's job.
+
+**Attribute position.** `name="{expression}"` follows the same family of rules, split by the kind of attribute:
+
+| Attribute kind | Result | Effect |
+| --- | --- | --- |
+| HTML boolean (`disabled`, `hidden`, `checked`, `readonly`, …) | `true` | attribute present, bare |
+| | `false`, `null`, `undefined` | attribute absent |
+| | falsy primitive (`""`, `0`, `NaN`) | attribute absent |
+| | truthy primitive | present, carrying that value |
+| anything else (`class`, `title`, `aria-*`, `data-*`) | `true` / `false` | the literal strings `"true"` / `"false"` |
+| | `null` / `undefined` | **attribute present with an empty value** |
+| | `0`, `NaN` | `"0"`, `"NaN"` |
+
+Two of those rows differ from React.
+
+A boolean on a non-boolean attribute is serialized rather than dropped, because `aria-*` and `data-*` flags are string-valued in the DOM: an author writing `aria-expanded="{open}"` means `"true"`/`"false"`, not presence. This is intended.
+
+A nullish value on a non-boolean attribute leaves the attribute **present and empty** — `title="{maybeTitle}"` emits `title=""` where React would omit the attribute entirely. On `class` or `title` this is harmless. On a URL attribute it is not: an empty `src` re-requests the current document and an empty `href` links to it. Guard the expression whenever the attribute is a URL:
+
+```html
+<img src="{avatar ? avatar : placeholderUrl}" alt="" />
+```
+
+The same binding on a **component boundary** does remove the attribute when the value is nullish, so a nullish `src` behaves differently on a plain `<img>` than on a component that forwards it. Do not depend on either shape; write the guard.
+
+**`pp-for` collections.** A non-iterable collection renders no rows and logs a `[PP-WARN]`. `null` and `undefined` render no rows silently. Binding an object where an array was intended is therefore a blank list rather than an error.
 
 ### Component markup is deferred inside an inert `<template>`
 
@@ -1450,11 +1512,11 @@ Use these rules when generating or editing PulsePoint runtime code:
 - For first-party HTML interactions, use PulsePoint `on*` event attributes, state, refs, effects, directives, and `pp.rpc()` before reaching for DOM APIs.
 - For simple forms, bind `onsubmit` in the authored HTML and read named fields with `Object.fromEntries(new FormData(event.currentTarget).entries())`; do not generate per-input refs or effect-managed submit listeners just to gather values.
 - Treat `pp.rpc()` as the default browser-to-server path for CRUD operations and interactive backend reads.
-- Use `public/js/pp-reactive-v2.js` as the shipped runtime contract AI should follow.
+- Use `public/js/pp-reactive-v2.min.js` as the shipped runtime contract AI should follow.
 - Keep `main.py` in view because it injects runtime-facing component attributes and defers roots before the browser sees live component DOM.
 - If a development-only source tree exists behind the shipped runtime, treat it as optional implementation detail rather than something generated apps are guaranteed to contain.
 - In authored Caspian templates, do not handwrite `pp-component`; let the render pipeline inject it, and keep owned logic in a plain `<script>`.
-- For grouped subtrees, follow the section layout pattern in [routing.md](./routing.md), keep the shared interactive shell in the parent folder's `layout.html`, and keep route-specific PulsePoint code in each child `index.html`.
+- For grouped subtrees, follow the section layout pattern in [routing.md](./routing.md), keep the shared interactive shell in the parent folder's `layout.py`, and keep route-specific PulsePoint code in each child route's page template.
 - For grouped shells with independent shell and content scrolling, put `pp-reset-scroll="true"` on the content pane rather than the whole shell when only the page content should reset between child-route navigations.
 - Prefer PulsePoint state and template directives over manual DOM mutation for reactive updates.
 - Treat `pp.state(...)` as a request to render. Keep timers, request generations, undisplayed pagination cursors, and transient RPC-only query text in `pp.ref(...)`; do not move a value to a ref when markup or render dependencies must react to it.
@@ -1508,7 +1570,7 @@ Also avoid:
 These are current runtime caveats that matter for authors and AI tools:
 
 - `pp-component` is the registry key for instances, state, parent tracking, and templates. Treat it as unique per mounted root.
-- `public/js/pp-reactive-v2.js` is the runtime surface that ships and should be assumed to exist.
+- `public/js/pp-reactive-v2.min.js` is the runtime surface that ships and should be assumed to exist.
 - Caspian injects `pp-component` and preserves owned scripts as plain elements inside deferred roots.
 - PulsePoint captures and empties plain scripts before a deferred root or later morph becomes live, preventing native browser execution while preserving component-scope evaluation.
 - Nested roots without their own plain owned `<script>` block are not fully isolated during parent template compilation.
