@@ -35,7 +35,7 @@ Use it when you already know a behavior is controlled by `main.py` or `.venv/Lib
 
 Important current `main.py` behaviors AI should keep in mind:
 
-- In development, `_scoped_cookie_name(...)` appends the active BrowserSync or dev port to both the session cookie name and the CSRF cookie name. The scope is resolved from `CASPIAN_BROWSER_SYNC_PORT`, then `settings/bs-config.json`, then `PORT`.
+- In development, `_scoped_cookie_name(...)` appends the active BrowserSync or dev port to both the session cookie name and the CSRF cookie name. The scope is resolved from `CASPIAN_BROWSER_SYNC_PORT`, then from the `local` URL in `settings/bs-config.json` (only when its host is `localhost` or `127.0.0.1`). There is no further fallback: a non-numeric or unresolved scope yields `""`, so the unsuffixed base names are used. `PORT` is not consulted.
 - `register_single_route(...)` passes path params to `page()` as one positional dict, injects matching query params by name, and injects `request` by keyword when declared.
 - The render pipeline transforms components, renders nested layouts, and finally defers outermost component roots inside inert templates.
 - Route-level generators returned from `page()` are wrapped in `SSE(...)` before the response is sent.
@@ -64,6 +64,7 @@ Use this table when the task names a framework feature but the owning file is no
 | Server state | request handlers and RPC actions | `casp.state_manager`, `main.py` middleware | [state.md](./state.md) |
 | Page caching | route-level `Cache(...)` declarations | `casp.cache_handler`, `main.py` cache check/save | [cache.md](./cache.md) |
 | Validation | route and RPC input boundaries | `casp.validate` | [validation.md](./validation.md) |
+| Application timezone and calendar dates | route handlers, RPC actions, and anything asking "what day is it" | `casp.app_time`, resolved once at boot by `main.py` | see the `casp.app_time` entry below |
 | Tailwind class merge | Python components and PulsePoint templates | `casp.html_attrs`, browser `twMerge(...)` | [components.md](./components.md), [pulsepoint.md](./pulsepoint.md) |
 | Prisma persistence | `prisma/**`, `src/lib/prisma/**`, route/RPC code | generated Prisma and Python clients | [database.md](./database.md), [fetch-data.md](./fetch-data.md) |
 | MCP tools | `src/lib/mcp/**` when enabled | app-owned FastMCP server | [mcp.md](./mcp.md), [commands.md](./commands.md) |
@@ -102,8 +103,34 @@ Interactive CRUD page:
 | [.venv/Lib/site-packages/casp/components_compiler.py](../../../../.venv/Lib/site-packages/casp/components_compiler.py) | `x-*` component resolution (from a component's Python module imports and the scope captured by `html(...)` and layout modules), parent-scope expansion of slot content, single-root validation, and `pp-component` injection | [components.md](./components.md), [routing.md](./routing.md), [pulsepoint.md](./pulsepoint.md) |
 | [.venv/Lib/site-packages/casp/html_attrs.py](../../../../.venv/Lib/site-packages/casp/html_attrs.py) | `get_attributes(...)`, alias normalization, and the Python-side `merge_classes(...)` contract | [components.md](./components.md) |
 | [.venv/Lib/site-packages/casp/caspian_config.py](../../../../.venv/Lib/site-packages/casp/caspian_config.py) | typed config loading, feature-flag reads, `settings/files-list.json` parsing, and route rule derivation | [project-structure.md](./project-structure.md), [commands.md](./commands.md), [routing.md](./routing.md) |
+| [.venv/Lib/site-packages/casp/app_time.py](../../../../.venv/Lib/site-packages/casp/app_time.py) | `APP_TIMEZONE` resolution and the calendar helpers built on it: `get_app_timezone()`, `now()`, `today()`, `to_app_time(...)`, `day_bounds_utc(...)`, `as_naive_utc(...)` | see below |
 
 Secondary helpers such as `html_native.py`, `loading.py`, and `string_helpers.py` support the modules above. `html_native.py` owns BeautifulSoup-backed fragment parsing used by component/root transforms and layout slot replacement. Read these helpers only when a higher-level runtime file is still insufficient to explain the behavior you are tracing.
+
+### Application time (`casp.app_time`)
+
+**Never call a bare `datetime.now()` in app code.** With no argument it returns the *server's* local wall clock, which is a deployment accident rather than a decision: the same query answers differently on a developer laptop and on a UTC container, and comparing that naive value against a UTC-stored column shifts every result by the server's offset. Use `casp.app_time` instead.
+
+`APP_TIMEZONE` (an IANA name such as `UTC` or `America/New_York`, defaulting to `UTC`) sets the application **calendar** — which wall-clock day an instant belongs to.
+
+| Function | Returns |
+| --- | --- |
+| `get_app_timezone()` | The configured `ZoneInfo`. Raises `InvalidAppTimezoneError` on an unknown name |
+| `now()` | Timezone-aware current time in the application timezone |
+| `today()` | Current calendar date in the application timezone |
+| `to_app_time(dt)` | A stored timestamp read back in the application timezone; a naive input is treated as UTC |
+| `day_bounds_utc(day)` | The UTC instants bounding one local calendar day, as a **half-open** `[start, end)` range |
+| `as_naive_utc(dt)` | Naive UTC, for a driver that rejects aware datetimes |
+
+Three rules hold this together:
+
+- **Storage stays UTC.** The setting changes which day an instant is *reported* under, never the stored value.
+- **Absolute time ignores it, deliberately.** Session expiry (`casp.auth`) stays on `datetime.now(timezone.utc)` and cache TTLs (`casp.cache_handler`) on `time.time()`. If either followed the app timezone, moving a deployment to UTC+14 would hand every live session fourteen extra hours.
+- **An unknown zone raises rather than falling back to UTC**, and `main.py` resolves the zone once at import so the failure lands at boot instead of on whichever request first formats a date. A silent fallback would leave every date quietly wrong with nothing in the logs to explain it.
+
+Query a local calendar day against UTC-stored columns with `day_bounds_utc`, and pair it with `gte`/`lt` — not `gte`/`lte`. A closed range built on `time.max` double-counts the endpoint shared with the next range, and millisecond-resolution columns can round a late-evening row onto the following day.
+
+`zoneinfo` reads the operating system's tz database, which **Windows does not have**. A deployment or developer machine without one needs the `tzdata` package, or every zone except `UTC` raises `ZoneInfoNotFoundError`.
 
 ## Verification Focus
 
@@ -121,6 +148,7 @@ Use these behavior checkpoints when AI needs the fastest verification path for a
 | `casp.state_manager` | wire vs non-wire reset behavior, request-state persistence assumptions, and AttributeDict access |
 | `casp.cache_handler` | filename generation, manifest writes, TTL handling, and invalidation behavior |
 | `casp.caspian_config` | config parsing, files index building, and Next.js-style route inventory behavior |
+| `casp.app_time` | `APP_TIMEZONE` resolution and its fail-loud behavior on an unknown zone, half-open day bounds, and that session expiry and cache TTLs still resolve in UTC |
 
 When a runtime or packaged-doc change touches one of these areas, verify the relevant behavior in the owning source file before inferring behavior from memory.
 

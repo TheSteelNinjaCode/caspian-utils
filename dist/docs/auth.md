@@ -198,7 +198,7 @@ Keep these secrets out of route files and out of committed source.
 
 In the current bootstrap, set `AUTH_COOKIE_NAME` explicitly in `.env`. The pasted `main.py` uses `session` as the fallback `SessionMiddleware` cookie name, while `AuthSettings` falls back to `auth_token` when the env var is absent.
 
-In development, the current `main.py` does not always use those base cookie names directly. `_scoped_cookie_name(...)` appends the active BrowserSync or dev port to both the session cookie name and the CSRF cookie name when `APP_ENV` is not `production`. The scope is resolved from `CASPIAN_BROWSER_SYNC_PORT`, then from `settings/bs-config.json`, then from `PORT`. That means a local stack can emit names such as `session_5091` and `pp_csrf_5091` instead of the unsuffixed production names.
+In development, the current `main.py` does not always use those base cookie names directly. `_scoped_cookie_name(...)` appends the active BrowserSync or dev port to both the session cookie name and the CSRF cookie name when `APP_ENV` is not `production`. The scope is resolved from `CASPIAN_BROWSER_SYNC_PORT`, then from the `local` URL in `settings/bs-config.json` when its host is `localhost` or `127.0.0.1`. There is no third fallback — `PORT` is not read — and a scope that is missing or non-numeric yields `""`, leaving the base names unsuffixed. That means a local stack can emit names such as `session_5091` and `pp_csrf_5091` instead of the unsuffixed production names.
 
 ## Startup Wiring
 
