@@ -456,6 +456,8 @@ The inner `<x-card>` root already owns a `pp-component`, so this component is gi
 
 Practical consequence when reading rendered DOM: an extra `display: contents` div between two component roots is expected output, not a bug and not something to author around.
 
+A page or layout whose authored root is an `x-*` tag is given a host too, but not one that can claim its `<script>`: the host's id and the scope that owns the template's slot content are the same value for a component and different values for a page or layout. The script is silently orphaned — see [A template whose root is an `x-*` tag can lose its `<script>`](#a-template-whose-root-is-an-x--tag-can-lose-its-script).
+
 Keep visible route, layout, and component markup in the HTML templates. Treat `index.py` and `layout.py` as backend companions for data, metadata, props, RPC actions, auth, caching, redirects, and other server-side preparation, not as template bodies.
 
 Caspian already handles those details for you during render.
@@ -561,6 +563,111 @@ Example:
 ```
 
 That is the authored form. In browser-inspected runtime HTML, Caspian will already have added the component id; the owned script remains plain and is removed after PulsePoint captures its source.
+
+### A template whose root is an `x-*` tag can lose its `<script>`
+
+**Symptom: the script's side effects silently never happen.** No console error, no compile warning, no server error, and the rendered markup looks right — the boundary ids are all present and correct. Nothing declared in that script exists: no functions, no `pp.state`, no `pp.effect`, and no listener it would have registered. The first thing that usually surfaces is a handler in the same template throwing `ReferenceError` (see the next section), because the function it calls was never declared.
+
+**Rule: give every page, layout, and component template a native root element and put the owned `<script>` directly inside it. A `<script>` authored inside an `x-*` root is that child's slot content, not the template's owned script.**
+
+Why: slot content is compiled into a `<template pp-owner="…">` wrapper naming the scope that authored it, and a boundary claims a slot script only when the `pp-owner` value equals its own `pp-component` id. Two cases diverge, which is what makes this confusing:
+
+- A **component** whose authored root is another component tag gets a composition host carrying the *same* id the slot content is owned by, so it does claim its script and works.
+- A **page or layout** is compiled in the ambient app scope, so its slot content is owned by `app` while its boundary id is `page_…` / `layout_…`. The ids never match. Nothing claims the script and it never executes.
+
+Diagnose it in the **served HTML** — view source or the document's network response, not the post-mount DOM, because the runtime empties and removes the script element once it has captured the source. Find the `<script>`, then compare the enclosing `<template pp-owner="X">` against the `pp-component` of the root you expected to own it. They must be equal; `pp-owner="app"` on a page or layout script means the script is orphaned.
+
+Wrong — the script is slot content of `<x-shell>`, owned by `app`, and never runs:
+
+```python
+@component
+def page(**props):
+    return html(r"""
+      <x-shell>
+        <button onclick="{doSignout()}">Sign out</button>
+
+        <script>
+          function doSignout() { pp.rpc("signout"); }
+        </script>
+      </x-shell>
+    """)
+```
+
+Right — a layout-neutral native root owns the script:
+
+```python
+@component
+def page(**props):
+    return html(r"""
+      <div style="display: contents">
+        <x-shell>
+          <button onclick="{doSignout()}">Sign out</button>
+        </x-shell>
+
+        <script>
+          function doSignout() { pp.rpc("signout"); }
+        </script>
+      </div>
+    """)
+```
+
+`display: contents` is the right wrapper here because it adds no box: the child component keeps its own layout relationship to the surrounding grid or flex container.
+
+### A handler in slot content runs in the authoring template's scope
+
+**Symptom:**
+
+```
+[PP-ERROR] Handler failed: ReferenceError: doSignout is not defined
+Code: doSignout()
+```
+
+with a stack frame inside the function the event manager compiles (`eval at getCompiledHandler`). The click fires — binding worked — and the function is plainly declared *somewhere*, so the natural next guesses are that the element moved, that it needs its own component, or that a portal broke the connection. None of those is the cause.
+
+**Rule: the function an `on*` handler calls must be defined by the owned script of the template that literally authored that markup — not by the component the element ends up inside.**
+
+Markup passed as children is compiled in the authoring template's scope and carries that owner through to event binding, so the handler is evaluated against the author's component scope wherever the element is finally rendered. Two consequences worth stating outright:
+
+- **Wrapping the element in a component that defines the function does not fix it.** The element then carries its own `pp-component` *and* the event-owner marker from the authoring template, and the owner wins. An agent that reaches for a wrapper component will conclude the runtime is broken.
+- **Portaling is not the cause.** `pp.portal` preserves logical component ancestry, and context, props, and events keep working through a portaled subtree. A handler inside a portaled dropdown, popover, or dialog fails for the reason above, not because it was portaled.
+
+To diagnose, find the template whose source literally contains the `on*` attribute; that template's script must declare the function. When you need to confirm from the browser, the element carries an internal `__pp_event_owner_<event>` property (`__pp_event_owner_click`) naming the boundary whose scope the handler resolves in — compare it against the boundary you expected. That is runtime bookkeeping for debugging only, not a stable API: never read or write it from app code.
+
+Wrong — the handler is authored by the page, but the function lives in the child that renders it:
+
+```html
+<!-- authored by the page -->
+<x-user-menu>
+  <button onclick="{doSignout()}">Sign out</button>
+</x-user-menu>
+
+<!-- authored by UserMenu — its script cannot serve the page's markup -->
+<div class="menu">
+  {children}
+  <script>
+    function doSignout() { pp.rpc("signout"); }
+  </script>
+</div>
+```
+
+Right — the function moves to the template that authored the handler:
+
+```html
+<!-- authored by the page -->
+<div style="display: contents">
+  <x-user-menu>
+    <button onclick="{doSignout()}">Sign out</button>
+  </x-user-menu>
+
+  <script>
+    function doSignout() { pp.rpc("signout"); }
+  </script>
+</div>
+```
+
+The alternative fix is to move the *markup* instead of the function: let the child render its own button and pass data in as props. Either way, the handler and its function belong to one template.
+
+The two failures compound, and that combination is the usual real-world shape: a page or layout whose root is an `x-*` tag loses its script, and then every handler in its slot content throws `ReferenceError` because the declarations it resolves against never ran. Fix the root first; the handler errors go with it.
 
 ## Hooks and runtime API
 
@@ -1486,6 +1593,7 @@ Example:
 - Do not use hyphenated event attrs like `on-click`.
 - Event attributes are removed from the live DOM after binding and rebound after DOM morphing.
 - Owned template/event-owner internals are runtime-managed. Do not author them directly.
+- **A handler in slot content is evaluated in the scope of the template that authored the markup**, not the component the element ends up inside — so the function it calls must be declared by that template's owned script. This is the cause of `ReferenceError: <fn> is not defined` from a handler that clearly fired, including inside a portaled dropdown or dialog. See [A handler in slot content runs in the authoring template's scope](#a-handler-in-slot-content-runs-in-the-authoring-templates-scope).
 - Do not replace normal PulsePoint event attributes with id-driven `querySelector(...)` plus `addEventListener(...)` wiring. If an imperative listener is unavoidable for an integration, attach and clean it up from `pp.effect(...)`.
 - Do not replace a normal `onclick` with a `data-action`, `data-target`, or similar attribute plus a script that scans the DOM. PulsePoint event attributes are the event contract for first-party Caspian UI.
 

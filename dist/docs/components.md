@@ -434,6 +434,8 @@ The fix is usually the same: move the `<script>` above the root's closing tag so
 
 Pages and layouts take a different shape: `index.py` and `layout.py` return sibling top-level nodes inside a `display: contents` boundary host, not a comment pair. See [pulsepoint.md](./pulsepoint.md) "Multi-root pages and layouts" and "Fragment components".
 
+There is one more root shape that breaks the script, and it raises nothing at all: a template whose authored root is an `x-*` tag. The `<script>` becomes that child's slot content instead of the template's owned script, and for a page or layout nothing claims it, so it silently never runs. Give the template a native root — `<div style="display: contents">` is layout-neutral — with the `<script>` directly inside it. See [pulsepoint.md](./pulsepoint.md) "A template whose root is an `x-*` tag can lose its `<script>`".
+
 ## Component Imports Are Python Imports
 
 A component renders other components with `x-*` tags. The way Caspian learns which component a tag refers to is a real Python import at the top of the module: a component's own `x-*` tags resolve from the Component objects imported into that module.
@@ -494,6 +496,8 @@ Notes:
 ### Slot Content Resolves In The Parent Scope
 
 Component tags written as slot content (children passed between a component's opening and closing tags) resolve in the scope where they were authored, not in the child component's scope. This matches slot semantics in other component systems: a `<x-tag>` written by the parent stays bound to the parent's `Tag` even when it is slotted into a child that has its own `Tag`. The component that authors a tag in markup must import that component, the same way it would for any tag it renders directly.
+
+The same rule governs the browser side: an `on*` handler on slot content is evaluated in the authoring template's component scope, so the function it calls must be declared by that template's owned script. Moving the function into the child that renders the slot — or wrapping the element in a component of its own — does not change the owner. See [pulsepoint.md](./pulsepoint.md) "A handler in slot content runs in the authoring template's scope".
 
 ## Component Granularity And Responsibility
 
