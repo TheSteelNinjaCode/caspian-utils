@@ -123,17 +123,22 @@ See [static-export.md](./static-export.md) for the full export scope policy, `st
 ### Regenerate ORM after schema changes
 
 ```bash
-npx prisma migrate dev
+# Step 1 — sync the database with the schema. Pick exactly ONE:
+npx prisma migrate dev   # development default: creates and applies a migration
+npx prisma db push       # migration-less alternative: direct sync, no migration file
 
-# If the change requires refreshed seed data:
+# Optional seed flow only — npx prisma generate builds the Node/TypeScript
+# client used by prisma/seed.ts. It generates ZERO Python.
 npx prisma generate
 # Destructive-data warning: ask the user for explicit approval before running this.
 npx prisma db seed
 
+# Step 2 — ALWAYS. The only command that generates the Python ORM
+# (src/lib/prisma/**, settings/prisma-schema.json):
 npx ppy generate
 ```
 
-Use when `prisma/schema.prisma` changes and you need migrations, seed flow, and the generated Python ORM layer to stay aligned.
+Use when `prisma/schema.prisma` changes and you need migrations, seed flow, and the generated Python ORM layer to stay aligned. `npx prisma generate` is never a substitute for `npx ppy generate`: the former writes the Node client, the latter writes the Python client the app imports.
 
 `npx prisma db seed` is a delicate operation because the configured seed script may clean tables or replace existing rows before inserting seed data. Before running it, an AI agent must say the exact command it plans to run, warn that it can delete or overwrite database data, confirm the active datasource when practical, and wait for explicit user approval.
 
@@ -616,24 +621,30 @@ Result: parsing error because more than one version source was provided.
 
 The create and update commands above are not the whole maintenance story for a Prisma-enabled Caspian project. When `prisma/schema.prisma` changes, follow the ORM flow below so the TypeScript Prisma client, database state, and Python ORM layer stay aligned.
 
+Two generators exist and must not be confused: `npx prisma generate` builds the **Node/TypeScript** `@prisma/client` (used only by `prisma/seed.ts`), while `npx ppy generate` builds the **Python** ORM the application imports from `src.lib.prisma`. Running one never refreshes the other.
+
 ### Required order after schema changes
 
 ```bash
-npx prisma migrate dev
+# Step 1 — sync the database. Pick exactly ONE:
+npx prisma migrate dev   # development default, keeps migration history
+npx prisma db push       # direct sync without a migration file
 
-# Only when seed flow or prisma/seed.ts depends on the new schema:
+# Only when seed flow or prisma/seed.ts depends on the new schema
+# (Node client only — generates no Python):
 npx prisma generate
 # Destructive-data warning: ask the user for explicit approval before running this.
 npx prisma db seed
 
+# Step 2 — ALWAYS, after every schema change:
 npx ppy generate
 ```
 
 Use this order:
 
-1. Run `npx prisma migrate dev` first so migrations and the development database stay aligned.
+1. Sync the database: `npx prisma migrate dev` (development default) or `npx prisma db push` (migration-less direct sync).
 2. If `prisma/seed.ts` or seed data depends on the new schema, run `npx prisma generate`, then request explicit user approval before running `npx prisma db seed` because the seed script may delete or overwrite database data.
-3. Run `npx ppy generate` last so the generated Python ORM layer matches the updated Prisma schema.
+3. **Always** run `npx ppy generate` last so the generated Python ORM layer matches the updated Prisma schema. This is the only command that writes those files; do not skip it, and do not treat step 2's `npx prisma generate` as having done its job.
 
 Do not manually create or edit these generated files:
 
@@ -659,7 +670,7 @@ See [database.md](./database.md) for the full schema, migration, seed, and async
 | Update current project to latest | `npx casp update project` |
 | Update current project to beta safely in PowerShell | `npx casp update project --tag beta` |
 | Update current project to an exact version | `npx casp update project --version 1.2.3 -y` |
-| Regenerate Python ORM after schema changes | `npx prisma migrate dev` then optional seed commands, then `npx ppy generate` |
+| Regenerate Python ORM after schema changes | `npx prisma migrate dev` (or `npx prisma db push`) then optional seed commands, then always `npx ppy generate` |
 | Export the app to static HTML (SSG) | `npm run static` (when the project defines it) |
 | Preview the exported static build over HTTP | `npm run static:serve` (auto-selects a free port) |
 
@@ -707,7 +718,7 @@ If an AI agent is deciding which command flow to use, apply these rules first.
 - Treat `--tailwindcss` and `--typescript` as frontend-oriented flags. They are not meaningful in normal backend-only scaffolds.
 - Treat starter kit defaults as a base layer that can be overridden by explicit flags.
 - Read `caspian.config.json` before running update commands.
-- When `prisma/schema.prisma` changes, run `npx prisma migrate dev` first, then any required seed refresh, then `npx ppy generate`. Before running `npx prisma db seed`, warn the user that it can delete or overwrite data and wait for explicit approval.
+- When `prisma/schema.prisma` changes, first sync the database with `npx prisma migrate dev` (or `npx prisma db push` for a migration-less sync), then any required seed refresh, then **always** `npx ppy generate` — the only command that regenerates the Python ORM; `npx prisma generate` builds the Node client only and never substitutes for it. Before running `npx prisma db seed`, warn the user that it can delete or overwrite data and wait for explicit approval.
 - Never hand-edit generated Python ORM files under `src/lib/prisma/` or `settings/prisma-schema.json`.
 - Read [database.md](./database.md) before generating Prisma schema, migration, seed, or ORM guidance.
 - Read [static-export.md](./static-export.md) before generating or explaining static export (`npm run static`), dynamic-route pre-rendering with `static_paths`, or the `npm run static:serve` preview server. Confirm the scripts and `settings/build-static.py` / `settings/serve-static.py` exist first.
