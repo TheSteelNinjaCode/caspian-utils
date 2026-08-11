@@ -49,7 +49,7 @@ For route markup, layout templates, and the special files, keep one top-level pa
 
 This is a runtime requirement for **components**, which fail render when multi-rooted. For a `.py` route or layout it is the recommended shape rather than a hard limit: sibling top-level nodes are wrapped in a layout-neutral boundary host instead of raising. See [pulsepoint.md](./pulsepoint.md) "Multi-root pages and layouts".
 
-One exception matters for `index.py` and `layout.py`: when the template owns a `<script>`, that single root must be a **native** element, not an imported `x-*` root. A script authored inside an `x-*` root becomes the child's slot content and silently never runs — no error anywhere. Use `<div style="display: contents">` around the `x-*` tag and keep the `<script>` directly inside it. See [pulsepoint.md](./pulsepoint.md) "A template whose root is an `x-*` tag can lose its `<script>`".
+The root may be a native element or an imported `x-*` tag, in both cases with the owned `<script>` kept inside it. When the root is an `x-*` tag, the script travels as slot content wrapped in `<template pp-owner="…">`, and the runtime resolves that owner back to the authoring page or layout, which claims and executes the script in its own scope. No wrapper element is needed around a composition root. See [pulsepoint.md](./pulsepoint.md) "A slot-authored `<script>` belongs to the template that authored it".
 
 ## `index.py`
 

@@ -434,7 +434,7 @@ The fix is usually the same: move the `<script>` above the root's closing tag so
 
 Pages and layouts take a different shape: `index.py` and `layout.py` return sibling top-level nodes inside a `display: contents` boundary host, not a comment pair. See [pulsepoint.md](./pulsepoint.md) "Multi-root pages and layouts" and "Fragment components".
 
-There is one more root shape that breaks the script, and it raises nothing at all: a template whose authored root is an `x-*` tag. The `<script>` becomes that child's slot content instead of the template's owned script, and for a page or layout nothing claims it, so it silently never runs. Give the template a native root — `<div style="display: contents">` is layout-neutral — with the `<script>` directly inside it. See [pulsepoint.md](./pulsepoint.md) "A template whose root is an `x-*` tag can lose its `<script>`".
+A template whose authored root is an `x-*` tag keeps its `<script>` too. The script travels as that child's slot content, wrapped in `<template pp-owner="…">`, and the runtime resolves the owner — the composition host's id for a component, or the alias `app` for a page or layout, which resolves to the authoring page or layout boundary — so the template that wrote the script is the one that executes it, in its own scope. No wrapper element is needed around a composition root. See [pulsepoint.md](./pulsepoint.md) "A slot-authored `<script>` belongs to the template that authored it".
 
 ## Component Imports Are Python Imports
 
