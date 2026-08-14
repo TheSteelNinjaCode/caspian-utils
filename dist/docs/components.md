@@ -127,7 +127,8 @@ The Python import is the bridge between the component export and the `x-*` tag y
 
 - The exported component name maps to the tag you render by kebab-casing it and prefixing `x-`, such as `Container` for `<x-container />` or `CommandDialog` for `<x-command-dialog />`.
 - If one Python file exports several `@component` functions, import all the names you use from that exact file: `from src.lib.maddex.Breadcrumb import Breadcrumb, BreadcrumbItem, BreadcrumbList`.
-- When a route or component directory name is not a valid Python identifier (hyphens, `(group)` folders), bind the component through `importlib`: `TeamMemberActions = importlib.import_module("src.app.table-with-dropdownmenu.TeamMemberActions").TeamMemberActions`. The assignment puts the Component in module globals, which is all tag resolution needs.
+- A directory of one-component-per-file modules can also be imported straight from the package, without naming each file: `from src.lib.ppicons import Search, ArrowLeft` gives `<x-search />` and `<x-arrow-left />`. Python binds the *submodules* here (a component directory has no re-exports for `Search` to come from), so Caspian unwraps a module binding that defines a component under its own file name — `Search.py` exporting `Search`. Aliasing works as it does for a direct import, and the alias names the tag: `from src.lib.ppicons import Search as MagnifyIcon` renders `<x-magnify-icon />`. A module with no same-named component (`utils.py`, `import os`, the package itself) is never mistaken for a tag, and neither is a file whose function is missing the `@component` decorator — that still raises `UnknownComponentError`. This form reaches only the component named after its file, so a multi-export file's other exports still use the previous bullet: `from src.lib.maddex import BreadcrumbItem` is a plain `ImportError`, because no `BreadcrumbItem.py` exists.
+- When a route or component directory name is not a valid Python identifier (hyphens, `(group)` folders), bind the component through `importlib`: `TeamMemberActions = importlib.import_module("src.app.table-with-dropdownmenu.TeamMemberActions").TeamMemberActions`. The assignment puts the Component in module globals, which is all tag resolution needs. Importing the module itself — `importlib.import_module("...TeamMemberActions")` with no trailing attribute — resolves too, by the same unwrapping rule.
 
 In section-based apps, follow the same mental model as the Next.js App Router: import shared shell components such as sidebars, topbars, breadcrumbs, and section frames in the parent folder's `layout.py`, then import page-specific components in each child route's `index.py`.
 
@@ -465,6 +466,17 @@ Runtime resolution precedence for an `x-*` tag inside a component's own output, 
 - the component's own Python module imports
 
 So a component's Python import wins over an inherited same-name component.
+
+### What Counts As An Import
+
+Tag resolution scans the module's globals, and two kinds of binding resolve:
+
+- **The Component itself**, from `from src.components.variantA.Tag import Tag`.
+- **A module that exports a component under its own file name**, from `from src.lib.ppicons import Search`. This is the shape a component *directory* produces: a generated directory is one component per file with no `__init__.py`, so `Search` is not a name the package defines and Python imports the submodule `src.lib.ppicons.Search` instead. Caspian unwraps that binding to the `Search` inside `Search.py`, which is why importing a whole row of icons in one statement works.
+
+Both forms follow the *binding* name, not the file name, so an alias renames the tag: `from src.lib.ppicons import Search as MagnifyIcon` renders `<x-magnify-icon />`.
+
+Only those two resolve. A module with no same-named component is left alone, so an ordinary `import os`, a helper module such as `from src.lib.maddex import utils`, and a bare package import never become tags. Neither does a component file whose function is missing the `@component` decorator — the import looks correct and the tag still raises `UnknownComponentError`, so check the decorator before suspecting the import.
 
 ### Direct-Call Composition (Calling A Component As A Function)
 
