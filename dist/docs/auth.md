@@ -295,6 +295,7 @@ app.add_middleware(AuthMiddleware)
 app.add_middleware(CSRFMiddleware)
 app.add_middleware(SessionMiddleware, ...)
 app.add_middleware(BodySizeLimitMiddleware)
+app.add_middleware(MissingPublicAssetMiddleware)
 app.add_middleware(RateLimitMiddleware)
 app.add_middleware(
     PublicFilesMiddleware,
@@ -313,18 +314,20 @@ Because Starlette runs the last-added middleware first, the effective request or
 2. `SecurityHeadersMiddleware`
 3. `PublicFilesMiddleware`
 4. `RateLimitMiddleware`
-5. `BodySizeLimitMiddleware`
-6. `SessionMiddleware`
-7. `CSRFMiddleware`
-8. `AuthMiddleware`
-9. `RPCMiddleware`
-10. route handler or RPC endpoint
+5. `MissingPublicAssetMiddleware`
+6. `BodySizeLimitMiddleware`
+7. `SessionMiddleware`
+8. `CSRFMiddleware`
+9. `AuthMiddleware`
+10. `RPCMiddleware`
+11. route handler or RPC endpoint
 
 Current behavior by layer:
 
 - `SecurityHeadersMiddleware` attaches baseline response headers from `casp.runtime_security`, including the Content-Security-Policy, `X-Content-Type-Options`, framing policy, referrer policy, permissions policy, and production HSTS, while preserving headers already set by the response. `CONTENT_SECURITY_POLICY` replaces the default CSP wholesale when the app needs a different policy.
 - `PublicFilesMiddleware` serves any existing `GET`/`HEAD` file under `public/**` before rate limiting, sessions, CSRF, auth, RPC, or page routing. It falls through for missing files and preserves restricted inline-media handling for configured upload directories.
 - `RateLimitMiddleware` applies the page budget to requests that were not already served as existing public files; `/health` is explicitly exempt.
+- `MissingPublicAssetMiddleware` returns a 404 for a **missing** file whose first path segment is a real `public/` directory. `PublicFilesMiddleware` deliberately falls through on a miss so routing keeps working, but under `is_all_routes_private=True` that miss would otherwise reach `AuthMiddleware` and answer `303 -> /signin` — so a `<script src="/js/typo.js">` would receive the sign-in *page* as `200 text/html` and fail with a parse error naming the wrong file. It sits inside the rate limiter (a 404 flood is still a flood) and outside sessions, CSRF, and auth, so a missing asset costs no session decryption.
 - `BodySizeLimitMiddleware` rejects oversized request bodies before session, auth, RPC, or route parsing.
 - `SessionMiddleware` provides `request.session` for the rest of the stack.
 - `CSRFMiddleware` ensures `request.session["csrf_token"]` exists and emits a scoped CSRF cookie based on `pp_csrf`, for example `pp_csrf_5091` in development or plain `pp_csrf` when no dev scope is active.

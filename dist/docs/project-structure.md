@@ -38,7 +38,7 @@ Treat `caspian.config.json` as the single source of truth for optional feature e
 ## Top-Level Areas
 
 - `src/` contains routes, page templates, styles, reusable components, and shared libraries.
-- `src/components/` contains reusable application UI components and optional same-name HTML templates.
+- `src/components/` contains reusable application UI components, one `@component` per responsibility, markup inline.
 - `src/lib/` contains reusable non-UI code such as helpers, services, validators, adapters, and shared support modules.
 - `src/lib/auth/auth_config.py` contains auth-specific configuration for the app.
 - `src/lib/mcp/` contains the app-owned FastMCP server and nested FastMCP config when MCP is enabled.
@@ -73,7 +73,6 @@ my-app/
       Container.py
       ui/
         Button.py
-        Button.html
     lib/
       auth/
         auth_config.py
@@ -128,11 +127,11 @@ As the app grows, default to `src/components/` for application-level UI that wil
 
 For page-specific chunks that are still substantial, a route-local component folder is also acceptable. Use this when a component is owned by one route but deserves its own focused file, such as one tab panel, one settings form, one analytics section, or one table toolbar. The route should still read as a short assembly of named `x-*` tags.
 
-The common Caspian pattern is a Python file such as `Button.py` with `@component`, optionally paired with a same-name HTML file such as `Button.html` when the component has richer markup or PulsePoint behavior. In authored HTML, that component is consumed as `<x-button />`.
+A component is **one Python file** — `Button.py` with an `@component` function whose markup is returned inline from `html(r"""...""")`, PulsePoint `<script>` included. There is no same-name HTML sidecar: the runtime loads no `.html` companion, and `html(...)` takes the template as its argument. Wherever that component's module is imported, it is consumed as `<x-button />`.
 
 One Python file can also export multiple related `@component` functions. When that happens, import those names from that exact module, for example `from src.components.Breadcrumb import Breadcrumb, BreadcrumbItem, BreadcrumbList`, and render them as `<x-breadcrumb />`, `<x-breadcrumb-item />`, and `<x-breadcrumb-list />` instead of assuming each tag has its own sibling `.py` file.
 
-For component templates, follow the component authoring rules in [components.md](./components.md): one top-level parent node, no sibling roots, a plain `<script>` inside that root when needed, and no handwritten `pp-component`.
+For component templates, follow the component authoring rules in [components.md](./components.md): default to one top-level parent node with a plain `<script>` inside it, and never handwrite `pp-component`. Sibling top-level nodes are legal but make the component a props-less fragment, so reach for that shape deliberately.
 
 The directories listed in `componentScanDirs` determine where component tooling scans. When that list includes `src/`, `src/components/` is a conventionally clean location, not a hard-coded runtime requirement.
 

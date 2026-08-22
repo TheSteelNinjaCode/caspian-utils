@@ -1,6 +1,6 @@
 ---
 title: Components
-description: Use this page when the task mentions `@component`, reusable UI, component granularity or render ownership, HTML-first `x-*` component tags, component imports, same-name `.html` templates, forwarding Python component props to `pp.props`, `get_attributes(...)`, `merge_classes(...)`, `twMerge(...)`, or where shared components belong in a Caspian project.
+description: Use this page when the task mentions `@component`, reusable UI, component granularity or render ownership, HTML-first `x-*` component tags, component imports, forwarding Python component props to `pp.props`, `get_attributes(...)`, `merge_classes(...)`, `twMerge(...)`, or where shared components belong in a Caspian project.
 related:
   title: Related docs
   description: Use the structure guide for file placement, the routing guide for route templates, the PulsePoint guide for browser-side scripts, and the data guide for component-owned RPC flows.
@@ -173,7 +173,7 @@ A component keeps its markup, server-side interpolation, and PulsePoint `<script
 
 Single-file does not mean one file per page. Treat each single-file component like a React component with one clear responsibility. If a screen has an overview tab, an activity tab, and a settings tab, those substantial panels should normally be separate components such as `OverviewTab.py`, `ActivityTab.py`, and `SettingsTab.py`, assembled by a small tab shell or the route template. If one component is growing because it owns unrelated forms, tables, charts, and action bars, split those responsibilities and pass the needed data as props.
 
-`html(...)` renders the string through the same Jinja environment Caspian uses for template files, so three brace dialects coexist without colliding:
+`html(...)` renders the string through Caspian's Jinja environment, so three brace dialects coexist without colliding:
 
 - `{{ value }}` is server render (Python to HTML).
 - `{{ value | json }}` safely serializes a server value into a `<script>`.
@@ -380,14 +380,16 @@ Rules for inline `html(...)`:
 - `Markup` is the trust boundary for both escapes. `| safe`, `Markup(...)`, `get_attributes(...)`, `merge_classes(...)`, the `json`/`dump` filters, and `children` all return `Markup`, so framework-generated PulsePoint syntax such as `{twMerge(...)}` stays live. The rule for new helpers: one that *emits* PulsePoint syntax must return `Markup`; one that *formats user data* must not, or it re-opens the injection.
 - Consequence worth knowing: you cannot build a PulsePoint expression on the server by interpolating a plain string (`class="{{ some_expr }}"` renders inert). Author the expression in the template, or return `Markup` from the helper that produces it.
 - A `children` value is auto-marked safe, so `{{ children }}` renders nested component markup correctly without `| safe`.
-- Do not use a Python f-string for the markup. PulsePoint single braces `{ ... }` would collide with f-string interpolation. Use a plain triple-quoted string passed to `html(...)`.
+- Do not use a Python f-string for the markup. PulsePoint single braces `{ ... }` would collide with f-string interpolation, the string would skip autoescaping while still being marked trusted, and the `<x-*>` scope stash would be skipped. Use a **raw** triple-quoted string — `html(r"""...""")`. Raw matters beyond regexes: a non-raw literal resolves `\n`, `\t`, and `\s` inside the component `<script>` at Python-parse time, so the JavaScript that reaches the browser is not the JavaScript on screen.
 - A long client script is a smell regardless of file size; move heavy work into `@rpc()` actions or smaller composed components rather than growing one component's `<script>`.
 
 The leading `# html` comment above the string is an optional editor hint: some editors color the HTML inside a string tagged that way (JetBrains uses `# language=HTML`). It has no runtime effect.
 
 ### Single-Root Inside `html(...)`: Script Goes In The Root, Not Below It
 
-The most common single-file mistake is returning a parent element and then a sibling `<script>` underneath it. The string handed to `html(...)` is the component's template, so it must follow the same single-root contract as a `.html` file: exactly one top-level element, with the PulsePoint `<script>` nested inside that element. A `<script>` that sits after the closing tag is a second top-level node, and the compiler raises `TemplateRootError` because there is no single root to receive `pp-component`.
+The most common single-file mistake is returning a parent element and then a sibling `<script>` underneath it. The string handed to `html(...)` is the whole component template, so the PulsePoint `<script>` belongs **inside** the single top-level element.
+
+A `<script>` after the closing tag is a second top-level node, which since fragments landed no longer raises — it makes the component a *fragment*, quietly. That is worse than an error when it is unintended: a fragment has no root element, so it **cannot receive props**, and `pp.props` is silently empty until some call site passes an attribute and gets `FragmentPropsError`. Keep the script inside the root unless the sibling shape is deliberate. See "Single-Root Rule" below for the full contract.
 
 Think of the returned string exactly like the one node a React component returns: everything, including the script, lives inside it.
 
@@ -567,7 +569,7 @@ The default takes precedence over catch-all `**props`: `pp-ref` is reserved for 
 
 Treat `pp-component="componentName"` as framework output, not authored source. The canonical authored-vs-runtime explanation lives in [pulsepoint.md](./pulsepoint.md).
 
-- Do not manually add `pp-component="..."` to route templates, layout templates, or component HTML files.
+- Do not manually add `pp-component="..."` to route, layout, or component templates.
 - The Python render pipeline injects `pp-component` onto the single root element during render.
 - Add a plain, untyped `<script>` only when the route or component actually needs PulsePoint logic, and keep it inside that single root element.
 - `main.py` preserves that plain script while deferring the root inside an inert template.

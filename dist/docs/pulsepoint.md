@@ -20,7 +20,7 @@ This file documents the PulsePoint contract for the shipped Caspian browser runt
 
 If a task involves `pp.state`, `pp.effect`, `pp.layoutEffect`, `pp-ref`, `pp-style`, `pp-spread`, `pp-for`, context, portals, `pp-reset-scroll`, SPA navigation, or component boundary behavior, read this page first and keep generated code aligned with the current Caspian runtime.
 
-Use `components.md` for authoring Python `@component` files, same-name HTML templates, and HTML-first `x-*` component tags. Use this page for the browser-side PulsePoint contract and the authoring rules that feed it.
+Use `components.md` for authoring Python `@component` files and HTML-first `x-*` component tags. Use this page for the browser-side PulsePoint contract and the authoring rules that feed it.
 
 PulsePoint is the default reactive frontend layer for Caspian. Its **script API** deliberately mirrors React hooks. Its **markup is plain HTML**, compiled by a template compiler that has no JSX support of any kind. Those two facts are independent, and conflating them is the single most common way generated PulsePoint code fails. Read the next section before writing a template.
 
@@ -175,7 +175,7 @@ For first-party Caspian HTML, PulsePoint is not a later enhancement after ordina
 
 Default to this workflow:
 
-- Put the button, form, input, toggle, menu, filter, upload control, or list markup directly in the route, layout, or component HTML template.
+- Put the button, form, input, toggle, menu, filter, upload control, or list markup directly in the `html(...)` template of the route, layout, or component that owns it.
 - Bind events with native `on*` attributes handled by PulsePoint, for example `onclick="save()"`, `oninput="setQuery(event.target.value)"`, or `onsubmit="{submitForm(event)}"`.
 - This is the PulsePoint `onClick`/native event-attribute model. Authored examples use lowercase HTML spellings such as `onclick` because browser HTML normalizes attribute names, but the important rule is to bind the event in the template instead of wiring it later with DOM selectors.
 - For simple form submissions, let HTML own the form shape and let the submit event carry the values: use `const data = Object.fromEntries(new FormData(event.currentTarget).entries())` inside the handler, then pass that object directly to `pp.rpc(...)`. In a form-level submit handler, `event.target` is usually the form too, but `event.currentTarget` is the copy-safe default because it always means the element that owns the handler.
@@ -376,7 +376,7 @@ For authored Caspian templates:
 - Put the component logic inside a plain `<script>` inside that same root.
 - Do not handwrite `pp-component="..."`.
 
-Single-root is the shape to write by default, and for a **component** it is still a hard invariant: a component template with a sibling `<script>` after the root, a second top-level element, or stray top-level text raises `TemplateRootError` and fails the render.
+Single-root is the shape to write by default. For a **component** it is no longer a hard invariant, but the alternative is rarely what you meant: a sibling `<script>` after the root, a second top-level element, or stray top-level text makes the component a *fragment* (see "Fragment components" below), and a fragment has no root element to carry props — `pp.props` is silently empty until a call site passes an attribute and gets `FragmentPropsError`. `TemplateRootError` is now raised only when a component template has no root at all, or when its only root is an unresolvable `x-*` tag.
 
 ### Multi-root pages and layouts
 
@@ -401,7 +401,7 @@ renders as:
 
 What this does and does not change:
 
-- **It applies to `.py` sources only** — the fragment host is gated on the template coming from `index.py` / `layout.py`. A `.html` template still requires a single root.
+- **It applies to pages and layouts only** — the host is gated on the template's source path ending in `.py`, which in practice means `index.py` / `layout.py`, the only files that author a page or layout. Components take the fragment shape instead (next bullet).
 - **A component takes a different shape.** A multi-root component is a *fragment* and gets the comment-pair range boundary instead of this host — see "Fragment components" below.
 - **`display: contents` means the host is not in layout**, so it does not break a flex/grid parent, and margins, gaps and selectors behave as if the children were direct siblings. It is still a real element in the DOM and in `querySelector` results.
 - **The owned `<script>` still belongs inside the template**, and is still one script for the whole boundary — the host is the boundary, so the script's `pp.state`, refs and handlers cover every root.
@@ -458,7 +458,7 @@ Practical consequence when reading rendered DOM: an extra `display: contents` di
 
 A page or layout whose authored root is an `x-*` tag is given a host too, and it claims its `<script>` the same way a component does. Slot content authored by a page or layout is owned by the alias `app`, and the runtime resolves that alias — to the nearest page boundary, or to the root boundary for a layout — before deciding which component a slot-authored script belongs to, so the script runs in the page or layout scope exactly as authored. See [A slot-authored `<script>` belongs to the template that authored it](#a-slot-authored-script-belongs-to-the-template-that-authored-it).
 
-Keep visible route, layout, and component markup in the HTML templates. Treat `index.py` and `layout.py` as backend companions for data, metadata, props, RPC actions, auth, caching, redirects, and other server-side preparation, not as template bodies.
+Authoring is Python-only: `index.py` **is** the route's template body (`page()` returns markup through `html(r"""...""")`), `layout.py` is the shell's, and a component's markup lives in its own `.py`. There is no separate HTML file to keep markup in. The same module also owns that route's data, metadata, props, `@rpc()` actions, auth, caching, and redirects — markup and server logic are deliberately co-located, not split across files.
 
 Caspian already handles those details for you during render.
 

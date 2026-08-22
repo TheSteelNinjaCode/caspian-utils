@@ -45,7 +45,7 @@ Single-root is the shape to write for a route or layout by default.
 
 A `.py` route or layout that does end up with sibling top-level nodes is **not** a render failure: the compiler wraps the whole template in a layout-neutral `<div pp-component style="display: contents">` boundary host. Use that when a page's sections are genuinely siblings and a wrapper `<div>` would be meaningless; keep the single owned `<script>` inside the template as usual. See [pulsepoint.md](./pulsepoint.md) "Multi-root pages and layouts".
 
-The relaxation stops at routes and layouts. A **component** template is still held to one root and fails render with `must have exactly one top-level HTML element so Caspian can inject pp-component` — see [components.md](./components.md) "Single-Root Rule". A `.html` template is also still held to one root; the host applies to `.py` sources.
+The relaxation stops at routes and layouts. A **component** with sibling top-level nodes does not get this host — it becomes a fragment instead, and can no longer receive props. `TemplateRootError` (`must have exactly one top-level HTML element so Caspian can inject pp-component`) is now raised only when a component template has no root at all, or when its only root is an unresolvable `x-*` tag — see [components.md](./components.md) "Single-Root Rule".
 
 Use [cache.md](./cache.md) when an `index.py` route also needs declarative page caching via `Cache(...)`.
 
