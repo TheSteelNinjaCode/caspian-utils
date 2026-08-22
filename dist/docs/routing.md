@@ -132,6 +132,7 @@ src/
         index.py
     dashboard/
       layout.py
+      loading.py        # optional
       index.py
       settings/
         index.py
@@ -139,7 +140,11 @@ src/
         index.py
 ```
 
+`dashboard/loading.py` is optional and most sections do not have one. Include it only when the section is meant to show a loading state during child-route navigation; when it is, that file is the shipped mechanism for the whole `/dashboard/*` subtree.
+
 Use this pattern when the app has a public grouped section that should stay out of the URL and a private dashboard section that should appear in the URL. The root layout owns app-wide chrome, `(marketing)/layout.py` owns the shared public marketing shell, and `dashboard/layout.py` owns the shared dashboard shell for `/dashboard/*` child routes.
+
+A section shell is also where navigation loading would go, if the section wants one. It is optional — a subtree with no loader navigates with a plain fade, which is the common case. When one is wanted, add `loading.py` beside the section's `layout.py` and mark the pane it should replace with `pp-loading-content="true"` in the layout; the closest ancestor `loading.py` wins, so one file covers the whole subtree. Do not build a spinner component or an `isLoading` state for this; see [file-conventions.md](./file-conventions.md#loadingpy).
 
 When a shared shell has its own scrollable sidebar or rail plus a separate page-content scroller, keep the persistent shell scrollers unmarked and put `pp-reset-scroll="true"` on the page-content scroller in the layout template. That gives grouped sections the common app-router behavior where the main pane resets on child-route navigation while the sidebar keeps its scroll position. Use `body[pp-reset-scroll="true"]` only when the target route should reset every scrollable surface.
 

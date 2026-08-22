@@ -192,7 +192,8 @@ The installed auth code reads several values from `.env` when explicit values ar
 - `APP_ENV` selects the environment, resolved **fail-closed** by `casp.runtime_security.is_production_environment()`: only an explicit development value (`dev`, `development`, `local`, `staging`, `test`, `testing`) turns the development relaxations on, so an unset or misspelled value is treated as production. Production enables secure session cookies and the `Secure` flag on the CSRF cookie.
 - `CASPIAN_BROWSER_SYNC_PORT` can override the development cookie scope suffix used by the current `main.py` bootstrap.
 - `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, and `GOOGLE_REDIRECT_URI` back `GoogleProvider`.
-- `GITHUB_CLIENT_ID` and `GITHUB_CLIENT_SECRET` back `GithubProvider`.
+- `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET`, and `GITHUB_REDIRECT_URI` back `GithubProvider`.
+- `GITHUB_REDIRECT_URI` is optional and behaves differently from the Google one. Google is skipped entirely without `GOOGLE_REDIRECT_URI`; GitHub still signs in without it, because an authorize request that omits `redirect_uri` lands on the **first** redirect URI registered on the GitHub App. That is why registering a second URI (a localhost one beside production) changes nothing on its own — each environment has to name the URI it wants. When the variable is empty and `APP_BASE_URL` is set, the provider derives `<APP_BASE_URL><api_auth_prefix>/callback/github`; when both are empty it sends no `redirect_uri` and GitHub applies its first-registered default. A resolved value is sent on the authorize request **and** repeated in the token exchange, as GitHub requires.
 
 Keep these secrets out of route files and out of committed source.
 

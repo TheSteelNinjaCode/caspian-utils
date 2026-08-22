@@ -99,9 +99,9 @@ Before writing a template, ask: *"Would this file be valid HTML if I deleted eve
 | `pp-spa="false"` | An `<a>` that must use normal browser navigation | Opt one link out of the SPA interception enabled automatically by `pp.mount()` |
 | `pp-reset-scroll="true"` | A scroll container, or `<body>` | Reset that container's scroll on navigation |
 | `pp-scroll-key="stable-name"` | A scroll container | Stable scroll-restoration identity |
-| `pp-loading-content="true"` | The region swapped during navigation | Marks the navigation content region |
-| `pp-loading-url="/route"` | A loading-state element | Route-specific loading lookup |
-| `pp-loading-transition='{"fadeIn":…,"fadeOut":…}'` | The loading region | Navigation fade timings |
+| `pp-loading-content="true"` | The region swapped during navigation, usually a layout's content pane | Marks the navigation content region. Without it the runtime falls back to `document.body` |
+| `pp-loading-url="/route"` | Runtime-emitted, one per `loading.py` | Route-scope loading lookup. Not authored by hand — add a `loading.py` instead |
+| `pp-loading-transition='{"fadeIn":…,"fadeOut":…}'` | An element inside the `loading.py` markup | Navigation fade timings; defaults to 250 ms each way |
 
 There is **no** `pp-if`, `pp-show`, `pp-else`, `pp-model`, `pp-bind`, `pp-class`, `pp-text`, `pp-html`, `pp-on`, or `pp-key`. Conditionals are `hidden="{...}"`; two-way binding is `value="{state}"` plus an `oninput` handler.
 
@@ -1086,6 +1086,8 @@ This is automatic, but it only engages for rows the runtime can safely stand in 
 - the loop is not nested inside another `pp-for`, and
 - the row's markup contains no nested component boundary, owned slot content, or context provider.
 
+The same machinery extends to a keyed list that toggles between empty and populated (an accordion pane, a filtered-to-nothing list, a collapsed section): when a list of simple component rows closes, the runtime sets the destroyed rows aside and a reopen with the same keys revives them — same DOM nodes, same identities — instead of rebuilding and re-mounting every row. Revival is reuse, not remount: a revived row's script re-runs only when its props actually changed (the same rule as any prop refresh), never merely because the list closed and reopened. Do not put side effects in a row's script that depend on re-running per reopen; derive row output from props.
+
 Practical consequences when authoring a large list:
 
 - **Always key rows.** An unkeyed row can never be reused, so an unkeyed list still reconciles in full.
@@ -1578,9 +1580,12 @@ Example:
 - `pp.mount()` enables client-side navigation interception automatically; no `<body pp-spa="true">` opt-in is required.
 - `a[pp-spa="false"]` disables interception for that link.
 - External links, downloads, `_blank`, and modifier-key clicks bypass SPA interception.
-- `pp-loading-content="true"` marks the page region that gets swapped or faded during navigation.
-- Route-specific loading states are looked up with `pp-loading-url`.
-- `pp-loading-transition` accepts JSON with `fadeIn` and `fadeOut` timing values.
+- **Navigation loading UI is optional; when it is wanted, author it as `src/app/**/loading.py`, not as a hand-rolled spinner.** Routes with no loader navigate with a plain fade, which is the common case. See [file-conventions.md](./file-conventions.md#loadingpy) for the full contract. The three directives below are how that file is wired up; only `pp-loading-content` is authored by hand.
+- `pp-loading-content="true"` marks the page region that gets swapped or faded during navigation. Put it on the content pane of the layout that owns the subtree; with no such element the runtime falls back to `document.body` and the whole shell flashes. It applies with or without a `loading.py`.
+- `pp-loading-url` is emitted by the server for each `loading.py`, carrying that file's URL scope. The runtime matches the destination pathname against it and walks up toward `/` for the closest ancestor loader. Never author it.
+- `pp-loading-transition` accepts JSON with `fadeIn` and `fadeOut` timing values (number of ms, or a string with `ms`/`s`/`m`); it goes on an element inside the `loading.py` markup. Invalid JSON warns and falls back to 250 ms each way.
+- The collected loader markup is injected as raw HTML and never mounted, so `<x-*>` tags and `{ }` bindings inside a `loading.py` do not resolve. Keep loaders to plain elements and CSS.
+- An in-page wait — an `@rpc()` call, a submit, a filter, an upload — is component state, not navigation loading. Do not route it through these directives.
 - The runtime saves scroll positions per history entry while SPA navigation is enabled.
 - Push navigation resets window scroll to the top.
 - Saved history-entry scroll state is used during history traversal instead of relying only on the live DOM scroll at the time the user clicks Back or Forward.
