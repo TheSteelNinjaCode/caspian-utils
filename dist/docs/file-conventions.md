@@ -21,7 +21,7 @@ Use it when a task names `index.py`, `layout.py`, `loading.py`, `not_found.py`, 
 
 **Each of these is optional, and each is a shipped convention with a runtime behind it.** Add one only when the app actually wants that behavior — an app with no `loading.py` anywhere is perfectly normal. What the convention settles is *how*: when a task does call for a subtree shell, a navigation loading state, a 404, or a 500 page, add the named file rather than hand-rolling an equivalent inside a route.
 
-**Authoring is Python-only, special files included.** A route is one `index.py` whose `page()` returns markup through `html(...)`; a subtree shell is one `layout.py` whose `layout()` returns its template. The special files follow the same rule: `loading.py` exports `loading()`, and `not_found.py` / `error.py` export `page()`. Older Caspian projects used `loading.html`, `not-found.html`, and `error.html` — if a workspace still has those, verify the installed runtime before following either shape, because the current runtime indexes the `.py` names.
+**Authoring is Python-only, special files included.** A route is one `index.py` whose `page()` returns markup through `html(...)`; a subtree shell is one `layout.py` whose `layout()` returns its template. The special files follow the same rule: `loading.py` exports `loading()`, and `not_found.py` / `error.py` export `page()`. The runtime indexes these `.py` names under `src/app`.
 
 Treat `caspian.config.json` and the actual project tree as the source of truth for which features exist in the current workspace. For runtime ownership, verify these rules against:
 
@@ -49,7 +49,7 @@ For route markup, layout templates, and the special files, keep one top-level pa
 - Do not handwrite `pp-component`; keep owned component logic in a plain `<script>` inside the single root.
 - Components used as `<x-*>` tags resolve from the Python imports at the top of the owning module.
 
-This is a runtime requirement for **components**, which fail render when multi-rooted. For a `.py` route or layout it is the recommended shape rather than a hard limit: sibling top-level nodes are wrapped in a layout-neutral boundary host instead of raising. See [pulsepoint.md](./pulsepoint.md) "Multi-root pages and layouts".
+It is the recommended shape everywhere, and the only shape that can receive props. A **component** with sibling top-level nodes becomes a fragment, which has no root for props to land on. A **route or layout** with sibling top-level nodes is wrapped in a layout-neutral boundary host, so a page whose sections are genuinely siblings needs no wrapper `<div>`. See [pulsepoint.md](./pulsepoint.md) "Multi-root pages and layouts".
 
 The root may be a native element or an imported `x-*` tag, in both cases with the owned `<script>` kept inside it. When the root is an `x-*` tag, the script travels as slot content wrapped in `<template pp-owner="…">`, and the runtime resolves that owner back to the authoring page or layout, which claims and executes the script in its own scope. No wrapper element is needed around a composition root. See [pulsepoint.md](./pulsepoint.md) "A slot-authored `<script>` belongs to the template that authored it".
 

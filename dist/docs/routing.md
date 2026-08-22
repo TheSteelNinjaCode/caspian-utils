@@ -32,7 +32,7 @@ Start with these rules:
 - When a folder owns child routes, add `layout.py` whose `layout()` returns the shared wrapper template. This is the default pattern for dashboards, admin sections, account areas, settings trees, and route groups.
 - In grouped shells with separate shell and content scrolling, put `pp-reset-scroll="true"` on the content pane in the layout template when that pane should reset on child-route navigation while the shell sidebar or rail keeps its own scroll.
 - Components used as `<x-*>` tags in a page or layout template resolve from the Python imports at the top of that module.
-- Treat every authored route and layout template like a React component body **for root counting only**: normally one top-level parent HTML element or one imported `x-*` root, with any owned plain `<script>` inside that same root. Sibling top-level nodes are permitted in a `.py` route or layout and get a compiler-supplied boundary host — see "Template Root Shape" below. The markup itself is plain HTML, never JSX — see [pulsepoint.md](./pulsepoint.md) "PulsePoint Is Not JSX".
+- Treat every authored route and layout template like a React component body **for root counting only**: normally one top-level parent HTML element or one imported `x-*` root, with any owned plain `<script>` inside that same root. Sibling top-level nodes are permitted in a route or layout and get a compiler-supplied boundary host — see "Template Root Shape" below. The markup itself is plain HTML, never JSX — see [pulsepoint.md](./pulsepoint.md) "PulsePoint Is Not JSX".
 - For route and layout interactivity, use PulsePoint in the authored markup first: native `on*` event attributes, `pp.state(...)`, refs, effects, directives, and `pp.rpc()`. Do not create standard JavaScript event systems with ids, `data-*` state, `querySelector`, `addEventListener`, or manual `innerHTML` for normal first-party UI.
 
 ## Template Root Shape
@@ -43,9 +43,9 @@ Single-root is the shape to write for a route or layout by default.
 - Keep any owned plain `<script>` inside that root, not after it.
 - Do not leave sibling top-level HTML tags, sibling component tags, or stray top-level text.
 
-A `.py` route or layout that does end up with sibling top-level nodes is **not** a render failure: the compiler wraps the whole template in a layout-neutral `<div pp-component style="display: contents">` boundary host. Use that when a page's sections are genuinely siblings and a wrapper `<div>` would be meaningless; keep the single owned `<script>` inside the template as usual. See [pulsepoint.md](./pulsepoint.md) "Multi-root pages and layouts".
+A route or layout that does end up with sibling top-level nodes is **not** a render failure: the compiler wraps the whole template in a layout-neutral `<div pp-component style="display: contents">` boundary host. Use that when a page's sections are genuinely siblings and a wrapper `<div>` would be meaningless; keep the single owned `<script>` inside the template as usual. See [pulsepoint.md](./pulsepoint.md) "Multi-root pages and layouts".
 
-The relaxation stops at routes and layouts. A **component** with sibling top-level nodes does not get this host — it becomes a fragment instead, and can no longer receive props. `TemplateRootError` (`must have exactly one top-level HTML element so Caspian can inject pp-component`) is now raised only when a component template has no root at all, or when its only root is an unresolvable `x-*` tag — see [components.md](./components.md) "Single-Root Rule".
+The relaxation stops at routes and layouts. A **component** with sibling top-level nodes does not get this host — it becomes a fragment instead, and cannot receive props. `TemplateRootError` (`must have exactly one top-level HTML element so Caspian can inject pp-component`) covers a component template with no root at all, or whose only root is an unresolvable `x-*` tag — see [components.md](./components.md) "Single-Root Rule".
 
 Use [cache.md](./cache.md) when an `index.py` route also needs declarative page caching via `Cache(...)`.
 
@@ -378,7 +378,7 @@ def layout():
 - `(html(...), props_dict)`: the template plus `{{ layout.* }}` props
 - `dict`: a passthrough `<slot />` shell plus `{{ layout.* }}` props
 - `None`: a passthrough `<slot />` shell with no extra layout props
-- `str`: the legacy raw-template form, still supported — `html(...)` in a layout produces exactly this string plus its context
+- `str`: a plain template string — `html(...)` in a layout produces exactly this string plus its context
 
 Example with shared props:
 

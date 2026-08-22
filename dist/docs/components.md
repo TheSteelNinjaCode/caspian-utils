@@ -389,7 +389,7 @@ The leading `# html` comment above the string is an optional editor hint: some e
 
 The most common single-file mistake is returning a parent element and then a sibling `<script>` underneath it. The string handed to `html(...)` is the whole component template, so the PulsePoint `<script>` belongs **inside** the single top-level element.
 
-A `<script>` after the closing tag is a second top-level node, which since fragments landed no longer raises — it makes the component a *fragment*, quietly. That is worse than an error when it is unintended: a fragment has no root element, so it **cannot receive props**, and `pp.props` is silently empty until some call site passes an attribute and gets `FragmentPropsError`. Keep the script inside the root unless the sibling shape is deliberate. See "Single-Root Rule" below for the full contract.
+A `<script>` after the closing tag is a second top-level node, which makes the component a *fragment* — quietly, with no error. That is worse than an error when it is unintended: a fragment has no root element, so it **cannot receive props**, and `pp.props` is silently empty until some call site passes an attribute and gets `FragmentPropsError`. Keep the script inside the root unless the sibling shape is deliberate. See "Single-Root Rule" below for the full contract.
 
 Think of the returned string exactly like the one node a React component returns: everything, including the script, lives inside it.
 
@@ -582,9 +582,9 @@ A component template should normally render exactly one authored top-level paren
 
 In source, that parent may be a native HTML element or a single imported `x-*` component tag. After component expansion, the template must still resolve to one final native HTML root so Caspian has exactly one place to inject `pp-component`.
 
-This is not just style guidance. The installed compiler injects `pp-component` onto the final root element, and it raises `TemplateRootError` when a component template has no root at all, or when its only root is an unresolvable tag. Sibling roots (including a sibling script after the root, or stray top-level text) no longer raise — they produce a fragment boundary, and the component then cannot take props: any attribute on its `<x-*>` tag raises `FragmentPropsError`.
+This is not just style guidance. The installed compiler injects `pp-component` onto the final root element, and it raises `TemplateRootError` when a component template has no root at all, or when its only root is an unresolvable tag. Sibling roots (including a sibling script after the root, or stray top-level text) produce a fragment boundary instead, and the component then cannot take props: any attribute on its `<x-*>` tag raises `FragmentPropsError`.
 
-Route and layout templates — the markup returned from `page()` via `html(...)` and the template string returned from `layout()` — follow the same shape by default but are **not** held to it: when a `.py` page or layout has sibling top-level nodes, the compiler wraps them in a `display: contents` boundary host rather than raising. See [routing.md](./routing.md) and [pulsepoint.md](./pulsepoint.md) "Multi-root pages and layouts".
+Route and layout templates — the markup returned from `page()` via `html(...)` and the template string returned from `layout()` — follow the same shape by default but are **not** held to it: when a page or layout has sibling top-level nodes, the compiler wraps them in a `display: contents` boundary host. See [routing.md](./routing.md) and [pulsepoint.md](./pulsepoint.md) "Multi-root pages and layouts".
 
 When a component's authored root *is* another `x-*` tag, the compiler gives it the same layout-neutral host so it owns a boundary of its own, and forwards the parent's `x-*` attributes onto that host so they resolve as this component's `pp.props`. That extra `display: contents` div in rendered DOM is expected output.
 

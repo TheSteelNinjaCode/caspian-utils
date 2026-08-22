@@ -30,7 +30,7 @@ Do not assume React, Vue, Svelte, JSX, Alpine, HTMX, or older PulsePoint docs un
 
 Apply these before generating any template, even without reading the rest of this page:
 
-1. One authored top-level root per route, layout, or component template; the owned plain `<script>` lives inside that root, never as a sibling. A **component** must satisfy this or the render fails; a `.py` page or layout may have sibling top-level nodes and gets a `display: contents` boundary host. Either way there is no fragment tag to write.
+1. One authored top-level root per route, layout, or component template; the owned plain `<script>` lives inside that root, never as a sibling. A **component** with sibling top-level nodes becomes a props-less fragment; a page or layout with sibling top-level nodes gets a `display: contents` boundary host. Either way there is no fragment tag to write.
 2. Never handwrite `pp-component`, `data-pp-ref`, or other runtime-managed attributes; the render pipeline injects them. Keep owned component logic in a plain, untyped `<script>` inside the root.
 3. Bind first-party events with native `on*` attributes in the HTML; never wire normal UI with ids, `querySelector`, `addEventListener`, or manual `innerHTML`.
 4. For ordinary form submits, use `onsubmit="{handler(event)}"` plus `Object.fromEntries(new FormData(event.currentTarget).entries())`; refs are for imperative access only.
@@ -376,7 +376,7 @@ For authored Caspian templates:
 - Put the component logic inside a plain `<script>` inside that same root.
 - Do not handwrite `pp-component="..."`.
 
-Single-root is the shape to write by default. For a **component** it is no longer a hard invariant, but the alternative is rarely what you meant: a sibling `<script>` after the root, a second top-level element, or stray top-level text makes the component a *fragment* (see "Fragment components" below), and a fragment has no root element to carry props — `pp.props` is silently empty until a call site passes an attribute and gets `FragmentPropsError`. `TemplateRootError` is now raised only when a component template has no root at all, or when its only root is an unresolvable `x-*` tag.
+Single-root is the shape to write by default. A **component** may have sibling roots, but the alternative is rarely what you meant: a sibling `<script>` after the root, a second top-level element, or stray top-level text makes the component a *fragment* (see "Fragment components" below), and a fragment has no root element to carry props — `pp.props` is silently empty until a call site passes an attribute and gets `FragmentPropsError`. `TemplateRootError` covers a component template with no root at all, or whose only root is an unresolvable `x-*` tag.
 
 ### Multi-root pages and layouts
 
@@ -401,7 +401,7 @@ renders as:
 
 What this does and does not change:
 
-- **It applies to pages and layouts only** — the host is gated on the template's source path ending in `.py`, which in practice means `index.py` / `layout.py`, the only files that author a page or layout. Components take the fragment shape instead (next bullet).
+- **It applies to pages and layouts only** — a page's `index.py` and a layout's `layout.py`. Components take the fragment shape instead (next bullet).
 - **A component takes a different shape.** A multi-root component is a *fragment* and gets the comment-pair range boundary instead of this host — see "Fragment components" below.
 - **`display: contents` means the host is not in layout**, so it does not break a flex/grid parent, and margins, gaps and selectors behave as if the children were direct siblings. It is still a real element in the DOM and in `querySelector` results.
 - **The owned `<script>` still belongs inside the template**, and is still one script for the whole boundary — the host is the boundary, so the script's `pp.state`, refs and handlers cover every root.
@@ -686,7 +686,7 @@ Notes:
 - The global `pp` singleton auto-mounts once the runtime is loaded and the DOM is ready. Manual `pp.mount()` is still safe because it short-circuits after the first mount.
 - `pp.state` setters accept either a value or an updater function.
 - `pp.effect` and `pp.layoutEffect` are cleanup-style hooks. They may return only a synchronous cleanup function; returning a promise warns and is ignored, so start async work inside the effect instead.
-- A function used through `pp-ref` may return a synchronous cleanup function. PulsePoint runs it when that callback ref is replaced or detached; callbacks that do not return cleanup retain the legacy `callback(null)` detach behavior.
+- A function used through `pp-ref` may return a synchronous cleanup function. PulsePoint runs it when that callback ref is replaced or detached; a callback that returns no cleanup is instead called with `null` on detach.
 - `pp.portal(ref)` defaults to `document.body` when no target is provided.
 - Older docs may call the RPC helper `pp.fetchFunction()`. In the current bundled runtime the implemented global API is `pp.rpc()`.
 - Keep template-facing bindings at the top level so the AST-based exporter can see them.
@@ -1099,7 +1099,7 @@ Practical consequences when authoring a large list:
 
 The same idea applies to composition, which is the shape most pages actually have: a shell that assembles many `x-*` components rather than one component owning a wall of markup.
 
-A child component's internals belong to the child, so the parent never reconciles into them — it only reconciles the child's root, whose attributes carry the props. Once the child is mounted, the parent therefore emits that root **with an empty body** instead of re-emitting the child's markup, which means a parent render no longer re-serializes and re-parses subtrees it was going to ignore. In a real browser, a shell of 30 small children went from 0.82 ms to about 0.30 ms per parent update, and the cost stopped scaling with how much markup the children contain.
+A child component's internals belong to the child, so the parent never reconciles into them — it only reconciles the child's root, whose attributes carry the props. Once the child is mounted, the parent therefore emits that root **with an empty body** instead of re-emitting the child's markup, which means a parent render does not re-serialize or re-parse subtrees it was going to ignore. In a real browser, a shell of 30 small children went from 0.82 ms to about 0.30 ms per parent update, and the cost stopped scaling with how much markup the children contain.
 
 This is automatic and needs no authoring change, but the shape still matters:
 
@@ -1112,7 +1112,7 @@ If a reused boundary is ever found not to be mounted, the runtime logs `[PP-WARN
 
 Two related properties follow from the same idea, and they are worth knowing when you reason about what a parent render costs:
 
-- **A bound prop is committed to the child's root only when its value changes.** `active="{selected === 3}"` is evaluated every render, but the attribute is written only on the render where the answer actually flips. The live attribute holds the evaluated value the whole time — it no longer flickers back to the authored `{expr}` text mid-render, so a `MutationObserver` or a CSS transition watching a component root sees only real changes.
+- **A bound prop is committed to the child's root only when its value changes.** `active="{selected === 3}"` is evaluated every render, but the attribute is written only on the render where the answer actually flips. The live attribute holds the evaluated value the whole time — it never flickers back to the authored `{expr}` text mid-render, so a `MutationObserver` or a CSS transition watching a component root sees only real changes.
 - **A child whose props did not change is not re-walked.** A leaf child costs its parent one prop comparison, not a traversal of its subtree.
 
 Together with the elided body, a mounted child that nothing changed about costs its parent: one prop evaluation per bound attribute, one shallow comparison, and no DOM writes.
@@ -1244,7 +1244,7 @@ Do not "fix" a PulsePoint performance problem with `querySelector`, manual liste
 
 ## Context
 
-Context is implemented in the current runtime with a React-style provider pattern rather than a legacy `pp.provideContext(...)` helper. Because Caspian templates are HTML-first, authored provider tags should be written in lowercase HTML form, for example `<themecontext.provider>`, even when the JavaScript token is named `ThemeContext`.
+Context uses a React-style provider pattern: a token, a provider tag in markup, and `pp.context(token)` in descendants. Because Caspian templates are HTML-first, authored provider tags should be written in lowercase HTML form, for example `<themecontext.provider>`, even when the JavaScript token is named `ThemeContext`.
 
 How it works:
 
@@ -1705,7 +1705,7 @@ Use these rules when generating or editing PulsePoint runtime code:
 - In authored templates, use a plain, untyped `<script>` inside the root. PulsePoint safely captures it during deferred bootstrap and morph insertion.
 - Keep template-facing variables at top level.
 - Follow the HTML-first context pattern: `pp.createContext(...)`, a lowercase provider tag such as `<themecontext.provider value="{...}">`, and `pp.context(token)`.
-- Do not invent `pp.provideContext`, `pp-context`, or other legacy context helpers.
+- `pp.provideContext` and `pp-context` do not exist. Do not invent them or other context helpers.
 - Keep `pp-for` on `<template>` and use plain `key`.
 - Use native `on*` attributes, not framework-specific event syntax.
 - Use refs and portals only through the implemented `pp` APIs.
