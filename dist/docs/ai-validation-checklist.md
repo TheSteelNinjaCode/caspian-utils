@@ -72,9 +72,19 @@ Use prompts like these to check whether AI lands on the correct docs and files.
 | Add or debug a live WebSocket channel. | [index.md](./index.md), [websockets.md](./websockets.md), [core-runtime-map.md](./core-runtime-map.md), [pulsepoint.md](./pulsepoint.md), [auth.md](./auth.md) | `caspian.config.json`, `main.py`, `src/lib/websocket/**`, `src/app/**`, `settings/bs-config.json` | `websocket` feature gate, endpoint registration, origin checks, auth/session handling, native `WebSocket` client lifecycle, and BrowserSync URL selection |
 | Decide whether MCP files should be created. | [index.md](./index.md), [mcp.md](./mcp.md), [commands.md](./commands.md), [project-structure.md](./project-structure.md) | `caspian.config.json`, `settings/restart-mcp.ts`, `package.json`, `src/lib/mcp/**` when enabled | `mcp` feature gate, update workflow, nested FastMCP config ownership |
 
-Treat the table as a prompt pack for spot checks, not as a full validation matrix.
+Additional regression prompts for prop scope and browser verification:
+
+| Prompt | First docs AI should read | Controlling files AI should reach | Verification focus |
+| --- | --- | --- | --- |
+| A nested dialog throws `Cannot read properties of undefined (reading 'open')` from `open="{!!pp.props.open}"` although Python forwards the prop. | [pulsepoint.md](./pulsepoint.md#read-props-in-the-script-bind-names-in-markup), [components.md](./components.md#checklist) | The authoring component's `.py` and owned script; `public/js/pp-reactive-v2.min.js` if runtime tracing is needed | Distinguish missing root forwarding from script/template scope; export top-level bindings; open, close, and switch modes without new frontend errors |
+| The automated gate passes, but the frontend reporter still lists historical recheck entries after a UI fix. | [testing.md](./testing.md#frontend-verification-for-agents) | Project `AGENTS.md`, `package.json`, and the configured browser log/reporter | Read frontend feedback; repeat the affected interaction; correlate fresh events; report retained history honestly without clearing logs to manufacture a pass |
+
+Treat the tables as a prompt pack for spot checks, not as a full validation matrix.
 
 ## Common Failure Modes
+
+- AI forwards props correctly in Python but puts `pp.props` directly in markup (`open="{!!pp.props.open}"`, `hidden="{!!pp.props.rotate}"`, or `project-id="{pp.props.projectId}"`). It must find [Read props in the script, bind names in markup](./pulsepoint.md#read-props-in-the-script-bind-names-in-markup), expose top-level script bindings, and use those names in nested attributes and slot content. Optional chaining and switching to Jinja braces are not fixes.
+- AI reports a UI fix complete after static checks or first paint without reading frontend errors/warnings and repeating the affected interaction. It must find [Frontend verification for agents](./testing.md#frontend-verification-for-agents), discover the app's actual log source, and distinguish fresh errors, historical entries, and unavailable browser verification.
 
 - AI skips `caspian.config.json` and assumes an optional feature is enabled because a packaged doc exists.
 - AI reads only the packaged feature doc and never checks `main.py` or the installed runtime.

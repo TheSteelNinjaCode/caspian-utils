@@ -40,6 +40,8 @@ Apply these before generating any template, even without reading the rest of thi
 8. If an API is not in `public/js/pp-reactive-v2.min.js`, it does not exist; do not invent hooks, directives, or globals.
 9. **Every brace expression in an attribute must be inside quotes**: `class="{expr}"`, never `class={expr}`. Unquoted braces are shredded by the HTML parser.
 10. **A `{...}` expression produces text, never elements.** There is no JSX. Conditionals use `hidden="{...}"`, lists use `<template pp-for="…">`.
+11. **Read `pp.props` in the owning script, then bind top-level names in markup.** Do not put `pp.props` directly in child attributes, owned slot content, text, boolean attributes, or inline handlers. See [Read props in the script, bind names in markup](#read-props-in-the-script-bind-names-in-markup).
+12. **Verify frontend behavior in the browser and its console log before completion.** Exercise the affected interactions and inspect errors and warnings; a passing server-side gate is insufficient. Follow [Frontend verification for agents](./testing.md#frontend-verification-for-agents).
 
 ## PulsePoint Is Not JSX
 
@@ -530,7 +532,7 @@ Important:
 - Attribute names round-trip through kebab-case: `isFullscreen` renders as `is-fullscreen` and returns as `pp.props.isFullscreen`.
 - Attribute names that are JavaScript reserved words are dropped from the prop bag, so `pp.props.class` and `pp.props.for` never exist. Use a non-reserved prop name when the script must read the value.
 - `pp.props.children` contains the root's initial inner HTML before the owned script is removed from the render template.
-- Props are not auto-injected as standalone top-level template or handler variables. Read them through `pp.props` or explicitly destructure them in the component script.
+- Props are not auto-injected as standalone top-level template or handler variables. Read or destructure them through `pp.props` inside the component script, and use the exported names in markup. See [Read props in the script, bind names in markup](#read-props-in-the-script-bind-names-in-markup).
 
 Bindings exported to the template:
 
@@ -541,7 +543,7 @@ Bindings exported to the template:
 Bindings that should not be assumed:
 
 - Nested declarations inside functions, conditions, loops, and callbacks are not auto-exported.
-- There is no standalone `props` variable injected by the runtime. Use `pp.props`.
+- There is no standalone `props` variable injected by the runtime. Use `pp.props` inside the owning script, not directly in authored markup.
 
 Example:
 
@@ -1308,7 +1310,7 @@ In Caspian single-file Python components, the root element's attributes must be 
 - Mixed strings such as `class="card {isActive ? 'active' : ''}"` are interpolated in the parent scope.
 - Non-expression attribute values are passed through as strings.
 - `children` is injected into props using the root's initial inner HTML.
-- Inside the child component, those values should be accessed through `pp.props` or a top-level destructure such as `const { title } = pp.props`; they are not implicitly available as bare identifiers.
+- Inside the child component's script, access those values through `pp.props` or a top-level destructure such as `const { title } = pp.props`. Use `{title}` in markup; props are not implicitly available as bare identifiers.
 
 Nested components:
 
@@ -1316,6 +1318,51 @@ Nested components:
 - Parent prop interpolation still runs on nested child root attributes before the child refreshes.
 - Nested roots that contain their own `script` block are masked during parent template compilation.
 - Scriptless nested component roots are not fully masked during parent template compilation in the current source. Avoid generating child-local interpolations inside a nested root unless that child has its own `script` block.
+
+### Read props in the script, bind names in markup
+
+Use this section for `pp.props` evaluation errors in nested components, dialogs, slots, or forwarded child attributes. No optional feature flag gates this contract. Inspect the component that **authors** the expression and its owned script first; the script may belong to an ancestor of the element's final DOM location.
+
+There are three steps: the parent passes an expression, Python forwards the raw prop onto the component root, and the owning browser script exposes a binding to its template. The [Python forwarding contract](./components.md#every-prop-a-template-reads-must-be-forwarded-to-the-root) covers the first two steps. Forwarding alone does not make the script-local `pp.props` object available in every template evaluation scope.
+
+**Authoring rule: read `pp.props` inside `<script>`, then use top-level names in all markup expressions.** Nested boundary attributes and owned slot expressions evaluate against the author's exported bindings; do not assume their `pp` is the component-script API with its `props` bag. A direct `pp.props.open` access can throw even when `open` was correctly forwarded. Apply the same rule to text, boolean attributes, child props, and inline event expressions. Keep prop-dependent event logic in script-defined handlers.
+
+Broken template excerpts:
+
+```html
+<x-dialog open="{!!pp.props.open}">
+  <p hidden="{!!pp.props.rotate}">Enter a replacement value.</p>
+</x-dialog>
+<x-editor project-id="{pp.props.projectId}" />
+```
+
+Corrected excerpts from the same owning template:
+
+```html
+<x-dialog open="{dialogOpen}">
+  <p hidden="{isRotating}">Enter a replacement value.</p>
+</x-dialog>
+<x-editor project-id="{projectId}" />
+<script>
+  const dialogOpen = !!pp.props.open;
+  const isRotating = !!pp.props.rotate;
+  const projectId = pp.props.projectId || '';
+</script>
+```
+
+These are excerpts, not a complete component: import the components used by the `x-*` tags, place the markup and script inside one native root, and forward incoming props with `get_attributes(...)` and `{{ attributes }}`. The bindings above assume reactive booleans; literal strings such as `"false"` need explicit normalization. A top-level destructure is also valid. Derive values each render so parent prop changes reach the template; `pp.state(pp.props.open)` only seeds independent state and is not a substitute. Script-defined callbacks, effects, and RPC handlers may continue reading `pp.props` in their owning script scope.
+
+The single braces here are **browser PulsePoint bindings**. Double braces `{{...}}` are **server Jinja interpolation**; switching dialects does not fix ownership. Optional chaining such as `pp.props?.open` only hides the missing bag and can leave the dialog permanently closed.
+
+Recognize these diagnostic signatures:
+
+- `Failed to eval "!!pp.props.open"` or `Failed to evaluate prop expression` during boundary binding.
+- `Template Expression Failed` / `Render Cycle Failed` with `Cannot read properties of undefined (reading 'rotate')` during owned-content rendering.
+- `Cannot read properties of undefined (reading 'projectId')` when passing a prop onward to a child.
+
+Distinguish a missing field in an existing prop bag from the bag itself being unavailable. Check the Python root bridge, then replace direct markup access with script bindings in the authoring component. To trace the runtime, use [pulsepoint-runtime-map.md](./pulsepoint-runtime-map.md) and inspect `resolveBoundaryAttributeValue`, `evalPropExpression`, and `renderOwnedContent` in `public/js/pp-reactive-v2.min.js`; do not patch the runtime to compensate for incorrect app authoring.
+
+Verify by opening and closing the nested UI, changing the controlling prop in both directions, and exercising each affected mode. Inspect the frontend console/log after those interactions, not just after initial load. See [Frontend verification for agents](./testing.md#frontend-verification-for-agents).
 
 ## Template expressions and attributes
 

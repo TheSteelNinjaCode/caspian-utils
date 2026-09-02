@@ -345,10 +345,12 @@ Consequences to design around:
 
 For any Python component that accepts props, calls `get_attributes({...}, props)`, and has a `<script>` reading `pp.props`:
 
-1. List every variable the template's `{...}` expressions reference in the `get_attributes` defaults dictionary.
+1. Forward every incoming prop the script/template needs through `get_attributes`; explicitly include named Python parameters consumed out of `**props`. Locally derived bindings and state are not incoming props and do not belong in the defaults dictionary.
 2. Confirm `{{ attributes }}` is on the single root and `attributes=attributes` is passed into `html(...)`.
 3. For strict comparisons (`=== 0`, `=== "x"`), confirm the value arrives as a brace expression, or coerce it in the script.
 4. Avoid prop names that are JS reserved words or unintended native attributes (`title`, `class`, `for`).
+5. Read `pp.props` in the owning script and expose top-level names for markup. For example, `const dialogOpen = !!pp.props.open;` feeds `open="{dialogOpen}"`; never author `open="{!!pp.props.open}"`. Forwarding to the root and exporting script bindings are separate requirements. See [Read props in the script, bind names in markup](./pulsepoint.md#read-props-in-the-script-bind-names-in-markup) for nested/slot failures and corrected examples.
+6. Reopen the affected UI, change the controlling props, and inspect frontend errors and warnings after interactions. Follow [Frontend verification for agents](./testing.md#frontend-verification-for-agents); a successful Python render does not prove browser evaluation succeeded.
 
 ### HTML Attribute Helper Contract
 

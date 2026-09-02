@@ -105,6 +105,8 @@ The packaged Caspian docs referenced by this index live here:
 
 ## AI Retrieval Notes
 
+For prop-driven nested UI or `pp.props` evaluation errors, read [Read props in the script, bind names in markup](./pulsepoint.md#read-props-in-the-script-bind-names-in-markup) and the [component forwarding checklist](./components.md#checklist). For every frontend change, follow [Frontend verification for agents](./testing.md#frontend-verification-for-agents): inspect frontend errors and warnings before editing and after exercising the affected route and interactions. A passing server-side gate is not browser verification.
+
 If an AI tool needs Caspian documentation, start with this directory and use this file as the manifest.
 
 Preferred lookup order:
