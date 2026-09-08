@@ -8,6 +8,7 @@ related:
     - /docs/core-runtime-map
     - /docs/project-structure
     - /docs/commands
+    - /docs/agent-development
     - /docs/auth
     - /docs/index
 ---
@@ -156,11 +157,12 @@ Handle it in three layers, all generic:
 
 For every UI change or browser-error fix, inspect the frontend console/log before editing and after testing the changed behavior. Server-side type checking, linting, template validation, and unit tests do not prove that browser expressions or event handlers evaluate successfully.
 
-1. Discover the existing dev URL and frontend log/reporting command from the project's `AGENTS.md`, `package.json`, and dev tooling. A file-based browser-log bridge is app-owned, not a guaranteed Caspian package feature. Use it when available; otherwise read the browser console. Do not start a second dev stack just to obtain the first one's output.
+1. Discover the existing dev URL and frontend log/reporting command from the project's `AGENTS.md`, `package.json`, and dev tooling. A file-based browser-log bridge and coordinated dev hold are app-owned, not guaranteed Caspian package features. Use them when available; otherwise read the browser console and follow the project's manual reload flow. Do not start a second dev stack just to obtain the first one's output.
 2. Establish the affected route's baseline. Inspect errors and warnings, the active dev session, and the page/load that produced them. An empty log or a route that was never opened is not a pass.
-3. After the change, reload the actual route and repeat the affected interactions. For a prop-driven dialog, open and close it, switch modes, and verify both directions of the controlling boolean. A reload alone does not test a click handler or later prop update. Use safe or isolated test data for mutations.
-4. Read the frontend log again and correlate fresh reports with the retest. Investigate new errors and relevant warnings. Historical entries may remain: use session/page identifiers and timestamps, and do not delete the log, restart the stack, or edit unrelated source merely to obtain a clean label.
-5. Report the checks separately: automated gate result, route/interactions actually exercised, and new browser errors or remaining limitations. If the browser or dev server was unavailable, state that browser verification is incomplete; do not call it clean. If a reporter retains historical recheck entries, document the successful retest and remaining history rather than claiming its status changed.
+3. Make the complete related edit set before refreshing. If the project has the coordinated agent workflow, keep the hold active across all edits and read-only checks, then run `npm run dev:resume` once after the final edit. That release applies the queued changes as one Python restart and one browser reload. Never release after each file, and never treat a page loaded while `DEV HOLD ACTIVE` as post-change evidence. See [Agent Development Workflow](./agent-development.md).
+4. After the single release/reload, open the actual route and repeat the affected interactions. For a prop-driven dialog, open and close it, switch modes, and verify both directions of the controlling boolean. A reload alone does not test a click handler or later prop update. Use safe or isolated test data for mutations.
+5. Read the frontend log again and correlate fresh reports with the retest. Investigate new errors and relevant warnings. Historical entries may remain: use session/page identifiers and timestamps, and do not delete the log, restart the stack, or edit unrelated source merely to obtain a clean label.
+6. Report the checks separately: automated gate result, route/interactions actually exercised, and new browser errors or remaining limitations. If the browser or dev server was unavailable, state that browser verification is incomplete; do not call it clean. If a reporter retains historical recheck entries, document the successful retest and remaining history rather than claiming its status changed.
 
 For the prop-scope failure that static checks can miss, see [Read props in the script, bind names in markup](./pulsepoint.md#read-props-in-the-script-bind-names-in-markup).
 

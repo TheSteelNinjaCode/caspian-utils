@@ -12,6 +12,7 @@ related:
     - /docs/routing
     - /docs/static-export
     - /docs/testing
+    - /docs/agent-development
     - /docs/project-structure
     - /docs/index
 ---
@@ -87,6 +88,20 @@ Use when the user explicitly wants the local BrowserSync plus PostCSS developmen
 Only use this when the current project's `package.json` actually defines `npm run dev`.
 
 Long-running local stack commands can regenerate framework-owned outputs such as built CSS, generated component maps, route maps, `__pycache__/`, and `.pyc` files. Treat project-specific generated outputs as artifacts when those workflows intentionally run.
+
+### Coordinate an AI agent's development reload
+
+Projects with the agent development coordinator expose:
+
+```bash
+npm run dev:hold         # manual fallback: begin or refresh an editing batch
+npm run dev:hold:status  # inspect whether reloads are deferred
+npm run dev:resume       # end the batch and apply queued changes once
+```
+
+Supported agent hooks normally acquire the hold automatically before write-capable tools. The agent should finish all related edits and read-only checks, then run `npm run dev:resume` once before frontend verification. That single release lets the dev stack process the queued files as one Python restart and one browser reload. Do not call it after every file.
+
+This is app-owned scaffold tooling, not a `caspian.config.json` feature. Confirm the scripts plus `settings/dev-hold.ts`, `settings/dev-hold-hook.ts`, and hold-aware coordination in `settings/bs-config.ts` before assuming it exists. See [Agent Development Workflow](./agent-development.md) for host hooks, fallback behavior, expiry valves, and the verification sequence.
 
 ### Build generated assets for deployment
 
@@ -190,6 +205,7 @@ Use when `prisma/schema.prisma` changes and you need migrations, seed flow, and 
 - Treat `npm run dev`, `npm run build`, `npm run static`, and `npm run static:serve` as opt-in workflows.
 - Use `npm run static` only when the user wants a static HTML export, and `npm run static:serve` only to preview it. Both are app-owned conventions; confirm the scripts and `settings/build-static.py` / `settings/serve-static.py` exist first.
 - Use `npm run dev` only when the user explicitly asks to start the local stack or the task truly needs that running workflow.
+- When the existing dev stack has the agent hold integration, batch the entire edit phase and run `npm run dev:resume` once before browser verification; do not force a reload after each edit.
 - Use `npm run build` only for deployment prep or an explicit build request.
 - Treat `public/css/styles.css`, `settings/component-map.json`, `settings/files-list.json`, `__pycache__/`, and `.pyc` files as generated outputs when a script intentionally runs.
 - `src/app/globals.css` is the authored stylesheet and `public/css/styles.css` is its compiled output, in every project. Edit the former, never the latter, and do not introduce a second stylesheet because Tailwind happens to be disabled.

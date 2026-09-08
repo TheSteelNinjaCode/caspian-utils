@@ -11,6 +11,7 @@ related:
     - /docs/auth
     - /docs/fetch-data
     - /docs/pulsepoint
+    - /docs/agent-development
 ---
 
 This page gives AI a small validation workflow for checking whether the packaged Caspian docs lead to the correct source files and runtime behaviors.
@@ -74,6 +75,7 @@ Use prompts like these to check whether AI lands on the correct docs and files.
 | Add a global style, a CSS variable, a theme token, or a dark-mode rule. | [index.md](./index.md), [project-structure.md](./project-structure.md), [commands.md](./commands.md) | `src/app/globals.css`, `postcss.config.js`, `caspian.config.json`, the root `layout.py` | AI must edit `src/app/globals.css` and treat `public/css/styles.css` as generated output. It must not hand-edit the compiled file, add a second stylesheet, or inline a `<style>` block to route around a project where `tailwindcss` is `false` |
 | Style a page in a project where `caspian.config.json` has `tailwindcss: false`. | [index.md](./index.md), [project-structure.md](./project-structure.md), [components.md](./components.md) | `caspian.config.json`, `postcss.config.js`, `src/app/globals.css` | The flag changes only the PostCSS plugin list. AI must still author plain CSS in `globals.css` and let it compile to `public/css/styles.css`, and must not conclude that the project has no CSS pipeline |
 | Verify app-owned Python after a change, or wire a CI check. | [index.md](./index.md), [testing.md](./testing.md), [commands.md](./commands.md) | `package.json`, `settings/check.py`, `settings/fix.py`, `pyproject.toml` | AI must run `npm run test` — the one gate covering type check, lint, and tests — rather than a bare `pytest`, and must not propose separate `lint` / `typecheck` / `check` scripts beside it |
+| Edit several Caspian files while the existing development stack is running, then verify the UI. | [index.md](./index.md), [agent-development.md](./agent-development.md), [testing.md](./testing.md) | `package.json`, `settings/dev-hold.ts`, `settings/dev-hold-hook.ts`, `settings/bs-config.ts`, and the applicable `.claude`, `.github/hooks`, or `.codex` config | AI must finish the edit batch before one explicit `npm run dev:resume`, then verify the reloaded route; it must not refresh after each file or trust a digest marked `DEV HOLD ACTIVE` |
 
 Additional regression prompts for prop scope and browser verification:
 
@@ -88,6 +90,7 @@ Treat the tables as a prompt pack for spot checks, not as a full validation matr
 
 - AI forwards props correctly in Python but puts `pp.props` directly in markup (`open="{!!pp.props.open}"`, `hidden="{!!pp.props.rotate}"`, or `project-id="{pp.props.projectId}"`). It must find [Read props in the script, bind names in markup](./pulsepoint.md#read-props-in-the-script-bind-names-in-markup), expose top-level script bindings, and use those names in nested attributes and slot content. Optional chaining and switching to Jinja braces are not fixes.
 - AI reports a UI fix complete after static checks or first paint without reading frontend errors/warnings and repeating the affected interaction. It must find [Frontend verification for agents](./testing.md#frontend-verification-for-agents), discover the app's actual log source, and distinguish fresh errors, historical entries, and unavailable browser verification.
+- AI refreshes after every file in a multi-file change, causing repeated Python restarts and browser reloads, or it reads the frontend digest while the hold is active. It must find [Agent Development Workflow](./agent-development.md), complete one editing batch, release it once, and only then verify the changed UI.
 
 - AI skips `caspian.config.json` and assumes an optional feature is enabled because a packaged doc exists.
 - AI reads only the packaged feature doc and never checks `main.py` or the installed runtime.
