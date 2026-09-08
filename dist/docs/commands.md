@@ -1,6 +1,6 @@
 ---
 title: Commands
-description: Use this Caspian command reference for scaffolding, project updates, feature enablement, builds, and ORM regeneration. Use when the task mentions `create-caspian-app`, `casp update project`, `npm run dev`, `npm run build`, `prisma migrate`, or `ppy generate`.
+description: Use this Caspian command reference for scaffolding, project updates, feature enablement, builds, CSS compilation, the quality gate, and ORM regeneration. Use when the task mentions `create-caspian-app`, `casp update project`, `npm run dev`, `npm run build`, `npm run css`, `npm run test`, `prisma migrate`, or `ppy generate`.
 related:
   title: Related docs
   description: Start with installation for new apps, then use database, MCP, and structure docs when commands affect schema, server tooling, generated ORM files, or project layout.
@@ -11,6 +11,7 @@ related:
     - /docs/file-uploads
     - /docs/routing
     - /docs/static-export
+    - /docs/testing
     - /docs/project-structure
     - /docs/index
 ---
@@ -99,6 +100,45 @@ Only use this when the current project's `package.json` actually defines `npm ru
 
 Do not use `npm run build` as the default validation step for routine route, feature, or documentation edits.
 
+### Compile the stylesheet
+
+```bash
+npm run css        # watch: rebuild on every change (this is what `npm run dev` runs)
+npm run css:build  # one-shot: what `npm run build` runs
+```
+
+Both compile `src/app/globals.css` to `public/css/styles.css` through PostCSS.
+That pair is the styling convention in every Caspian project. Whether
+`caspian.config.json` has `tailwindcss: true` or `false` changes only the PostCSS
+plugin list in `postcss.config.js` — never the authored file, the generated file,
+or the `<link>` in the root layout.
+
+You rarely need to run these directly: `npm run dev` already runs the watcher and
+`npm run build` already runs the one-shot build. Reach for `npm run css:build`
+alone when you need the generated CSS refreshed without a full build.
+
+`public/css/styles.css` is generated output. Do not edit it, and do not add a
+second hand-maintained stylesheet beside it. See
+[project-structure.md](./project-structure.md) for the full contract.
+
+### Run the app's quality gate
+
+```bash
+npm run test      # type check + lint + tests, one pass, one exit code
+npm run test:fix  # apply safe auto-fixes, then re-run the gate
+```
+
+`npm run test` is the single gate command: it runs pyright, ruff, and pytest over
+the app's own Python and prints every problem as `path:line:col`. There is no
+separate `lint`, `typecheck`, or `check` script — one command is the whole
+surface, so an agent cannot validate the app by running the narrower one.
+
+This is an **app-owned convention**, not a shipped Caspian feature and not gated
+by a `caspian.config.json` flag, so confirm the scripts exist in the project's
+`package.json` first. See [testing.md](./testing.md) for the orchestrator layout,
+the `pyproject.toml` configuration, and why ruff must never auto-delete a
+component import used as an `<x-*>` tag.
+
 ### Export the app to static HTML and preview it
 
 ```bash
@@ -115,7 +155,7 @@ This is an **app-owned build convention**, not a shipped Caspian feature and not
 
 Two things AI must keep correct:
 
-- The `static` script must run `npm run build` (Tailwind **and** `projectName`) before `settings/build-static.py`, because the exporter walks the route index in `settings/files-list.json` that `projectName` regenerates. A build that only runs `tailwind:build` can export from a stale route index.
+- The `static` script must run `npm run build` (the CSS build **and** `projectName`) before `settings/build-static.py`, because the exporter walks the route index in `settings/files-list.json` that `projectName` regenerates. A build that only runs `css:build` can export from a stale route index.
 - `settings/serve-static.py` auto-selects a free port starting at a preferred default (8000) and binds loopback `127.0.0.1` by default; read the port it prints rather than assuming 8000 or reading `settings/bs-config.json` (that file is the dev BrowserSync source of truth, not the static preview).
 
 See [static-export.md](./static-export.md) for the full export scope policy, `static_paths` dynamic-route pre-rendering, and the preview-server security and port behavior.
@@ -152,6 +192,8 @@ Use when `prisma/schema.prisma` changes and you need migrations, seed flow, and 
 - Use `npm run dev` only when the user explicitly asks to start the local stack or the task truly needs that running workflow.
 - Use `npm run build` only for deployment prep or an explicit build request.
 - Treat `public/css/styles.css`, `settings/component-map.json`, `settings/files-list.json`, `__pycache__/`, and `.pyc` files as generated outputs when a script intentionally runs.
+- `src/app/globals.css` is the authored stylesheet and `public/css/styles.css` is its compiled output, in every project. Edit the former, never the latter, and do not introduce a second stylesheet because Tailwind happens to be disabled.
+- `npm run test` is the quality gate and `npm run test:fix` its auto-fix companion. Run the gate after changing app-owned Python; it is the one command, so do not substitute a bare `pytest` run for it.
 - Analyze `settings/component-map.json` and `settings/files-list.json` when needed, but do not hand-edit them. `settings/component-map.ts` and `settings/files-list.ts` regenerate them during the intentional dev and build flows.
 - Keep any runtime upload directory that the project uses in the BrowserSync ignore list so uploads do not trigger reloads on every new blob.
 - Do not edit `__pycache__/` directories or `.pyc` files, and do not leave them in the final diff.

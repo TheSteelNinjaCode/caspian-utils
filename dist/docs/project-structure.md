@@ -57,6 +57,7 @@ Treat `caspian.config.json` as the single source of truth for optional feature e
 my-app/
   main.py
   caspian.config.json
+  postcss.config.js
   prisma/
     schema.prisma
     seed.ts
@@ -64,11 +65,13 @@ my-app/
     bs-config.ts
     build.ts
   public/
+    css/
+      styles.css        # generated from src/app/globals.css - never edited by hand
   src/
     app/
       layout.py
       index.py
-      globals.css
+      globals.css       # the only stylesheet you author
     components/
       Container.py
       ui/
@@ -298,9 +301,62 @@ That authored root may be a native HTML element or a single imported `x-*` compo
 
 Use `components.md` when the task involves authoring reusable `<x-my-component />` tags backed by Python files.
 
-### `src/app/globals.css`
+### `src/app/globals.css` And `public/css/styles.css`
 
-Global application styles.
+`src/app/globals.css` is the **only stylesheet you author**. It compiles to
+`public/css/styles.css`, and that generated file is the one the root layout links:
+
+```html
+<link href="/css/styles.css" rel="stylesheet" />
+```
+
+Never edit `public/css/styles.css`. It is build output and is overwritten on the
+next compile — an edit there is lost the moment the watcher or the build runs.
+
+This pair is the styling convention in **every** Caspian project, with or without
+Tailwind. The input path, the output path, and the `<link>` are identical either
+way; `caspian.config.json`'s `tailwindcss` flag changes only what runs *between*
+them:
+
+| `tailwindcss` | What `globals.css` is authored in | What compiles it |
+| --- | --- | --- |
+| `true` | Tailwind's CSS-first dialect — `@import "tailwindcss"`, `@theme`, `@custom-variant`, `@source`, `@apply` — plus any plain CSS you add | PostCSS with `@tailwindcss/postcss` in the plugin list |
+| `false` | Plain CSS | PostCSS with no Tailwind plugin (a pass-through plus whatever other plugins the project configures) |
+
+So "does this project use Tailwind?" is a question about the plugin list, never
+about where CSS lives. Do not add a second stylesheet, a `public/css/*.css` you
+maintain by hand, or a per-page `<style>` block to work around a project that has
+Tailwind disabled — write plain CSS in `globals.css` and it ships through the same
+pipeline.
+
+**The compiler is PostCSS**, configured by `postcss.config.js` at the project
+root, which reads the `tailwindcss` flag out of `caspian.config.json` and builds
+its plugin list from it. Projects commonly also add a minifier (for example
+`cssnano`) for one-shot builds only, leaving watch output readable in devtools.
+
+**The scripts** are conventionally `npm run css` (watch, part of `npm run dev`)
+and `npm run css:build` (one-shot, part of `npm run build`). Confirm the names in
+the project's `package.json`; they are app-owned, like every other script there.
+
+**Why the watcher watches `.py` files when Tailwind is on.** Tailwind generates
+utilities from the class names it finds in scanned source. In Caspian those class
+names live inside `html(r"""...""")` in `.py` files, not in `.html` files — so a
+Tailwind-enabled project rebuilds CSS on Python changes as well as CSS ones,
+while a Tailwind-disabled project only needs to watch stylesheets. This is also
+why `globals.css` normally declares its scan roots explicitly, for example:
+
+```css
+@import "tailwindcss" source(none);
+@source "../";        /* src/** — the Python templates */
+@source "../../ts";   /* only when caspian.config.json has typescript: true */
+```
+
+`source(none)` turns off Tailwind's automatic detection so the `@source` lines are
+the whole scan set. If a utility class you wrote in a component never appears in
+the output, check those `@source` roots before suspecting the pipeline.
+
+Third-party CSS is pulled in with `@import` at the top of `globals.css`, so it
+goes through the same compile and lands in the same served file.
 
 ### `.venv/Lib/site-packages/casp/`
 
@@ -334,7 +390,7 @@ If an AI agent is deciding where to make changes, use these rules first.
 - Treat `caspian.config.json` as the single source of truth for optional feature enablement. Use feature-specific docs and file paths only when the matching flag is enabled.
 - If an optional feature is disabled and the user wants it, ask first, then update `caspian.config.json` and use `npx casp update project` before assuming feature-managed files exist.
 - Treat `package.json` scripts as opt-in operations. Do not run `npm run dev` or `npm run build` unless the user explicitly asks, the task genuinely requires that exact script, or deployment prep needs `npm run build`.
-- Treat `__pycache__/` directories, `.pyc` files, `public/css/styles.css`, `settings/component-map.json`, and `settings/files-list.json` as generated artifacts when the local stack is intentionally running. They are not authored source files.
+- Treat `__pycache__/` directories, `.pyc` files, `public/css/styles.css`, `settings/component-map.json`, and `settings/files-list.json` as generated artifacts when the local stack is intentionally running. They are not authored source files. For styling, author `src/app/globals.css` only — see [`src/app/globals.css` and `public/css/styles.css`](#srcappglobalscss-and-publiccssstylescss).
 - Inspect `settings/component-map.json` and `settings/files-list.json` when you need the generated component or route inventory, but do not hand-edit them. The workspace regenerates them from `settings/component-map.ts` and `settings/files-list.ts`.
 - Put route templates and route-specific backend logic in `src/app/`.
 - Put only genuinely shared helpers, services, adapters, and validation logic in `src/lib/`.

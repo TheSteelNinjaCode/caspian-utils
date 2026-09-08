@@ -1,6 +1,6 @@
 ---
 title: Testing And Quality Gate
-description: Use this page when the task mentions tests, pytest, type checking, pyright, linting, ruff, auto-fixing lint (ruff --fix / check:fix), unused-import (F401) removal, a quality gate, CI checks, or "make the code production-ready" for a Caspian app's own Python. Explains the recommended one-command gate over `main.py` and `src/**`, and why ruff must not auto-delete component imports used as `<x-*>` tags.
+description: Use this page when the task mentions tests, pytest, type checking, pyright, linting, ruff, auto-fixing lint (ruff --fix / test:fix), unused-import (F401) removal, a quality gate, CI checks, or "make the code production-ready" for a Caspian app's own Python. Explains the recommended one-command gate over `main.py` and `src/**`, and why ruff must not auto-delete component imports used as `<x-*>` tags.
 related:
   title: Related docs
   description: Pair the quality gate with the runtime map when a failing check points into core files, and with the structure and command docs when deciding where tests and tooling belong.
@@ -26,15 +26,34 @@ Caspian does not ship a test runner, type checker, or linter. Quality tooling is
 
 Expose a single gate command so an agent or CI has exactly one thing to run. The recommended command runs three tools in one pass and reports every problem with its exact location:
 
-- **type check** — [pyright](https://github.com/microsoft/pyright) over `main.py` and `src/**` (Pylance, the default VS Code Python language server, is Pyright under the hood and reads the same `[tool.pyright]` config, so the editor and `npm run check` report the same thing)
+- **type check** — [pyright](https://github.com/microsoft/pyright) over `main.py` and `src/**` (Pylance, the default VS Code Python language server, is Pyright under the hood and reads the same `[tool.pyright]` config, so the editor and `npm run test` report the same thing)
 - **lint** — [ruff](https://docs.astral.sh/ruff/)
 - **tests** — [pytest](https://docs.pytest.org)
 
-The command should print each problem as `path:line:col [tool:code] message` and exit non-zero when any check fails, so the file and line to fix are always explicit. Prefer a single `npm run check` script (backed by an app-owned orchestrator such as `settings/check.py`) over separate `test` / `lint` / `typecheck` scripts, so the surface stays minimal. Keep a per-tool escape hatch (for example `--only pyright`) for debugging rather than as additional npm scripts.
+The command should print each problem as `path:line:col [tool:code] message` and exit non-zero when any check fails, so the file and line to fix are always explicit. Keep a per-tool escape hatch (for example `--only pyright`) for debugging rather than as additional npm scripts.
+
+### The Gate Is `npm run test`
+
+Name the npm script `test`. `npm run test` runs the whole gate — type check, lint, and tests — in one pass, and it is the command an agent, a contributor, or CI is told to run.
+
+Do not expose `check`, `lint`, or `typecheck` scripts beside it. A second entry point is one that an agent can run *instead* of the gate while believing it validated the app, which is exactly the failure the single-command shape exists to prevent.
+
+The npm script name and the orchestrator filename are deliberately different things. `settings/check.py` stays the conventional orchestrator filename — it is what the script calls and what `--only pyright` is passed to — while `npm run test` is the name everything else uses:
+
+```json
+{
+  "scripts": {
+    "test": "uv run python settings/check.py",
+    "test:fix": "uv run python settings/fix.py"
+  }
+}
+```
+
+`pytest` on its own is **not** the gate: it skips the type check and the lint. When a project also wants a bare test-runner script, give it an explicitly narrower name such as `test:py`, so `npm run test` remains the one command that means "everything passed".
 
 ## Source Of Truth
 
-- The gate command and its tool list are app-owned. Confirm the actual script name in the project's `package.json` and the orchestrator file (commonly `settings/check.py`) before assuming a command exists.
+- The gate is `npm run test`, and its auto-fix companion is `npm run test:fix`. Both are app-owned scripts backed by an orchestrator in `settings/`, so confirm them in the project's `package.json` before assuming the command exists — but when it does exist, `test` is the name it has.
 - Tooling versions and configuration are app-owned in `pyproject.toml`. Do not assume a tool is installed just because this doc mentions it; check the project's dependency group and `uv.lock`.
 - App tests live in a top-level `tests/` directory. Framework internals under `.venv/Lib/site-packages/casp/**` are never the test target.
 
@@ -44,7 +63,10 @@ The command should print each problem as `path:line:col [tool:code] message` and
 tests/
   conftest.py            # put project root on sys.path; set safe dev env defaults
   test_*.py              # app-level unit + integration tests
-settings/check.py        # orchestrator: runs the tools, prints path:line:col report
+settings/check.py        # orchestrator behind `npm run test`: runs the tools,
+                         # prints the path:line:col report, sets the exit code
+settings/fix.py          # orchestrator behind `npm run test:fix`: applies safe
+                         # fixes, then re-runs the gate for the final report
 ```
 
 - `conftest.py` should add the project root to `sys.path` and set safe development defaults (for example `APP_ENV=development` and a throwaway `AUTH_SECRET`) so importing `main` never fails during collection.
@@ -79,7 +101,7 @@ ignore = ["E501"]
 
 [tool.pyright]
 # Pylance (the VS Code Python extension) reads this same config, so the editor
-# and `npm run check` report the same thing instead of disagreeing.
+# and `npm run test` report the same thing instead of disagreeing.
 # `settings/*.py` is included so the orchestrator scripts are type-checked too.
 include = ["main.py", "src", "settings/*.py"]
 exclude = [".venv", "node_modules", "**/__pycache__"]
@@ -100,7 +122,7 @@ typeCheckingMode = "basic"
 
 ## Auto-Fixing, And Why Ruff Must Not Delete Component Imports
 
-The gate only **reports**. Ruff can also **fix** many lint findings in place, so a second command is worth exposing alongside the gate — recommended `npm run check:fix`, backed by a small orchestrator (for example `settings/fix.py`) that applies safe fixes and then re-runs the gate to print the authoritative report of what is left. Type errors (pyright) and failing tests (pytest) are never auto-fixed.
+The gate only **reports**. Ruff can also **fix** many lint findings in place, so a second command is worth exposing alongside the gate — recommended `npm run test:fix`, backed by a small orchestrator (for example `settings/fix.py`) that applies safe fixes and then re-runs the gate to print the authoritative report of what is left. Type errors (pyright) and failing tests (pytest) are never auto-fixed.
 
 **Hazard — unused-import autofix (`F401`) breaks single-file components.** A single-file component imports its children and then uses them **only** as `<x-*>` tags inside an `html(...)` template string, for example `from .Dialog import DialogContent` used as `<x-dialog-content>`. Ruff parses Python, not the template string, so it reports the import as unused (`F401`) and `--fix` would delete it. That import is load-bearing: Caspian resolves the tag from the **module's globals at render time** (see `component_decorator.module_component_scope`, which collects the module's `Component` instances). Deleting it breaks rendering at runtime, silently. This affects any component file, so it cannot be scoped by path — but it also must not disable dead-import cleanup for ordinary Python.
 
@@ -115,7 +137,7 @@ Handle it in three layers, all generic:
    unfixable = ["F401"]
    ```
 
-2. **Let the fixer still clean genuinely dead imports.** The `check:fix` orchestrator lists `F401` findings under the project config, marks any file that contains an import used as an `<x-*>` tag as *component-guarded*, and removes dead imports only from the **non-guarded** files. Because the project config makes `F401` unfixable, re-enable removal for that step with an **isolated** ruff run scoped to those exact files: `ruff check <files> --select F401 --fix-only --isolated` (`--isolated` ignores the project config so `F401` is fixable again; passing explicit files keeps include/exclude moot). Guarded files are skipped whole and left for the gate to report, so a load-bearing import is never at risk.
+2. **Let the fixer still clean genuinely dead imports.** The `test:fix` orchestrator lists `F401` findings under the project config, marks any file that contains an import used as an `<x-*>` tag as *component-guarded*, and removes dead imports only from the **non-guarded** files. Because the project config makes `F401` unfixable, re-enable removal for that step with an **isolated** ruff run scoped to those exact files: `ruff check <files> --select F401 --fix-only --isolated` (`--isolated` ignores the project config so `F401` is fixable again; passing explicit files keeps include/exclude moot). Guarded files are skipped whole and left for the gate to report, so a load-bearing import is never at risk.
 
 3. **Keep the gate honest.** In the orchestrator (`settings/check.py`), drop the `F401` findings whose bound symbol is actually used as an `<x-*>` tag in the same file, and keep the rest — so the gate still fails on genuinely dead imports. Derive the tag exactly as the compiler does: `x-{camel_to_kebab(import_name)}` (mirror `casp.string_helpers.camel_to_kebab`; e.g. `DialogContent` → `<x-dialog-content`). Pull the symbol from the ruff JSON message (`` `.Dialog.DialogContent` imported but unused`` → last dotted segment, or the alias after ` as `), then match `<x-dialog-content` on a tag boundary in the file source. Share this detection between the fixer and the gate in one module (for example `settings/_component_imports.py`).
 
@@ -123,9 +145,9 @@ Handle it in three layers, all generic:
 
 ## Things To Verify Before Editing Or Explaining
 
-- Confirm the gate command name and orchestrator path in `package.json` and `settings/`, since they are app-owned and may differ per project.
+- Confirm `npm run test` and `npm run test:fix` exist in `package.json` and that their orchestrators are present in `settings/`, since both are app-owned rather than shipped by the framework.
 - Confirm the dev tools are actually installed (`[dependency-groups]` in `pyproject.toml`, resolved in `uv.lock`) before telling a user to run the gate.
-- Check `[tool.pyright]` in `pyproject.toml`. A project may set `typeCheckingMode = "basic"` (Pylance's default, recommended) and individually silence rules with `reportReturnType = "none"` / `reportAssignmentType = "none"` (commonly done to mirror older pyrefly-based setups). Any rule silenced there is then not reported by the gate, so do not assume every annotation mismatch is caught. Pylance in the editor reads this same config, so the IDE and `npm run check` agree.
+- Check `[tool.pyright]` in `pyproject.toml`. A project may set `typeCheckingMode = "basic"` (Pylance's default, recommended) and individually silence rules with `reportReturnType = "none"` / `reportAssignmentType = "none"` (commonly done to mirror older pyrefly-based setups). Any rule silenced there is then not reported by the gate, so do not assume every annotation mismatch is caught. Pylance in the editor reads this same config, so the IDE and `npm run test` agree.
 - Keep the scope on app code. If a check points into `.venv/Lib/site-packages/casp/**`, use [core-runtime-map.md](./core-runtime-map.md) to understand the runtime, but do not add framework files to the app's test, lint, or type-check scope.
 
 ## Working Rule For Agents

@@ -27,7 +27,7 @@ Read this doc when the task is about:
 
 ## Feature Status And Gate
 
-Static export is an **app-owned build convention layered on top of Caspian**, the same category as the `npm run check` quality gate in [testing.md](./testing.md). The framework itself ships no static exporter and no preview server. There is **no `caspian.config.json` flag** for it.
+Static export is an **app-owned build convention layered on top of Caspian**, the same category as the `npm run test` quality gate in [testing.md](./testing.md). The framework itself ships no static exporter and no preview server. There is **no `caspian.config.json` flag** for it.
 
 Because it is not a shipped feature, do not assume it exists in every Caspian project. Confirm it in the project first:
 
@@ -36,12 +36,12 @@ Because it is not a shipped feature, do not assume it exists in every Caspian pr
 
 If those are absent, the project has not adopted static export; do not invent the scripts unless the user asks you to add them.
 
-When `caspian.config.json` has `tailwindcss: true`, the export compiles Tailwind as part of the build (see the build order below). In `backendOnly` projects a static HTML export is usually not meaningful.
+The export compiles the app's CSS as part of the build (see the build order below): `src/app/globals.css` to `public/css/styles.css`, which is then mirrored into `static/`. That happens in every project — `caspian.config.json`'s `tailwindcss` flag only decides whether Tailwind is one of the PostCSS plugins doing the compiling. In `backendOnly` projects a static HTML export is usually not meaningful.
 
 ## The Two Commands
 
 ```bash
-# 1. Export the app to static/  (build metadata + Tailwind, then render every static route)
+# 1. Export the app to static/  (build metadata + frontend assets, then render every static route)
 npm run static
 
 # 2. Preview the exported static/ folder over HTTP (robust, auto-selects a free port)
@@ -56,7 +56,7 @@ The script is composed so the export always runs against a **fresh route/compone
 "static": "npm run build && uv run python settings/build-static.py"
 ```
 
-`npm run build` is `tailwind:build` **plus** `projectName`. The `projectName` step (`settings/project-name.ts`) regenerates `settings/files-list.json` and `settings/component-map.json` and clears stale `.casp/` and `caches/`. This matters: `settings/build-static.py` boots the app and iterates `get_files_index()`, which reads `settings/files-list.json` — **the route index that decides what gets exported**. If the export ran after only `tailwind:build` (skipping `projectName`), a newly added route or component could be missing from the index and silently never exported, and a removed one could error. Always regenerate metadata before exporting; reuse `npm run build` rather than duplicating just the Tailwind half.
+`npm run build` is the frontend asset build — `css:build`, plus `ts:build` when `caspian.config.json` has `typescript: true` — **plus** `projectName`. The `projectName` step (`settings/project-name.ts`) regenerates `settings/files-list.json` and `settings/component-map.json` and clears stale `.casp/` and `caches/`. This matters: `settings/build-static.py` boots the app and iterates `get_files_index()`, which reads `settings/files-list.json` — **the route index that decides what gets exported**. If the export ran after only `css:build` (skipping `projectName`), a newly added route or component could be missing from the index and silently never exported, and a removed one could error. Always regenerate metadata before exporting; reuse `npm run build` rather than duplicating just the asset half.
 
 `settings/build-static.py` then:
 
@@ -95,7 +95,7 @@ Preview over HTTP — do **not** double-click `static/index.html` (`file://`): r
 
 ## Files AI Usually Inspects
 
-- `package.json` — confirm the `static` / `static:serve` scripts and their composition (the export must run `npm run build`, not just `tailwind:build`).
+- `package.json` — confirm the `static` / `static:serve` scripts and their composition (the export must run `npm run build`, not just `css:build`).
 - `settings/build-static.py` — the exporter: route walking, `static_paths` resolution, skip policy, asset copy.
 - `settings/serve-static.py` — the preview server: port-walk, loopback binding, headers, env overrides.
 - `settings/project-name.ts` — regenerates `settings/files-list.json` and `settings/component-map.json` that the exporter walks.
@@ -105,7 +105,7 @@ Preview over HTTP — do **not** double-click `static/index.html` (`file://`): r
 ## Verify Before Editing Or Explaining
 
 - Confirm the scripts and both `settings/*.py` files exist before describing static export as available in the project.
-- Confirm the `static` script runs `npm run build` (metadata + Tailwind) before `settings/build-static.py`; a build that only runs `tailwind:build` exports from a stale route index.
+- Confirm the `static` script runs `npm run build` (metadata + frontend assets) before `settings/build-static.py`; a build that only runs `css:build` exports from a stale route index.
 - For any dynamic route the user expects in the output, confirm its `index.py` exports `static_paths`; otherwise it is skipped by design.
 - Read the port the serve command prints; do not assume `8000` or read `settings/bs-config.json` for it.
 - Treat `static/`, `settings/files-list.json`, and `settings/component-map.json` as generated outputs — do not hand-edit them.

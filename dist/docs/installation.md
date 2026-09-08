@@ -86,6 +86,8 @@ npm run dev
 
 Confirm what `npm run dev` does in the generated project's `package.json`. Many Caspian projects use BrowserSync plus PostCSS watchers rather than a Vite dev server, but the actual script wins.
 
+One of those watchers is the CSS pipeline: `src/app/globals.css` compiles to `public/css/styles.css`, and the root layout links the generated file. That pair exists in every scaffold, with or without Tailwind — the `tailwindcss` flag only decides whether `postcss.config.js` loads the Tailwind plugin. Author styles in `globals.css`; never edit `public/css/styles.css`. See [project-structure.md](./project-structure.md).
+
 For AI agents and other automated helpers, this is an opt-in local-stack command, not a default validation step. Do not run `package.json` scripts just because a route, feature, or doc changed.
 
 If `npm run dev` is intentionally running, let that stack own generated outputs such as `public/css/styles.css`, `settings/component-map.json`, `settings/files-list.json`, `__pycache__/`, and `.pyc` files. Use `npm run build` only for deployment prep or when the user explicitly asks for a build.
@@ -106,7 +108,8 @@ Once the project is scaffolded:
 - Read `file-uploads.md` before building file pickers, media libraries, or Prisma-backed file-manager flows.
 - Read `validation.md` before handling forms, auth input, or RPC payloads.
 - Read `routing.md` to learn how `src/app` folders map to URLs.
-- Read `project-structure.md` to place route code, shared libraries, config, and database files in the correct directories.
+- Read `project-structure.md` to place route code, shared libraries, config, database files, and styles in the correct directories.
+- Read `testing.md` before adding tests, type checking, or linting. The convention is one gate command, `npm run test`, plus `npm run test:fix`; it is app-owned tooling, so a fresh scaffold may not have it yet.
 
 ## AI Retrieval Notes
 

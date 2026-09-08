@@ -72,6 +72,8 @@ Notes:
 
 ## Tailwind Merge Contract
 
+This contract is about **class merging only**. Where the stylesheet lives never changes with the flag: `src/app/globals.css` is the authored file and `public/css/styles.css` its compiled output in every project — see [project-structure.md](./project-structure.md).
+
 When `caspian.config.json` has `tailwindcss: true`, Caspian uses a frontend-first Tailwind merge contract.
 
 - In Python components, use `merge_classes(...)` to assemble class defaults plus incoming class props.
